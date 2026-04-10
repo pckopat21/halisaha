@@ -41,15 +41,39 @@ class PlayerController extends Controller
             'is_permanent_staff' => 'boolean',
             'is_licensed' => 'boolean',
             'health_certificate' => 'boolean',
+            'team_id' => 'nullable|exists:teams,id',
+            'is_captain' => 'boolean'
         ]);
 
         if ($request->has('health_certificate') && $request->health_certificate) {
             $validated['health_certificate_at'] = now();
         }
 
-        Player::create($validated);
+        $player = Player::create($validated);
 
-        return redirect()->back()->with('success', 'Personel başarıyla kaydedildi.');
+        // If team_id is provided, automatically add to that team
+        if ($request->team_id) {
+            $team = \App\Models\Team::findOrFail($request->team_id);
+            
+            // Add to roster
+            $team->players()->syncWithoutDetaching([$player->id]);
+
+            // If is_captain is marked, set as team captain
+            if ($request->is_captain) {
+                $team->update(['captain_id' => $player->id]);
+            }
+        }
+
+        return redirect()->back()->with('success', 'Personel başarıyla kaydedildi' . ($request->team_id ? ' ve kadroya eklendi.' : '.'));
+    }
+
+    public function toggleHealth(Player $player)
+    {
+        $player->update([
+            'health_certificate_at' => $player->health_certificate_at ? null : now()
+        ]);
+
+        return redirect()->back()->with('success', 'Sağlık raporu durumu güncellendi.');
     }
 
     public function update(Player $player, \Illuminate\Http\Request $request)

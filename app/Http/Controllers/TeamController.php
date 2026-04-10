@@ -13,7 +13,7 @@ class TeamController extends Controller
     public function index()
     {
         $user = auth()->user();
-        $query = Team::with(['unit', 'tournament', 'owner']);
+        $query = Team::with(['unit', 'tournament', 'owner'])->withCount('players');
 
         if ($user && !$user->isCommittee()) {
             // For team managers, we still let them see all teams (as requested: "diğer takımları görebilir")
@@ -30,7 +30,7 @@ class TeamController extends Controller
 
         return Inertia::render('teams/index', [
             'teams' => $teams,
-            'tournaments' => Tournament::where('status', 'registration')->get(),
+            'tournaments' => Tournament::whereIn('status', ['registration', 'active'])->get(),
             'units' => \App\Models\Unit::all()
         ]);
     }

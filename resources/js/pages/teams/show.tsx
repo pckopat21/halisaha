@@ -489,7 +489,7 @@ export default function Show({ team, can }: Props) {
  
                                                     <div className="flex gap-4 pt-6">
                                                         <Button type="button" variant="ghost" className="flex-1 rounded-2xl h-14 uppercase font-black text-[10px] tracking-widest" onClick={() => setShowRegistrationForm(false)}>GERİ DÖN</Button>
-                                                        <Button type="submit" disabled={processing} className="flex-1 rounded-2xl h-14 bg-blue-600 hover:bg-blue-700 text-white shadow-xl shadow-blue-500/20 uppercase font-black text-[10px] tracking-widest">OYUNCUYU BAŞLAT</Button>
+                                                        <Button type="submit" disabled={processing} className="flex-1 rounded-2xl h-14 bg-blue-600 hover:bg-blue-700 text-white shadow-xl shadow-blue-500/20 uppercase font-black text-[10px] tracking-widest">KAYDET VE KADROYA EKLE</Button>
                                                     </div>
                                                 </form>
                                             )}

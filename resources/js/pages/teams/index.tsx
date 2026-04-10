@@ -34,6 +34,7 @@ interface Team {
     unit: { name: string } | null;
     tournament: { name: string } | null;
     user_id: number;
+    players_count: number;
 }
 
 interface Props {
@@ -170,6 +171,7 @@ export default function Index({ teams, tournaments, units }: Props) {
                                     <TableHead className="py-6 px-8 uppercase font-black text-[10px] text-neutral-400 tracking-widest">Takım Bilgileri</TableHead>
                                     <TableHead className="py-6 uppercase font-black text-[10px] text-neutral-400 tracking-widest">Birim</TableHead>
                                     <TableHead className="py-6 uppercase font-black text-[10px] text-neutral-400 tracking-widest">Turnuva</TableHead>
+                                    <TableHead className="py-6 uppercase font-black text-[10px] text-neutral-400 tracking-widest">Kadro</TableHead>
                                     <TableHead className="py-6 uppercase font-black text-[10px] text-neutral-400 tracking-widest">Durum</TableHead>
                                     <TableHead className="py-6 px-8 text-right uppercase font-black text-[10px] text-neutral-400 tracking-widest">Aksiyon</TableHead>
                                 </TableRow>
@@ -200,6 +202,13 @@ export default function Index({ teams, tournaments, units }: Props) {
                                         </TableCell>
                                         <TableCell className="py-6">
                                             <span className="text-[10px] font-black uppercase text-neutral-400 tracking-widest line-clamp-1">{team.tournament?.name || 'BELİRSİZ'}</span>
+                                        </TableCell>
+                                        <TableCell className="py-6">
+                                            <div className="flex items-center gap-2">
+                                                <Badge variant="outline" className={`border-none px-2 py-0.5 rounded-md text-[10px] font-black ${team.players_count < 6 ? 'bg-rose-50 text-rose-600' : team.players_count >= 12 ? 'bg-blue-50 text-blue-600' : 'bg-neutral-50 text-neutral-600'}`}>
+                                                    <Users className="h-3 w-3 mr-1.5" /> {team.players_count} / 12
+                                                </Badge>
+                                            </div>
                                         </TableCell>
                                         <TableCell className="py-6">
                                             {team.status === 'approved' ? (
