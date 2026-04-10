@@ -19,6 +19,9 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogDescription, DialogFooter } from "@/components/ui/dialog";
+import { Label } from "@/components/ui/label";
+import { useState } from "react";
 
 const breadcrumbs: BreadcrumbItem[] = [
     { title: 'Dashboard', href: '/dashboard' },
@@ -38,11 +41,25 @@ interface Props {
 }
 
 export default function Index({ tournaments }: Props) {
-    const { post, processing } = useForm({ group_count: 4 });
+    const [isOpen, setIsOpen] = useState(false);
+    const { data, setData, post, processing, reset, errors } = useForm({
+        name: '',
+        year: new Date().getFullYear(),
+    });
+
+    const handleCreate = (e: React.FormEvent) => {
+        e.preventDefault();
+        post(route('tournaments.store'), {
+            onSuccess: () => {
+                setIsOpen(false);
+                reset();
+            },
+        });
+    };
 
     const handleDraw = (id: number) => {
         if (confirm('Kura çekimi yapılarak fikstür oluşturulacaktır. Emin misiniz?')) {
-            post(route('tournaments.draw', id));
+            router.post(route('tournaments.draw', id));
         }
     };
 
@@ -60,9 +77,50 @@ export default function Index({ tournaments }: Props) {
                         <p className="text-muted-foreground mt-2 font-medium">Sistemdeki tüm aktif ve geçmiş halı saha organizasyonlarını buradan yönetin.</p>
                     </div>
 
-                    <Button className="h-12 px-8 bg-blue-600 hover:bg-blue-700 text-white font-black uppercase tracking-widest text-[10px] rounded-2xl shadow-lg shadow-blue-600/20 active:scale-95 transition-all">
-                        <Plus className="mr-2 h-4 w-4" /> YENİ TURNUVA BAŞLAT
-                    </Button>
+                    <Dialog open={isOpen} onOpenChange={setIsOpen}>
+                        <DialogTrigger asChild>
+                            <Button className="h-12 px-8 bg-blue-600 hover:bg-blue-700 text-white font-black uppercase tracking-widest text-[10px] rounded-2xl shadow-lg shadow-blue-600/20 active:scale-95 transition-all">
+                                <Plus className="mr-2 h-4 w-4" /> YENİ TURNUVA BAŞLAT
+                            </Button>
+                        </DialogTrigger>
+                        <DialogContent className="sm:max-w-md rounded-[2rem] p-0 overflow-hidden border-none shadow-2xl">
+                            <DialogHeader className="p-8 bg-neutral-900 text-white">
+                                <DialogTitle className="text-2xl font-black uppercase tracking-tighter">YENİ TURNUVA SEZONU</DialogTitle>
+                                <DialogDescription className="text-neutral-400 font-bold uppercase text-[10px] tracking-widest mt-1">
+                                    Turnuva detaylarını girerek yeni bir sezon başlatın.
+                                </DialogDescription>
+                            </DialogHeader>
+                            <form onSubmit={handleCreate} className="p-8 space-y-6">
+                                <div className="space-y-2">
+                                    <Label htmlFor="name" className="text-[10px] font-black uppercase text-neutral-400">TURNUVA ADI</Label>
+                                    <Input 
+                                        id="name" 
+                                        value={data.name} 
+                                        onChange={e => setData('name', e.target.value)}
+                                        placeholder="Örn: 2026 Bahar Turnuvası" 
+                                        className="h-12 rounded-xl bg-neutral-50 border-neutral-100 font-bold uppercase"
+                                        required
+                                    />
+                                    {errors.name && <p className="text-[10px] text-rose-500 font-bold">{errors.name}</p>}
+                                </div>
+                                <div className="space-y-2">
+                                    <Label htmlFor="year" className="text-[10px] font-black uppercase text-neutral-400">YIL</Label>
+                                    <Input 
+                                        id="year" 
+                                        type="number"
+                                        value={data.year} 
+                                        onChange={e => setData('year', parseInt(e.target.value))}
+                                        className="h-12 rounded-xl bg-neutral-50 border-neutral-100 font-bold"
+                                        required
+                                    />
+                                    {errors.year && <p className="text-[10px] text-rose-500 font-bold">{errors.year}</p>}
+                                </div>
+                                <Button type="submit" disabled={processing} className="w-full h-12 bg-blue-600 hover:bg-blue-700 font-black uppercase tracking-widest text-[10px] rounded-xl shadow-lg shadow-blue-500/20">
+                                    TURNUVAYI OLUŞTUR VE BAŞLAT
+                                </Button>
+                            </form>
+                        </DialogContent>
+                    </Dialog>
                 </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">

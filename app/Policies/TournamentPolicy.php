@@ -29,7 +29,7 @@ class TournamentPolicy
      */
     public function create(User $user): bool
     {
-        return $user->isSuperAdmin();
+        return $user->isCommittee();
     }
 
     /**
@@ -37,7 +37,7 @@ class TournamentPolicy
      */
     public function update(User $user, Tournament $tournament): bool
     {
-        return $user->isSuperAdmin();
+        return $user->isCommittee();
     }
 
     /**
@@ -45,7 +45,7 @@ class TournamentPolicy
      */
     public function delete(User $user, Tournament $tournament): bool
     {
-        return $user->isSuperAdmin();
+        return $user->isCommittee();
     }
 
     /**

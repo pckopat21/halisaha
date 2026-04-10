@@ -31,6 +31,8 @@ interface Props {
 export default function Show({ game }: Props) {
     const { auth, errors } = usePage().props as any;
     const isCommittee = auth.user?.role === 'committee' || auth.user?.role === 'super_admin';
+    const isReferee = auth.user?.role === 'referee';
+    const canManageEvents = isCommittee || isReferee;
     
     const submitEvent = (teamId: number, playerId: number, type: string) => {
         router.post(route('games.event', game.id), {
@@ -134,51 +136,53 @@ export default function Show({ game }: Props) {
                                 <CardHeader className="bg-neutral-50 dark:bg-neutral-900 font-black uppercase tracking-wider text-xs border-b">
                                     {team.name} - Kontrol Paneli
                                 </CardHeader>
-                                <CardContent className="p-4 overflow-x-auto">
-                                    <table className="w-full text-sm">
-                                        <thead>
-                                            <tr className="text-left text-neutral-500">
-                                                <th className="pb-4">Oyuncu</th>
-                                                <th className="pb-4 text-right">Olay Ekle</th>
-                                            </tr>
-                                        </thead>
-                                        <tbody>
-                                            {team.players.map((player) => (
-                                                <tr key={player.id} className="border-t">
-                                                    <td className="py-3 font-bold">{player.first_name} {player.last_name}</td>
-                                                    <td className="py-2 text-right">
-                                                        <div className="flex justify-end gap-1">
-                                                            <Button 
-                                                                size="sm" variant="outline" className="h-8 w-8 p-0 border-emerald-200 text-emerald-600 hover:bg-emerald-50"
-                                                                onClick={() => submitEvent(team.id, player.id, 'goal')}
-                                                            >
-                                                                G
-                                                            </Button>
-                                                            <Button 
-                                                                size="sm" variant="outline" className="h-8 w-8 p-0 border-amber-200 text-amber-600 hover:bg-amber-50"
-                                                                onClick={() => submitEvent(team.id, player.id, 'yellow_card')}
-                                                            >
-                                                                S
-                                                            </Button>
-                                                            <Button 
-                                                                size="sm" variant="outline" className="h-8 w-8 p-0 border-rose-200 text-rose-600 hover:bg-rose-50"
-                                                                onClick={() => submitEvent(team.id, player.id, 'red_card')}
-                                                            >
-                                                                K
-                                                            </Button>
-                                                            <Button 
-                                                                size="sm" variant="outline" className="h-8 w-8 p-0 border-blue-200 text-blue-600 hover:bg-blue-50"
-                                                                onClick={() => submitEvent(team.id, player.id, 'sub_in')}
-                                                            >
-                                                                D
-                                                            </Button>
-                                                        </div>
-                                                    </td>
+                                    <CardContent className="p-4 overflow-x-auto">
+                                        <table className="w-full text-sm">
+                                            <thead>
+                                                <tr className="text-left text-neutral-500">
+                                                    <th className="pb-4">Oyuncu</th>
+                                                    {canManageEvents && <th className="pb-4 text-right">Olay Ekle</th>}
                                                 </tr>
-                                            ))}
-                                        </tbody>
-                                    </table>
-                                </CardContent>
+                                            </thead>
+                                            <tbody>
+                                                {team.players.map((player) => (
+                                                    <tr key={player.id} className="border-t">
+                                                        <td className="py-3 font-bold">{player.first_name} {player.last_name}</td>
+                                                        {canManageEvents && (
+                                                            <td className="py-2 text-right">
+                                                                <div className="flex justify-end gap-1">
+                                                                    <Button 
+                                                                        size="sm" variant="outline" className="h-8 w-8 p-0 border-emerald-200 text-emerald-600 hover:bg-emerald-50"
+                                                                        onClick={() => submitEvent(team.id, player.id, 'goal')}
+                                                                    >
+                                                                        G
+                                                                    </Button>
+                                                                    <Button 
+                                                                        size="sm" variant="outline" className="h-8 w-8 p-0 border-amber-200 text-amber-600 hover:bg-amber-50"
+                                                                        onClick={() => submitEvent(team.id, player.id, 'yellow_card')}
+                                                                    >
+                                                                        S
+                                                                    </Button>
+                                                                    <Button 
+                                                                        size="sm" variant="outline" className="h-8 w-8 p-0 border-rose-200 text-rose-600 hover:bg-rose-50"
+                                                                        onClick={() => submitEvent(team.id, player.id, 'red_card')}
+                                                                    >
+                                                                        K
+                                                                    </Button>
+                                                                    <Button 
+                                                                        size="sm" variant="outline" className="h-8 w-8 p-0 border-blue-200 text-blue-600 hover:bg-blue-50"
+                                                                        onClick={() => submitEvent(team.id, player.id, 'sub_in')}
+                                                                    >
+                                                                        D
+                                                                    </Button>
+                                                                </div>
+                                                            </td>
+                                                        )}
+                                                    </tr>
+                                                ))}
+                                            </tbody>
+                                        </table>
+                                    </CardContent>
                             </Card>
                         ))}
                         
@@ -219,22 +223,24 @@ export default function Show({ game }: Props) {
                             </Card>
                         )}
 
-                        <div className="flex flex-col gap-4 pt-4 border-t">
-                            {errors && Object.keys(errors).length > 0 && (
-                                <div className="p-4 bg-rose-50 text-rose-600 rounded-xl text-xs font-bold border border-rose-100">
-                                    {Object.values(errors).join(', ')}
+                        {isCommittee && (
+                            <div className="flex flex-col gap-4 pt-4 border-t">
+                                {errors && Object.keys(errors).length > 0 && (
+                                    <div className="p-4 bg-rose-50 text-rose-600 rounded-xl text-xs font-bold border border-rose-100">
+                                        {Object.values(errors).join(', ')}
+                                    </div>
+                                )}
+                                <div className="flex justify-end gap-4">
+                                    <Button variant="outline" className="font-bold">Maçı İptal Et</Button>
+                                    <Button 
+                                        onClick={() => router.post(route('games.complete', game.id))}
+                                        className="bg-blue-600 hover:bg-blue-700 font-bold px-8"
+                                    >
+                                        Maçı Tamamla
+                                    </Button>
                                 </div>
-                            )}
-                            <div className="flex justify-end gap-4">
-                                <Button variant="outline" className="font-bold">Maçı İptal Et</Button>
-                                <Button 
-                                    onClick={() => router.post(route('games.complete', game.id))}
-                                    className="bg-blue-600 hover:bg-blue-700 font-bold px-8"
-                                >
-                                    Maçı Tamamla
-                                </Button>
                             </div>
-                        </div>
+                        )}
                     </div>
                 </div>
             </div>

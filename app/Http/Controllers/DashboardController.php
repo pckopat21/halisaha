@@ -8,40 +8,63 @@ use App\Models\Tournament;
 use App\Models\Team;
 use App\Models\Game;
 use App\Models\Player;
+use App\Services\StatsService;
 use Inertia\Inertia;
 
 class DashboardController extends Controller
 {
-    public function index()
+    public function index(StatsService $statsService)
     {
         $user = auth()->user();
+        $activeTournament = Tournament::whereIn('status', ['active', 'registration'])->latest()->first() ?? Tournament::latest()->first();
         
+        $stats = [
+            'tournaments_count' => Tournament::count(),
+            'teams_count' => Team::count(),
+            'games_count' => Game::count(),
+            'players_count' => Player::count(),
+            'top_scorer' => $activeTournament ? $statsService->getTopScorers($activeTournament, 1)->first() : null,
+        ];
+
+        $upcomingGames = Game::with(['homeTeam.unit', 'awayTeam.unit'])
+            ->where('status', 'scheduled')
+            ->orderBy('scheduled_at')
+            ->take(5)
+            ->get();
+
         if ($user->isCommittee()) {
             return Inertia::render('dashboard', [
-                'stats' => [
-                    'tournaments_count' => Tournament::count(),
-                    'teams_count' => Team::count(),
-                    'games_count' => Game::count(),
-                    'players_count' => Player::count(),
-                ],
+                'stats' => $stats,
                 'recent_games' => Game::with(['homeTeam', 'awayTeam'])
+                    ->where('status', 'completed')
                     ->latest()
                     ->take(5)
                     ->get(),
-                'active_tournament' => Tournament::where('status', 'active')->first(),
+                'upcoming_games' => $upcomingGames,
+                'active_tournament' => $activeTournament,
             ]);
         }
 
         // Team Manager Dashboard
-        $myTeam = Team::where('user_id', $user->id)->with(['tournament', 'unit'])->first();
+        $myTeam = Team::where('user_id', $user->id)->with(['tournament', 'unit', 'players'])->first();
+        $myStanding = null;
+        if ($myTeam) {
+            $myStanding = \App\Models\Standing::where('team_id', $myTeam->id)->first();
+        }
         
         return Inertia::render('dashboard/manager', [
+            'stats' => $stats,
             'team' => $myTeam,
-            'tournaments' => Tournament::where('status', 'registration')->get(),
-            'upcoming_games' => $myTeam ? Game::where('home_team_id', $myTeam->id)
-                ->orWhere('away_team_id', $myTeam->id)
-                ->where('status', 'scheduled')
+            'standing' => $myStanding,
+            'tournaments' => Tournament::whereIn('status', ['registration', 'active'])->get(),
+            'upcoming_games' => $upcomingGames,
+            'my_games' => $myTeam ? Game::where(function($q) use ($myTeam) {
+                    $q->where('home_team_id', $myTeam->id)
+                      ->orWhere('away_team_id', $myTeam->id);
+                })
                 ->with(['homeTeam', 'awayTeam'])
+                ->orderBy('scheduled_at')
+                ->take(5)
                 ->get() : [],
         ]);
     }

@@ -34,4 +34,9 @@ class Player extends Model
     {
         return $this->belongsToMany(Team::class, 'team_player');
     }
+
+    public function events()
+    {
+        return $this->hasMany(GameEvent::class);
+    }
 }

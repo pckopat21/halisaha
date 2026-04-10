@@ -1,27 +1,45 @@
 import AppLayout from '@/layouts/app-layout';
-import { type BreadcrumbItem } from '@/types';
-import { Head } from '@inertiajs/react';
-import { Trophy, Users, Calendar, Activity, ChevronRight, PlayCircle } from 'lucide-react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-
-const breadcrumbs: BreadcrumbItem[] = [
-    {
-        title: 'Dashboard',
-        href: '/dashboard',
-    },
-];
+import { type BreadcrumbItem, SharedData } from '@/types';
+import { Head, Link, usePage } from '@inertiajs/react';
+import { 
+    Trophy, 
+    Users, 
+    Calendar, 
+    Activity, 
+    ChevronRight, 
+    PlayCircle, 
+    Target, 
+    Medal, 
+    Clock, 
+    LayoutDashboard,
+    ArrowUpRight,
+    Search,
+    Bell
+} from 'lucide-react';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import { format } from 'date-fns';
+import { tr } from 'date-fns/locale';
 
 interface Stats {
     tournaments_count: number;
     teams_count: number;
     games_count: number;
     players_count: number;
+    top_scorer?: {
+        id: number;
+        first_name: string;
+        last_name: string;
+        goals_count: number;
+        unit?: { name: string };
+    };
 }
 
 interface Game {
     id: number;
-    home_team: { name: string };
-    away_team: { name: string };
+    home_team: { name: string; unit?: { name: string } };
+    away_team: { name: string; unit?: { name: string } };
     home_score: number;
     away_score: number;
     status: string;
@@ -31,164 +49,264 @@ interface Game {
 interface Props {
     stats: Stats;
     recent_games: Game[];
+    upcoming_games: Game[];
     active_tournament: any;
 }
 
-export default function Dashboard({ stats, recent_games, active_tournament }: Props) {
+const breadcrumbs: BreadcrumbItem[] = [
+    { title: 'Kontrol Merkezi', href: '/dashboard' },
+];
+
+export default function Dashboard({ stats, recent_games, upcoming_games, active_tournament }: Props) {
+    const { auth } = usePage<SharedData>().props;
+
     return (
         <AppLayout breadcrumbs={breadcrumbs}>
-            <Head title="Dashboard" />
+            <Head title="Kontrol Merkezi" />
             
-            <div className="relative flex h-full flex-1 flex-col gap-6 p-6 overflow-hidden">
-                {/* Decorative Soccer Field Background Pattern (Subtle) */}
-                <div className="absolute inset-0 z-0 opacity-[0.03] pointer-events-none dark:opacity-[0.05]">
-                    <div className="absolute inset-0 bg-[radial-gradient(#059669_1px,transparent_1px)] [background-size:40px_40px]" />
-                    <div className="absolute top-1/2 left-0 right-0 h-px bg-emerald-900" />
-                    <div className="absolute top-1/2 left-1/2 h-40 w-40 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-emerald-900" />
+            <div className="min-h-screen bg-slate-50/50 dark:bg-black p-4 md:p-8 space-y-8 font-sans">
+                
+                {/* Global Search & Notifications Bar */}
+                <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 mb-8">
+                    <div>
+                        <h1 className="text-3xl font-black uppercase tracking-tighter">
+                            HOŞ GELDİN, <span className="text-blue-600">{auth.user.name.split(' ')[0]}</span>
+                        </h1>
+                        <p className="text-muted-foreground text-xs font-bold uppercase tracking-widest mt-1">Turnuva yönetim sistemi hazır ve nazır.</p>
+                    </div>
+                    <div className="flex items-center gap-4">
+                        <div className="hidden md:flex items-center bg-white dark:bg-neutral-900 border border-border px-4 py-2 rounded-2xl w-64 shadow-sm">
+                            <Search className="h-4 w-4 text-muted-foreground mr-2" />
+                            <input type="text" placeholder="Hızlı ara..." className="bg-transparent border-none text-xs outline-none w-full font-medium" />
+                        </div>
+                        <Button variant="outline" size="icon" className="rounded-2xl border-border bg-white dark:bg-neutral-900 shadow-sm relative">
+                            <Bell className="h-4 w-4 text-muted-foreground" />
+                            <span className="absolute top-2 right-2 w-2 h-2 bg-rose-500 rounded-full border-2 border-white dark:border-black" />
+                        </Button>
+                    </div>
                 </div>
 
-                {/* Stats Grid */}
-                <div className="relative z-10 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-                    <Card className="overflow-hidden border-none bg-gradient-to-br from-blue-600 to-indigo-700 text-white shadow-lg transition-transform hover:scale-105">
-                        <CardContent className="p-6">
-                            <div className="flex items-center justify-between">
-                                <div>
-                                    <p className="text-sm font-medium opacity-80">Aktif Turnuvalar</p>
-                                    <h3 className="text-3xl font-bold">{stats.tournaments_count}</h3>
-                                </div>
-                                <div className="rounded-full bg-white/20 p-3">
-                                    <Trophy className="h-6 w-6" />
-                                </div>
+                {/* Hero Stats Section */}
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                    <Card className="group relative overflow-hidden border-none bg-blue-600 text-white shadow-2xl transition-all hover:scale-[1.02]">
+                        <div className="absolute top-0 right-0 p-8 opacity-10 group-hover:scale-110 transition-transform">
+                            <Trophy className="h-24 w-24" />
+                        </div>
+                        <CardContent className="p-8">
+                            <p className="text-xs font-black uppercase tracking-widest opacity-70 mb-2">Turnuva Sayısı</p>
+                            <h3 className="text-5xl font-black tabular-nums">{stats.tournaments_count}</h3>
+                            <div className="mt-4 flex items-center gap-2 text-[10px] font-bold">
+                                <Badge className="bg-white/20 text-white border-none py-0.5 px-2">+{stats.tournaments_count / 2} BU YIL</Badge>
                             </div>
                         </CardContent>
                     </Card>
 
-                    <Card className="overflow-hidden border-none bg-gradient-to-br from-emerald-500 to-teal-600 text-white shadow-lg transition-transform hover:scale-105">
-                        <CardContent className="p-6">
-                            <div className="flex items-center justify-between">
-                                <div>
-                                    <p className="text-sm font-medium opacity-80">Toplam Takımlar</p>
-                                    <h3 className="text-3xl font-bold">{stats.teams_count}</h3>
-                                </div>
-                                <div className="rounded-full bg-white/20 p-3">
-                                    <Users className="h-6 w-6" />
-                                </div>
+                    <Card className="group relative overflow-hidden border-none bg-emerald-600 text-white shadow-2xl transition-all hover:scale-[1.02]">
+                        <div className="absolute top-0 right-0 p-8 opacity-10 group-hover:scale-110 transition-transform">
+                            <Users className="h-24 w-24" />
+                        </div>
+                        <CardContent className="p-8">
+                            <p className="text-xs font-black uppercase tracking-widest opacity-70 mb-2">Toplam Takım</p>
+                            <h3 className="text-5xl font-black tabular-nums">{stats.teams_count}</h3>
+                            <div className="mt-4 flex items-center gap-2 text-[10px] font-bold">
+                                <Badge className="bg-white/20 text-white border-none py-0.5 px-2">AKTİF KAYITLAR</Badge>
                             </div>
                         </CardContent>
                     </Card>
 
-                    <Card className="overflow-hidden border-none bg-gradient-to-br from-amber-500 to-orange-600 text-white shadow-lg transition-transform hover:scale-105">
-                        <CardContent className="p-6">
-                            <div className="flex items-center justify-between">
-                                <div>
-                                    <p className="text-sm font-medium opacity-80">Oynanan Maçlar</p>
-                                    <h3 className="text-3xl font-bold">{stats.games_count}</h3>
-                                </div>
-                                <div className="rounded-full bg-white/20 p-3">
-                                    <Calendar className="h-6 w-6" />
-                                </div>
+                    <Card className="group relative overflow-hidden border-none bg-neutral-900 text-white shadow-2xl transition-all hover:scale-[1.02]">
+                        <div className="absolute top-0 right-0 p-8 opacity-10 group-hover:scale-110 transition-transform">
+                            <Activity className="h-24 w-24" />
+                        </div>
+                        <CardContent className="p-8">
+                            <p className="text-xs font-black uppercase tracking-widest opacity-70 mb-2">Toplam Maç</p>
+                            <h3 className="text-5xl font-black tabular-nums">{stats.games_count}</h3>
+                            <div className="mt-4 flex items-center gap-2 text-[10px] font-bold">
+                                <Badge className="bg-white/20 text-white border-none py-0.5 px-2">SKORLAR GÜNCEL</Badge>
                             </div>
                         </CardContent>
                     </Card>
 
-                    <Card className="overflow-hidden border-none bg-gradient-to-br from-rose-500 to-pink-600 text-white shadow-lg transition-transform hover:scale-105">
-                        <CardContent className="p-6">
-                            <div className="flex items-center justify-between">
-                                <div>
-                                    <p className="text-sm font-medium opacity-80">Kayıtlı Oyuncular</p>
-                                    <h3 className="text-3xl font-bold">{stats.players_count}</h3>
-                                </div>
-                                <div className="rounded-full bg-white/20 p-3">
-                                    <Activity className="h-6 w-6" />
-                                </div>
+                    <Card className="group relative overflow-hidden border-none bg-amber-500 text-white shadow-2xl transition-all hover:scale-[1.02]">
+                        <div className="absolute top-0 right-0 p-8 opacity-10 group-hover:scale-110 transition-transform">
+                            <Target className="h-24 w-24" />
+                        </div>
+                        <CardContent className="p-8">
+                            <p className="text-xs font-black uppercase tracking-widest opacity-70 mb-2">Oyuncu Sayısı</p>
+                            <h3 className="text-5xl font-black tabular-nums">{stats.players_count}</h3>
+                            <div className="mt-4 flex items-center gap-2 text-[10px] font-bold">
+                                <Badge className="bg-white/20 text-white border-none py-0.5 px-2">LİSANS KAYITLI</Badge>
                             </div>
                         </CardContent>
                     </Card>
                 </div>
 
-                <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
-                    {/* Recent Games List */}
-                    <div className="lg:col-span-2">
-                        <Card className="h-full shadow-sm">
-                            <CardHeader className="flex flex-row items-center justify-between">
-                                <CardTitle className="text-lg font-bold">Son Maçlar</CardTitle>
-                                <button className="text-sm font-medium text-blue-600 hover:underline">Tümünü Gör</button>
+                <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+                    
+                    {/* Main Content Area */}
+                    <div className="lg:col-span-2 space-y-8">
+                        
+                        {/* Upcoming Matches Section */}
+                        <Card className="border-none shadow-xl bg-white/80 dark:bg-neutral-900/80 backdrop-blur-3xl rounded-[2.5rem] overflow-hidden">
+                            <CardHeader className="p-8 flex flex-row items-center justify-between border-b border-neutral-100 dark:border-white/5">
+                                <div>
+                                    <CardTitle className="text-xl font-black uppercase tracking-tighter">Yaklaşan Maçlar</CardTitle>
+                                    <CardDescription className="text-xs font-bold uppercase tracking-widest text-muted-foreground mt-1">PROGRAMDAKİ İLK 5 MÜSABAKA</CardDescription>
+                                </div>
+                                <Calendar className="h-5 w-5 text-blue-600" />
                             </CardHeader>
-                            <CardContent className="flex flex-col gap-4">
-                                {recent_games.length > 0 ? (
-                                    recent_games.map((game) => (
-                                        <div key={game.id} className="flex items-center justify-between rounded-lg border p-4 transition-colors hover:bg-neutral-50 dark:hover:bg-neutral-900">
-                                            <div className="flex flex-1 items-center justify-end font-bold">
-                                                {game.home_team.name}
-                                            </div>
-                                            <div className="mx-6 flex items-center gap-3">
-                                                <div className="flex h-10 w-12 items-center justify-center rounded bg-slate-100 text-lg font-black dark:bg-neutral-800">
-                                                    {game.home_score}
+                            <CardContent className="p-0">
+                                {upcoming_games.length > 0 ? (
+                                    <div className="divide-y divide-neutral-100 dark:divide-white/5">
+                                        {upcoming_games.map((game) => (
+                                            <Link key={game.id} href={route('games.show', game.id)} className="flex items-center justify-between p-6 hover:bg-neutral-50 dark:hover:bg-white/[0.02] transition-colors group">
+                                                <div className="flex flex-1 items-center gap-4">
+                                                    <div className="w-10 h-10 rounded-xl bg-muted flex items-center justify-center font-black text-xs text-muted-foreground group-hover:bg-blue-600 group-hover:text-white transition-all">
+                                                        {game.home_team.name.substring(0, 2).toUpperCase()}
+                                                    </div>
+                                                    <span className="font-black text-sm uppercase tracking-tight">{game.home_team.name}</span>
                                                 </div>
-                                                <span className="text-neutral-400">-</span>
-                                                <div className="flex h-10 w-12 items-center justify-center rounded bg-slate-100 text-lg font-black dark:bg-neutral-800">
-                                                    {game.away_score}
+                                                
+                                                <div className="flex flex-col items-center gap-1 mx-4 min-w-[100px]">
+                                                    <div className="bg-slate-100 dark:bg-white/5 px-4 py-1.5 rounded-full border border-border">
+                                                        <span className="text-lg font-black tabular-nums">{format(new Date(game.scheduled_at), 'HH:mm')}</span>
+                                                    </div>
+                                                    <span className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">{format(new Date(game.scheduled_at), 'd MMMM', { locale: tr })}</span>
                                                 </div>
-                                            </div>
-                                            <div className="flex flex-1 items-center justify-start font-bold">
-                                                {game.away_team.name}
-                                            </div>
-                                            <div className="ml-4">
-                                                {game.status === 'playing' ? (
-                                                    <span className="flex items-center gap-1 rounded-full bg-rose-100 px-2 py-0.5 text-xs font-bold text-rose-600 animate-pulse">
-                                                        <PlayCircle className="h-3 w-3" /> CANLI
-                                                    </span>
-                                                ) : (
-                                                    <ChevronRight className="h-5 w-5 text-neutral-300" />
-                                                )}
-                                            </div>
-                                        </div>
-                                    ))
+
+                                                <div className="flex flex-1 items-center justify-end gap-4">
+                                                    <span className="font-black text-sm uppercase tracking-tight text-right">{game.away_team.name}</span>
+                                                    <div className="w-10 h-10 rounded-xl bg-muted flex items-center justify-center font-black text-xs text-muted-foreground group-hover:bg-blue-600 group-hover:text-white transition-all">
+                                                        {game.away_team.name.substring(0, 2).toUpperCase()}
+                                                    </div>
+                                                </div>
+                                            </Link>
+                                        ))}
+                                    </div>
                                 ) : (
-                                    <div className="flex flex-col items-center justify-center py-12 text-neutral-400">
-                                        <Calendar className="mb-2 h-12 w-12 opacity-20" />
-                                        <p>Henüz maç verisi bulunmuyor.</p>
+                                    <div className="py-20 text-center flex flex-col items-center justify-center gap-4">
+                                        <div className="h-16 w-16 bg-muted rounded-full flex items-center justify-center opacity-20">
+                                            <Clock className="h-8 w-8" />
+                                        </div>
+                                        <p className="text-xs font-black uppercase tracking-widest text-muted-foreground/50">Planlı bir maç bulunmuyor.</p>
+                                    </div>
+                                )}
+                            </CardContent>
+                        </Card>
+
+                        {/* Recent Results Section */}
+                        <Card className="border-none shadow-xl bg-white/80 dark:bg-neutral-900/80 backdrop-blur-3xl rounded-[2.5rem] overflow-hidden">
+                            <CardHeader className="p-8 flex flex-row items-center justify-between border-b border-neutral-100 dark:border-white/5">
+                                <div>
+                                    <CardTitle className="text-xl font-black uppercase tracking-tighter">Son Sonuçlar</CardTitle>
+                                    <CardDescription className="text-xs font-bold uppercase tracking-widest text-muted-foreground mt-1">TAMAMLANAN MAÇLARIN SKORLARI</CardDescription>
+                                </div>
+                                <Trophy className="h-5 w-5 text-amber-500" />
+                            </CardHeader>
+                            <CardContent className="p-0">
+                                {recent_games.length > 0 ? (
+                                    <div className="divide-y divide-neutral-100 dark:divide-white/5">
+                                        {recent_games.map((game) => (
+                                            <Link key={game.id} href={route('games.show', game.id)} className="flex items-center justify-between p-6 hover:bg-neutral-50 dark:hover:bg-white/[0.02] transition-colors group">
+                                                <div className="flex flex-1 items-center gap-4">
+                                                    <div className="w-10 h-10 rounded-xl bg-neutral-100 dark:bg-white/5 flex items-center justify-center font-black text-xs text-muted-foreground group-hover:bg-amber-600 group-hover:text-white transition-all">
+                                                        {game.home_team.name.substring(0, 2).toUpperCase()}
+                                                    </div>
+                                                    <span className="font-black text-sm uppercase tracking-tight">{game.home_team.name}</span>
+                                                </div>
+                                                
+                                                <div className="flex items-center gap-3 mx-4">
+                                                    <div className="bg-slate-900 text-white w-10 h-12 flex items-center justify-center text-xl font-black rounded-xl shadow-lg">{game.home_score}</div>
+                                                    <div className="bg-slate-900 text-white w-10 h-12 flex items-center justify-center text-xl font-black rounded-xl shadow-lg">{game.away_score}</div>
+                                                </div>
+
+                                                <div className="flex flex-1 items-center justify-end gap-4">
+                                                    <span className="font-black text-sm uppercase tracking-tight text-right">{game.away_team.name}</span>
+                                                    <div className="w-10 h-10 rounded-xl bg-neutral-100 dark:bg-white/5 flex items-center justify-center font-black text-xs text-muted-foreground group-hover:bg-amber-600 group-hover:text-white transition-all">
+                                                        {game.away_team.name.substring(0, 2).toUpperCase()}
+                                                    </div>
+                                                </div>
+                                            </Link>
+                                        ))}
+                                    </div>
+                                ) : (
+                                    <div className="py-20 text-center">
+                                        <p className="text-xs font-black uppercase tracking-widest text-muted-foreground/50">Henüz tamamlanan maç yok.</p>
                                     </div>
                                 )}
                             </CardContent>
                         </Card>
                     </div>
 
-                    {/* Active Tournament Card */}
-                    <div>
-                        <Card className="h-full bg-slate-50 shadow-sm dark:bg-neutral-950/50">
-                            <CardHeader>
-                                <CardTitle className="text-lg font-bold">Turnuva Durumu</CardTitle>
+                    {/* Sidebar Area */}
+                    <div className="space-y-8">
+                        
+                        {/* Featured Stats: Top Scorer */}
+                        <Card className="border-none shadow-2xl bg-gradient-to-br from-amber-400 to-orange-600 text-white rounded-[2.5rem] overflow-hidden relative group">
+                            <div className="absolute top-0 right-0 p-8 opacity-20 pointer-events-none group-hover:rotate-12 transition-transform">
+                                <Medal className="h-32 w-32" />
+                            </div>
+                            <CardHeader className="p-8">
+                                <Badge className="bg-white/20 text-white border-none font-black text-[9px] uppercase tracking-widest mb-4">ALTIN AYAKKABI ADAYI</Badge>
+                                <CardTitle className="text-2xl font-black uppercase tracking-tighter">EN GOLCÜ OYUNCU</CardTitle>
                             </CardHeader>
-                            <CardContent>
+                            <CardContent className="p-8 pt-0 flex items-center gap-6">
+                                {stats.top_scorer ? (
+                                    <>
+                                        <div className="w-20 h-20 rounded-3xl bg-white/20 flex items-center justify-center text-3xl font-black shadow-2xl">
+                                            {stats.top_scorer.first_name[0]}{stats.top_scorer.last_name[0]}
+                                        </div>
+                                        <div>
+                                            <h4 className="text-xl font-black uppercase tracking-tight">{stats.top_scorer.first_name} {stats.top_scorer.last_name}</h4>
+                                            <p className="text-xs font-bold uppercase opacity-80 mb-2">{stats.top_scorer.unit?.name}</p>
+                                            <Badge className="bg-white text-orange-600 font-black px-4 py-1.5 rounded-full text-lg tabular-nums shadow-lg">{stats.top_scorer.goals_count} GOL</Badge>
+                                        </div>
+                                    </>
+                                ) : (
+                                    <p className="text-xs font-black uppercase opacity-60">Henüz veri toplanıyor...</p>
+                                )}
+                            </CardContent>
+                        </Card>
+
+                        {/* Active Tournament Status */}
+                        <Card className="border-none shadow-xl bg-white dark:bg-neutral-900 rounded-[2.5rem] overflow-hidden">
+                            <CardHeader className="p-8 border-b border-neutral-100 dark:border-white/5">
+                                <CardTitle className="text-xl font-black uppercase tracking-tighter">Turnuva Durumu</CardTitle>
+                            </CardHeader>
+                            <CardContent className="p-8">
                                 {active_tournament ? (
-                                    <div className="space-y-4">
-                                        <div className="rounded-xl bg-white p-4 shadow-sm dark:bg-neutral-900">
-                                            <p className="text-xs font-bold uppercase tracking-wider text-neutral-500">Aktif Turnuva</p>
-                                            <h4 className="mt-1 text-xl font-black">{active_tournament.name}</h4>
+                                    <div className="space-y-6">
+                                        <div className="flex flex-col">
+                                            <span className="text-[10px] font-black uppercase tracking-widest text-muted-foreground mb-1">Şu Anki Turnuva</span>
+                                            <h4 className="text-xl font-black uppercase tracking-tight">{active_tournament.name}</h4>
                                         </div>
-                                        <div className="grid grid-cols-2 gap-2">
-                                            <div className="rounded-xl bg-white p-3 shadow-sm dark:bg-neutral-900">
-                                                <p className="text-xs font-medium text-neutral-500 text-center">Yıl</p>
-                                                <p className="text-lg font-bold text-center">{active_tournament.year}</p>
+                                        <div className="grid grid-cols-2 gap-4">
+                                            <div className="bg-muted/50 p-4 rounded-3xl text-center">
+                                                <span className="text-[9px] font-black uppercase text-muted-foreground block mb-1">SEZON</span>
+                                                <span className="text-lg font-black">{active_tournament.year}</span>
                                             </div>
-                                            <div className="rounded-xl bg-white p-3 shadow-sm dark:bg-neutral-900">
-                                                <p className="text-xs font-medium text-neutral-500 text-center">Aşama</p>
-                                                <p className="text-lg font-bold text-center uppercase tracking-tighter text-blue-600">{active_tournament.status}</p>
+                                            <div className="bg-blue-50 dark:bg-blue-600/10 p-4 rounded-3xl text-center">
+                                                <span className="text-[9px] font-black uppercase text-blue-600 block mb-1">DURUM</span>
+                                                <span className="text-xs font-black text-blue-600 uppercase tracking-widest">{active_tournament.status}</span>
                                             </div>
                                         </div>
+                                        <Link href={route('tournaments.show', active_tournament.id)}>
+                                            <Button className="w-full h-12 rounded-2xl bg-slate-900 hover:bg-black text-white font-black uppercase tracking-widest text-xs transition-all shadow-xl">
+                                                TURNUVA DETAYLARINA GİT <ChevronRight className="ml-2 h-4 w-4" />
+                                            </Button>
+                                        </Link>
                                     </div>
                                 ) : (
-                                    <div className="flex flex-col items-center justify-center py-12 text-neutral-400">
-                                        <Trophy className="mb-2 h-12 w-12 opacity-20" />
-                                        <p>Aktif bir turnuva yok.</p>
-                                        <button className="mt-4 rounded-lg bg-blue-600 px-4 py-2 text-sm font-bold text-white shadow-md hover:bg-blue-700">
-                                            Turnuva Oluştur
-                                        </button>
+                                    <div className="py-12 text-center space-y-4">
+                                        <p className="text-xs font-black uppercase tracking-widest text-muted-foreground/50">Aktif turnuva bulunamadı.</p>
+                                        <Link href={route('tournaments.index')}>
+                                            <Button className="rounded-2xl bg-blue-600 hover:bg-blue-700 font-bold uppercase text-[10px] tracking-widest shadow-lg shadow-blue-500/20 px-6 h-12">YENİ TURNUVA BAŞLAT</Button>
+                                        </Link>
                                     </div>
                                 )}
                             </CardContent>
                         </Card>
+
                     </div>
                 </div>
             </div>

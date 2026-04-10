@@ -3,204 +3,146 @@
 namespace App\Http\Controllers;
 
 use App\Models\Player;
-use App\Models\Team;
-use App\Models\Unit;
-use Illuminate\Http\Request;
+use App\Services\StatsService;
 use Inertia\Inertia;
-use Illuminate\Support\Facades\DB;
-use Illuminate\Validation\Rule;
 
 class PlayerController extends Controller
 {
-    public function index(Request $request)
+    public function index(\Illuminate\Http\Request $request)
     {
-        $search = $request->input('search');
+        $query = Player::with(['unit', 'teams.tournament'])->latest();
 
-        $players = Player::query()
-            ->with(['unit', 'teams.tournament'])
-            ->when($search, function ($query, $search) {
-                $query->where('first_name', 'like', "%{$search}%")
-                      ->orWhere('last_name', 'like', "%{$search}%")
-                      ->orWhere('tc_id', 'like', "%{$search}%")
-                      ->orWhere('sicil_no', 'like', "%{$search}%");
-            })
-            ->latest()
-            ->paginate(15)
-            ->withQueryString();
+        if ($request->has('search')) {
+            $search = $request->get('search');
+            $query->where(function($q) use ($search) {
+                $q->where('first_name', 'like', "%{$search}%")
+                  ->orWhere('last_name', 'like', "%{$search}%")
+                  ->orWhere('tc_id', 'like', "%{$search}%")
+                  ->orWhere('sicil_no', 'like', "%{$search}%");
+            });
+        }
 
         return Inertia::render('players/index', [
-            'players' => $players,
-            'filters' => $request->only(['search']),
-            'units' => Unit::all()
+            'players' => $query->paginate(15)->withQueryString(),
+            'units' => \App\Models\Unit::all(),
+            'filters' => $request->only(['search'])
         ]);
     }
 
-    public function store(Request $request)
+    public function store(\Illuminate\Http\Request $request)
     {
         $validated = $request->validate([
             'first_name' => 'required|string|max:255',
             'last_name' => 'required|string|max:255',
             'tc_id' => 'required|string|size:11|unique:players,tc_id',
-            'sicil_no' => 'required|string|max:255|unique:players,sicil_no',
+            'sicil_no' => 'required|string|max:20|unique:players,sicil_no',
             'unit_id' => 'required|exists:units,id',
-            'is_company_staff' => 'required|boolean',
-            'is_permanent_staff' => 'required|boolean',
-            'is_licensed' => 'required|boolean',
-            'health_certificate' => 'required|boolean',
-            'team_id' => 'nullable|exists:teams,id',
-            'is_captain' => 'nullable|boolean',
+            'is_company_staff' => 'boolean',
+            'is_permanent_staff' => 'boolean',
+            'is_licensed' => 'boolean',
+            'health_certificate' => 'boolean',
         ]);
 
-        $unitId = $validated['unit_id'];
-        
-        if ($request->filled('team_id')) {
-            $team = Team::findOrFail($request->team_id);
-            $unitId = $team->unit_id;
+        if ($request->has('health_certificate') && $request->health_certificate) {
+            $validated['health_certificate_at'] = now();
         }
 
-        $player = Player::create([
-            'first_name' => $validated['first_name'],
-            'last_name' => $validated['last_name'],
-            'tc_id' => $validated['tc_id'],
-            'sicil_no' => $validated['sicil_no'],
-            'unit_id' => $unitId,
-            'is_company_staff' => $validated['is_company_staff'],
-            'is_permanent_staff' => $validated['is_permanent_staff'],
-            'is_licensed' => $validated['is_licensed'],
-            'health_certificate_at' => $validated['health_certificate'] ? now() : null,
-        ]);
-
-        if ($request->filled('team_id')) {
-            $team = Team::findOrFail($request->team_id);
-            $team->players()->syncWithoutDetaching([$player->id]);
-            
-            if ($request->boolean('is_captain')) {
-                $team->update(['captain_id' => $player->id]);
-            }
-        }
+        Player::create($validated);
 
         return redirect()->back()->with('success', 'Personel başarıyla kaydedildi.');
     }
 
-    public function update(Request $request, Player $player)
+    public function update(Player $player, \Illuminate\Http\Request $request)
     {
         $validated = $request->validate([
             'first_name' => 'required|string|max:255',
             'last_name' => 'required|string|max:255',
-            'tc_id' => ['required', 'string', 'size:11', Rule::unique('players', 'tc_id')->ignore($player->id)],
-            'sicil_no' => ['required', 'string', 'max:255', Rule::unique('players', 'sicil_no')->ignore($player->id)],
+            'tc_id' => 'required|string|size:11|unique:players,tc_id,'.$player->id,
+            'sicil_no' => 'required|string|max:20|unique:players,sicil_no,'.$player->id,
             'unit_id' => 'required|exists:units,id',
-            'is_company_staff' => 'required|boolean',
-            'is_permanent_staff' => 'required|boolean',
-            'is_licensed' => 'required|boolean',
-            'health_certificate' => 'required|boolean',
+            'is_company_staff' => 'boolean',
+            'is_permanent_staff' => 'boolean',
+            'is_licensed' => 'boolean',
+            'health_certificate' => 'boolean',
         ]);
 
-        $player->update([
-            'first_name' => $validated['first_name'],
-            'last_name' => $validated['last_name'],
-            'tc_id' => $validated['tc_id'],
-            'sicil_no' => $validated['sicil_no'],
-            'unit_id' => $validated['unit_id'],
-            'is_company_staff' => $validated['is_company_staff'],
-            'is_permanent_staff' => $validated['is_permanent_staff'],
-            'is_licensed' => $validated['is_licensed'],
-            'health_certificate_at' => $validated['health_certificate'] ? ($player->health_certificate_at ?: now()) : null,
-        ]);
+        if ($request->has('health_certificate')) {
+            $validated['health_certificate_at'] = $request->health_certificate ? now() : null;
+        }
+
+        $player->update($validated);
 
         return redirect()->back()->with('success', 'Personel bilgileri güncellendi.');
     }
 
+    public function show(Player $player, StatsService $statsService)
+    {
+        $stats = $statsService->getPlayerStats($player);
+
+        return Inertia::render('players/show', [
+            'stats' => $stats
+        ]);
+    }
+
     public function destroy(Player $player)
     {
-        // Check if player is in a team
-        if ($player->teams()->count() > 0) {
-            return redirect()->back()->withErrors(['error' => 'Bu personel bir takıma kayıtlı olduğu için silinemez. Önce takımdan çıkarılmalıdır.']);
-        }
-
         $player->delete();
-        return redirect()->back()->with('success', 'Personel kaydı silindi.');
+        return redirect()->back()->with('success', 'Personel havuzdan silindi.');
     }
 
     public function downloadTemplate()
     {
         $headers = [
-            'Content-Type' => 'text/csv; charset=UTF-8',
-            'Content-Disposition' => 'attachment; filename="personel_taslak.csv"',
+            "Content-type"        => "text/csv",
+            "Content-Disposition" => "attachment; filename=personel_taslak.csv",
+            "Pragma"              => "no-cache",
+            "Cache-Control"       => "must-revalidate, post-check=0, pre-check=0",
+            "Expires"             => "0"
         ];
 
-        $callback = function() {
+        $columns = ['Ad', 'Soyad', 'TC_NO', 'Sicil_NO', 'Birim_ID', 'Firma_Personeli(0/1)', 'Lisansli(0/1)'];
+
+        $callback = function() use($columns) {
             $file = fopen('php://output', 'w');
-            // Adding UTF-8 BOM for Excel compatibility
-            fprintf($file, chr(0xEF).chr(0xBB).chr(0xBF));
-            
-            fputcsv($file, ['first_name', 'last_name', 'tc_id', 'sicil_no', 'unit_name', 'is_company_staff', 'health_certificate']);
-            fputcsv($file, ['Ahmet', 'Yılmaz', '12345678901', 'S12345', 'Muhasebe', '0', '1']);
+            fputcsv($file, $columns);
             fclose($file);
         };
 
         return response()->stream($callback, 200, $headers);
     }
 
-    public function import(Request $request)
+    public function import(\Illuminate\Http\Request $request)
     {
         $request->validate([
             'file' => 'required|file|mimes:csv,txt'
         ]);
 
-        $path = $request->file('file')->getRealPath();
-        $data = array_map(function($v) { return str_getcsv($v, ';'); }, file($path)); // Try semicolon first (common in TR)
+        $file = $request->file('file');
+        $handle = fopen($file->getRealPath(), "r");
         
-        // If semicolon didn't work, try comma
-        if (count($data[0]) < 2) {
-            $data = array_map('str_getcsv', file($path));
-        }
+        // Skip header
+        fgetcsv($handle);
 
-        $header = array_shift($data);
         $count = 0;
-
-        DB::transaction(function () use ($data, &$count) {
-            foreach ($data as $row) {
-                if (count($row) < 5) continue;
-
-                // Simple mapping based on expected order
-                // Ad, Soyad, TC, Sicil, Birim, Firma(1-0), Sağlık(1-0)
-                $firstName = $row[0];
-                $lastName = $row[1];
-                $tcId = $row[2];
-                $sicilNo = $row[3];
-                $unitName = $row[4];
-                $isCompany = $row[5] ?? '0';
-                $health = $row[6] ?? '0';
-
-                // Find or create Unit
-                $unit = Unit::firstOrCreate(['name' => mb_strtoupper($unitName, 'UTF-8')]);
-
+        while (($data = fgetcsv($handle, 1000, ",")) !== FALSE) {
+            if (count($data) >= 5) {
                 Player::updateOrCreate(
-                    ['tc_id' => $tcId],
+                    ['tc_id' => $data[2]],
                     [
-                        'first_name' => $firstName,
-                        'last_name' => $lastName,
-                        'sicil_no' => $sicilNo,
-                        'unit_id' => $unit->id,
-                        'is_company_staff' => (bool)$isCompany,
-                        'is_permanent_staff' => !(bool)$isCompany,
-                        'health_certificate_at' => (bool)$health ? now() : null,
+                        'first_name' => $data[0],
+                        'last_name' => $data[1],
+                        'sicil_no' => $data[3],
+                        'unit_id' => $data[4],
+                        'is_company_staff' => isset($data[5]) ? (bool)$data[5] : false,
+                        'is_permanent_staff' => isset($data[5]) ? !(bool)$data[5] : true,
+                        'is_licensed' => isset($data[6]) ? (bool)$data[6] : false,
                     ]
                 );
                 $count++;
             }
-        });
+        }
+        fclose($handle);
 
-        return redirect()->back()->with('success', "{$count} personel başarıyla aktarıldı.");
-    }
-
-    public function toggleHealth(\App\Models\Player $player)
-    {
-        $player->update([
-            'health_certificate_at' => $player->health_certificate_at ? null : now()
-        ]);
-
-        return redirect()->back()->with('success', 'Sağlık raporu durumu güncellendi.');
+        return redirect()->back()->with('success', "$count personel başarıyla aktarıldı.");
     }
 }

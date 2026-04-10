@@ -12,7 +12,7 @@ use App\Http\Controllers\UnitController;
 use App\Http\Controllers\PlayerSearchController;
 
 Route::get('/', function () {
-    $activeTournament = \App\Models\Tournament::where('status', 'registration')->first() 
+    $activeTournament = \App\Models\Tournament::whereIn('status', ['active', 'registration'])->latest()->first() 
                         ?? \App\Models\Tournament::latest()->first();
     
     $approvedTeams = \App\Models\Team::where('status', 'approved')
@@ -44,9 +44,16 @@ Route::middleware(['auth'])->group(function () {
     // Tournament Management
     Route::post('tournaments', [TournamentController::class, 'store'])->name('tournaments.store');
     Route::post('tournaments/{tournament}/draw', [TournamentController::class, 'draw'])->name('tournaments.draw');
+    Route::post('/tournaments/{tournament}/start-knockout', [TournamentController::class, 'startKnockout'])->name('tournaments.start-knockout');
+    Route::post('/tournaments/{tournament}/advance-round', [TournamentController::class, 'advanceRound'])->name('tournaments.advance-round');
+    Route::post('/tournaments/{tournament}/complete', [TournamentController::class, 'complete'])->name('tournaments.complete');
     
     // Team Management
     Route::post('teams', [TeamController::class, 'store'])->name('teams.store');
+    Route::get('teams/{team}', [TeamController::class, 'show'])->name('teams.show');
+
+    // Player Management
+    Route::get('players/{player}', [PlayerController::class, 'show'])->name('players.show');
     Route::post('teams/{team}/approve', [TeamController::class, 'approve'])->name('teams.approve');
     Route::post('teams/{team}/reject', [TeamController::class, 'reject'])->name('teams.reject');
     Route::post('teams/{team}/captain/{player}', [TeamController::class, 'setCaptain'])->name('teams.set-captain');

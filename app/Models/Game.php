@@ -20,7 +20,8 @@ class Game extends Model
         'status',
         'has_penalties',
         'home_penalty_score',
-        'away_penalty_score'
+        'away_penalty_score',
+        'round'
     ];
 
     protected $casts = [

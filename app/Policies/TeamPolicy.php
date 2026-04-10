@@ -37,8 +37,7 @@ class TeamPolicy
      */
     public function update(User $user, Team $team): bool
     {
-        return $user->isSuperAdmin() || ($team->user_id === $user->id && $team->status === 'pending');
-        // Note: Once approved, changes might need admin approval, but for now owner can edit if pending.
+        return $user->isSuperAdmin() || $team->user_id === $user->id;
     }
 
     /**

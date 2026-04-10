@@ -12,8 +12,7 @@ return new class extends Migration
     public function up(): void
     {
         Schema::table('games', function (Blueprint $table) {
-            $table->string('round')->default('group')->after('group_id');
-            // Round can be: group, round_16, quarter, semi, final
+            $table->integer('bracket_position')->nullable()->after('round');
         });
     }
 
@@ -23,7 +22,7 @@ return new class extends Migration
     public function down(): void
     {
         Schema::table('games', function (Blueprint $table) {
-            $table->dropColumn('round');
+            $table->dropColumn('bracket_position');
         });
     }
 };
