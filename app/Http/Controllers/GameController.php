@@ -1,0 +1,110 @@
+<?php
+
+namespace App\Http\Controllers;
+
+use App\Models\Game;
+use App\Services\GameService;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Gate;
+use Inertia\Inertia;
+
+class GameController extends Controller
+{
+    protected $gameService;
+
+    public function __construct(GameService $gameService)
+    {
+        $this->gameService = $gameService;
+    }
+
+    public function index()
+    {
+        return Inertia::render('games/index', [
+            'games' => Game::with(['homeTeam', 'awayTeam', 'group', 'tournament'])->latest()->get(),
+        ]);
+    }
+
+    public function show(Game $game)
+    {
+        return Inertia::render('games/show', [
+            'game' => $game->load(['homeTeam.players', 'awayTeam.players', 'events.player', 'rosters.player', 'tournament', 'group'])
+        ]);
+    }
+
+    public function logEvent(Game $game, Request $request)
+    {
+        Gate::authorize('logEvent', $game);
+
+        $validated = $request->validate([
+            'team_id' => 'required|exists:teams,id',
+            'player_id' => 'required|exists:players,id',
+            'event_type' => 'required|string',
+            'minute' => 'nullable|integer',
+            'details' => 'nullable|array',
+        ]);
+
+        try {
+            $this->gameService->logEvent($game, $validated);
+            return redirect()->back()->with('success', 'Olay kaydedildi.');
+        } catch (\Exception $e) {
+            return redirect()->back()->withErrors(['error' => $e->getMessage()]);
+        }
+    }
+
+    public function complete(Game $game)
+    {
+        Gate::authorize('approve', $game);
+
+        try {
+            $this->gameService->completeMatch($game);
+            return redirect()->back()->with('success', 'Maç tamamlandı.');
+        } catch (\Exception $e) {
+            return redirect()->back()->withErrors(['error' => $e->getMessage()]);
+        }
+    }
+
+    public function logPenalty(Game $game, Request $request)
+    {
+        Gate::authorize('logEvent', $game);
+
+        $validated = $request->validate([
+            'team_id' => 'required|exists:teams,id',
+            'player_id' => 'required|exists:players,id',
+        ]);
+
+        $this->gameService->logPenalty($game, $validated);
+
+        return redirect()->back()->with('success', 'Penaltı golü kaydedildi.');
+    }
+
+    public function updateQuickResult(Game $game, Request $request)
+    {
+        Gate::authorize('approve', $game);
+
+        $validated = $request->validate([
+            'home_score' => 'required|integer|min:0',
+            'away_score' => 'required|integer|min:0',
+            'status' => 'required|string|in:scheduled,live,completed',
+            'scheduled_at' => 'required|date',
+        ]);
+
+        $game->update($validated);
+
+        if ($validated['status'] === 'completed') {
+            $this->gameService->completeMatch($game);
+        }
+
+        return redirect()->back()->with('success', 'Maç bilgileri güncellendi.');
+    }
+
+    public function destroyEvent(Game $game, $eventId)
+    {
+        Gate::authorize('logEvent', $game);
+
+        $event = \App\Models\GameEvent::findOrFail($eventId);
+        
+        $this->gameService->deleteEvent($game, $event);
+
+        return redirect()->back()->with('success', 'Olay silindi.');
+    }
+}

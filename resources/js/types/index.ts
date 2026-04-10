@@ -33,8 +33,11 @@ export interface User {
     name: string;
     email: string;
     avatar?: string;
+    role?: string;
+    unit_id?: number | null;
+    unit?: { id: number; name: string } | null;
     email_verified_at: string | null;
     created_at: string;
     updated_at: string;
-    [key: string]: unknown; // This allows for additional properties...
+    [key: string]: unknown;
 }

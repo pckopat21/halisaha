@@ -2,9 +2,10 @@ import { NavFooter } from '@/components/nav-footer';
 import { NavMain } from '@/components/nav-main';
 import { NavUser } from '@/components/nav-user';
 import { Sidebar, SidebarContent, SidebarFooter, SidebarHeader, SidebarMenu, SidebarMenuButton, SidebarMenuItem } from '@/components/ui/sidebar';
-import { type NavItem } from '@/types';
-import { Link } from '@inertiajs/react';
-import { BookOpen, Folder, LayoutGrid } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { type NavItem, type SharedData } from '@/types';
+import { Link, usePage } from '@inertiajs/react';
+import { LayoutGrid, Trophy, Users, CalendarDays, Briefcase, BookOpen, Folder, Building2 } from 'lucide-react';
 import AppLogo from './app-logo';
 
 const mainNavItems: NavItem[] = [
@@ -12,6 +13,31 @@ const mainNavItems: NavItem[] = [
         title: 'Dashboard',
         url: '/dashboard',
         icon: LayoutGrid,
+    },
+    {
+        title: 'Turnuvalar',
+        url: '/tournaments',
+        icon: Trophy,
+    },
+    {
+        title: 'Takımlar',
+        url: '/teams',
+        icon: Users,
+    },
+    {
+        title: 'Fikstür',
+        url: '/games',
+        icon: CalendarDays,
+    },
+    {
+        title: 'Kullanıcı Yönetimi',
+        url: '/users',
+        icon: Briefcase,
+    },
+    {
+        title: 'Personel Havuzu',
+        url: '/players',
+        icon: Building2,
     },
 ];
 
@@ -29,13 +55,36 @@ const footerNavItems: NavItem[] = [
 ];
 
 export function AppSidebar() {
+    const { auth } = usePage<SharedData>().props;
+    const userRole = auth.user?.role;
+
+    // Filter or define nav items based on user role
+    const filteredNavItems = mainNavItems.filter((item) => {
+        // Everyone can see these (Visitor list)
+        if (['Turnuvalar', 'Takımlar', 'Fikstür'].includes(item.title)) {
+            return true;
+        }
+
+        // Dashboard is only for logged-in users
+        if (item.title === 'Dashboard') {
+            return !!auth.user;
+        }
+
+        // Admin/Committee only items
+        if (['Kullanıcı Yönetimi', 'Personel Havuzu'].includes(item.title)) {
+            return auth.user?.role === 'super_admin' || auth.user?.role === 'committee';
+        }
+
+        return true;
+    });
+
     return (
         <Sidebar collapsible="icon" variant="inset">
             <SidebarHeader>
                 <SidebarMenu>
                     <SidebarMenuItem>
                         <SidebarMenuButton size="lg" asChild>
-                            <Link href="/dashboard" prefetch>
+                            <Link href="/" prefetch>
                                 <AppLogo />
                             </Link>
                         </SidebarMenuButton>
@@ -44,12 +93,22 @@ export function AppSidebar() {
             </SidebarHeader>
 
             <SidebarContent>
-                <NavMain items={mainNavItems} />
+                <NavMain items={filteredNavItems} />
             </SidebarContent>
 
             <SidebarFooter>
-                <NavFooter items={footerNavItems} className="mt-auto" />
-                <NavUser />
+                {auth.user ? (
+                    <>
+                        <NavFooter items={footerNavItems} className="mt-auto" />
+                        <NavUser />
+                    </>
+                ) : (
+                    <div className="p-4">
+                        <Link href={route('login')}>
+                            <Button className="w-full bg-emerald-600 font-bold hover:bg-emerald-700">GİRİŞ YAP</Button>
+                        </Link>
+                    </div>
+                )}
             </SidebarFooter>
         </Sidebar>
     );
