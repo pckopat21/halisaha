@@ -10,7 +10,7 @@ import AppLogo from './app-logo';
 
 const mainNavItems: NavItem[] = [
     {
-        title: 'Dashboard',
+        title: 'Panel',
         url: '/dashboard',
         icon: LayoutGrid,
     },
@@ -41,18 +41,7 @@ const mainNavItems: NavItem[] = [
     },
 ];
 
-const footerNavItems: NavItem[] = [
-    {
-        title: 'Repository',
-        url: 'https://github.com/laravel/react-starter-kit',
-        icon: Folder,
-    },
-    {
-        title: 'Documentation',
-        url: 'https://laravel.com/docs/starter-kits',
-        icon: BookOpen,
-    },
-];
+const footerNavItems: NavItem[] = [];
 
 export function AppSidebar() {
     const { auth } = usePage<SharedData>().props;
@@ -66,7 +55,7 @@ export function AppSidebar() {
         }
 
         // Dashboard is only for logged-in users
-        if (item.title === 'Dashboard') {
+        if (item.title === 'Panel') {
             return !!auth.user;
         }
 

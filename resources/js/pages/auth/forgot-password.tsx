@@ -22,15 +22,19 @@ export default function ForgotPassword({ status }: { status?: string }) {
     };
 
     return (
-        <AuthLayout title="Forgot password" description="Enter your email to receive a password reset link">
-            <Head title="Forgot password" />
+        <AuthLayout title="Şifremi Unuttum" description="Şifrenizi sıfırlamak için kayıtlı e-posta adresinizi girin">
+            <Head title="Şifre Sıfırlama" />
 
-            {status && <div className="mb-4 text-center text-sm font-medium text-green-600">{status}</div>}
+            {status && (
+                <div className="mb-4 text-center text-sm font-medium text-green-400 bg-green-950/30 py-2 rounded-md border border-green-500/20">
+                    {status}
+                </div>
+            )}
 
             <div className="space-y-6">
                 <form onSubmit={submit}>
                     <div className="grid gap-2">
-                        <Label htmlFor="email">Email address</Label>
+                        <Label htmlFor="email" className="text-white">E-posta Adresi</Label>
                         <Input
                             id="email"
                             type="email"
@@ -39,23 +43,26 @@ export default function ForgotPassword({ status }: { status?: string }) {
                             value={data.email}
                             autoFocus
                             onChange={(e) => setData('email', e.target.value)}
-                            placeholder="email@example.com"
+                            placeholder="eposta@kgm.gov.tr"
+                            className="bg-white/10 border-white/20 text-white placeholder:text-slate-400 focus:ring-[#FF8C00]"
                         />
 
                         <InputError message={errors.email} />
                     </div>
 
                     <div className="my-6 flex items-center justify-start">
-                        <Button className="w-full" disabled={processing}>
-                            {processing && <LoaderCircle className="h-4 w-4 animate-spin" />}
-                            Email password reset link
+                        <Button className="w-full bg-[#FF8C00] hover:bg-[#e67e00] text-white font-bold py-6 text-lg transition-all shadow-lg shadow-orange-500/20" disabled={processing}>
+                            {processing && <LoaderCircle className="mr-2 h-5 w-5 animate-spin" />}
+                            SIFIRLAMA BAĞLANTISI GÖNDER
                         </Button>
                     </div>
                 </form>
 
-                <div className="text-muted-foreground space-x-1 text-center text-sm">
-                    <span>Or, return to</span>
-                    <TextLink href={route('login')}>log in</TextLink>
+                <div className="text-slate-300 text-center text-sm">
+                    <span>Veya giriş sayfasına</span>{' '}
+                    <TextLink href={route('login')} className="text-[#FF8C00] font-semibold hover:underline">
+                        Geri Dön
+                    </TextLink>
                 </div>
             </div>
         </AuthLayout>

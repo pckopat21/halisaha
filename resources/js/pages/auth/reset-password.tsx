@@ -36,20 +36,20 @@ export default function ResetPassword({ token, email }: ResetPasswordProps) {
     };
 
     return (
-        <AuthLayout title="Reset password" description="Please enter your new password below">
-            <Head title="Reset password" />
+        <AuthLayout title="Şifreyi Sıfırla" description="Lütfen aşağıya yeni şifrenizi girin">
+            <Head title="Şifre Sıfırlama" />
 
             <form onSubmit={submit}>
                 <div className="grid gap-6">
                     <div className="grid gap-2">
-                        <Label htmlFor="email">Email</Label>
+                        <Label htmlFor="email" className="text-white">E-posta Adresi</Label>
                         <Input
                             id="email"
                             type="email"
                             name="email"
                             autoComplete="email"
                             value={data.email}
-                            className="mt-1 block w-full"
+                            className="bg-white/10 border-white/20 text-white placeholder:text-slate-400 focus:ring-[#FF8C00]"
                             readOnly
                             onChange={(e) => setData('email', e.target.value)}
                         />
@@ -57,39 +57,39 @@ export default function ResetPassword({ token, email }: ResetPasswordProps) {
                     </div>
 
                     <div className="grid gap-2">
-                        <Label htmlFor="password">Password</Label>
+                        <Label htmlFor="password" className="text-white">Yeni Şifre</Label>
                         <Input
                             id="password"
                             type="password"
                             name="password"
                             autoComplete="new-password"
                             value={data.password}
-                            className="mt-1 block w-full"
+                            className="bg-white/10 border-white/20 text-white placeholder:text-slate-400 focus:ring-[#FF8C00]"
                             autoFocus
                             onChange={(e) => setData('password', e.target.value)}
-                            placeholder="Password"
+                            placeholder="Yeni şifrenizi girin"
                         />
                         <InputError message={errors.password} />
                     </div>
 
                     <div className="grid gap-2">
-                        <Label htmlFor="password_confirmation">Confirm password</Label>
+                        <Label htmlFor="password_confirmation" className="text-white">Şifre Tekrar</Label>
                         <Input
                             id="password_confirmation"
                             type="password"
                             name="password_confirmation"
                             autoComplete="new-password"
                             value={data.password_confirmation}
-                            className="mt-1 block w-full"
+                            className="bg-white/10 border-white/20 text-white placeholder:text-slate-400 focus:ring-[#FF8C00]"
                             onChange={(e) => setData('password_confirmation', e.target.value)}
-                            placeholder="Confirm password"
+                            placeholder="Yeni şifrenizi doğrulayın"
                         />
                         <InputError message={errors.password_confirmation} className="mt-2" />
                     </div>
 
-                    <Button type="submit" className="mt-4 w-full" disabled={processing}>
-                        {processing && <LoaderCircle className="h-4 w-4 animate-spin" />}
-                        Reset password
+                    <Button type="submit" className="mt-4 w-full bg-[#FF8C00] hover:bg-[#e67e00] text-white font-bold py-6 text-lg transition-all shadow-lg shadow-orange-500/20" disabled={processing}>
+                        {processing && <LoaderCircle className="mr-2 h-5 w-5 animate-spin" />}
+                        ŞİFREYİ GÜNCELLE
                     </Button>
                 </div>
             </form>
