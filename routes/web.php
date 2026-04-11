@@ -28,6 +28,22 @@ Route::get('/', function () {
     ]);
 })->name('home');
 
+// Deployment Utility (Run once on server)
+Route::get('/install-db', function () {
+    if (!auth()->check() || !auth()->user()->isSuperAdmin()) {
+        if (\App\Models\User::count() > 0) {
+            abort(403, 'Sadece sistem yöneticisi bu işlemi yapabilir.');
+        }
+    }
+    
+    try {
+        \Illuminate\Support\Facades\Artisan::call('migrate:fresh', ['--seed' => true, '--force' => true]);
+        return "Veritabanı başarıyla kuruldu ve örnek veriler yüklendi!";
+    } catch (\Exception $e) {
+        return "Hata: " . $e->getMessage();
+    }
+});
+
 // Public Routes (Visitors)
 Route::get('tournaments', [TournamentController::class, 'index'])->name('tournaments.index');
 Route::get('tournaments/{tournament}', [TournamentController::class, 'show'])->name('tournaments.show');

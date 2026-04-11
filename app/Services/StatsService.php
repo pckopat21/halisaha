@@ -20,7 +20,7 @@ class StatsService
             ->join('games', 'match_events.game_id', '=', 'games.id')
             ->where('games.tournament_id', $tournament->id)
             ->where('match_events.event_type', 'goal')
-            ->groupBy('players.id')
+            ->groupBy('players.id', 'players.first_name', 'players.last_name', 'players.unit_id', 'players.tc_id', 'players.sicil_no', 'players.is_company_staff', 'players.is_permanent_staff', 'players.is_licensed', 'players.health_certificate_at', 'players.created_at', 'players.updated_at')
             ->orderByDesc('goals_count')
             ->with(['unit', 'teams' => function($q) use ($tournament) {
                 $q->where('tournament_id', $tournament->id);
