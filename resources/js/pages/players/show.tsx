@@ -16,7 +16,8 @@ import {
     Zap,
     TrendingUp,
     ShieldCheck,
-    Star
+    Star,
+    Shirt
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -47,6 +48,7 @@ interface PlayerStats {
         first_name: string;
         last_name: string;
         unit: { name: string };
+        jersey_number: number | null;
     };
     total_goals: number;
     yellow_cards: number;
@@ -97,13 +99,17 @@ export default function Show({ stats }: Props) {
                             
                             <div className="h-full bg-slate-900/40 backdrop-blur-sm rounded-[2.9rem] border border-white/10 flex flex-col p-8 relative z-10">
                                 {/* Header: Unit & Rating */}
-                                <div className="flex justify-between items-start mb-12">
+                                <div className="flex justify-between items-start mb-8">
                                     <div className="flex flex-col items-start gap-1">
                                         <div className="text-4xl md:text-6xl font-black text-white leading-none tracking-tighter">{overallRating}</div>
                                         <div className="text-[10px] font-black text-blue-400 uppercase tracking-[0.3em]">REYTİNG</div>
                                     </div>
-                                    <div className="text-right">
+                                    <div className="flex flex-col items-end gap-3">
                                         <Badge className="bg-white/10 text-white border-white/20 font-black text-[9px] px-3 py-1 rounded-lg uppercase tracking-widest">{stats.player.unit.name}</Badge>
+                                        <div className="flex items-center gap-2 bg-neutral-900/60 backdrop-blur-md px-4 py-2 rounded-2xl border border-white/5 shadow-2xl">
+                                            <Shirt className="h-4 w-4 text-blue-400" />
+                                            <span className="text-xl font-black text-white tabular-nums">{stats.player.jersey_number || '??'}</span>
+                                        </div>
                                     </div>
                                 </div>
 

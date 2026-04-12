@@ -82,7 +82,10 @@ Route::middleware(['auth'])->group(function () {
     Route::get('teams/{team}', [TeamController::class, 'show'])->name('teams.show');
 
     // Player Management
-    Route::get('players/{player}', [PlayerController::class, 'show'])->name('players.show');
+    Route::get('players/template', [PlayerController::class, 'downloadTemplate'])->name('players.template');
+    Route::post('players/import', [PlayerController::class, 'import'])->name('players.import');
+    Route::resource('players', PlayerController::class);
+    
     Route::post('teams/{team}/approve', [TeamController::class, 'approve'])->name('teams.approve');
     Route::post('teams/{team}/reject', [TeamController::class, 'reject'])->name('teams.reject');
     Route::post('teams/{team}/captain/{player}', [TeamController::class, 'setCaptain'])->name('teams.set-captain');
@@ -103,9 +106,6 @@ Route::middleware(['auth'])->group(function () {
     Route::get('users', [DashboardController::class, 'users'])->name('users.index');
     Route::post('users/{user}/role', [DashboardController::class, 'updateRole'])->name('users.role');
 
-    Route::get('players/template', [PlayerController::class, 'downloadTemplate'])->name('players.template');
-    Route::post('players/import', [PlayerController::class, 'import'])->name('players.import');
-    Route::resource('players', PlayerController::class);
     Route::resource('units', UnitController::class);
 
     // Tournament Reports (PDF)

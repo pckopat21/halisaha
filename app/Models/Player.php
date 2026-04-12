@@ -9,6 +9,7 @@ class Player extends Model
     protected $fillable = [
         'first_name', 
         'last_name', 
+        'jersey_number',
         'tc_id', 
         'sicil_no',
         'unit_id', 
@@ -23,6 +24,7 @@ class Player extends Model
         'is_permanent_staff' => 'boolean',
         'is_licensed' => 'boolean',
         'health_certificate_at' => 'datetime',
+        'jersey_number' => 'integer',
     ];
 
     public function unit()

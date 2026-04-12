@@ -52,6 +52,7 @@ interface Player {
     health_certificate_at: string | null;
     current_team?: { id: number; name: string };
     goals_count?: number;
+    jersey_number: number | null;
 }
 
 interface Team {
@@ -107,12 +108,12 @@ export default function Show({ team, performance, can }: Props) {
         tc_id: '',
         sicil_no: '',
         unit_id: team.unit_id,
-        is_company_staff: false,
-        is_permanent_staff: true,
-        is_licensed: false,
-        health_certificate: true,
+        is_company_staff: false as boolean,
+        is_permanent_staff: true as boolean,
+        is_licensed: false as boolean,
+        health_certificate: true as boolean,
         team_id: team.id,
-        is_captain: false,
+        is_captain: false as boolean,
     });
 
     const breadcrumbs: BreadcrumbItem[] = [
@@ -459,11 +460,11 @@ export default function Show({ team, performance, can }: Props) {
                                                                 <Label className="text-[10px] font-black uppercase text-muted-foreground">PERSONEL TİPİ</Label>
                                                                 <div className="flex gap-4 pt-1">
                                                                     <label className="flex items-center gap-2 cursor-pointer">
-                                                                        <input type="radio" name="p_type" checked={data.is_permanent_staff} onChange={() => setData({...data, is_permanent_staff: true, is_company_staff: false})} />
+                                                                        <input type="radio" name="p_type" checked={data.is_permanent_staff} onChange={() => setData(prev => ({...prev, is_permanent_staff: true, is_company_staff: false}))} />
                                                                         <span className="text-[10px] font-black uppercase">KADROLU</span>
                                                                     </label>
                                                                     <label className="flex items-center gap-2 cursor-pointer">
-                                                                        <input type="radio" name="p_type" checked={data.is_company_staff} onChange={() => setData({...data, is_company_staff: true, is_permanent_staff: false})} />
+                                                                        <input type="radio" name="p_type" checked={data.is_company_staff} onChange={() => setData(prev => ({...prev, is_company_staff: true, is_permanent_staff: false}))} />
                                                                         <span className="text-[10px] font-black uppercase">FİRMA</span>
                                                                     </label>
                                                                 </div>
@@ -501,7 +502,8 @@ export default function Show({ team, performance, can }: Props) {
                                 <Table>
                                     <TableHeader className="bg-slate-50/50 dark:bg-black/10">
                                         <TableRow className="hover:bg-transparent border-none">
-                                            <TableHead className="pl-10 py-8 uppercase font-black text-[10px] tracking-widest text-muted-foreground w-1/3">Oyuncu Profili</TableHead>
+                                            <TableHead className="pl-10 py-8 uppercase font-black text-[10px] tracking-widest text-muted-foreground w-[80px] text-center">FORMA</TableHead>
+                                            <TableHead className="py-8 uppercase font-black text-[10px] tracking-widest text-muted-foreground w-1/3">Oyuncu Profili</TableHead>
                                             <TableHead className="py-8 uppercase font-black text-[10px] tracking-widest text-muted-foreground text-center">Birim / Sicil</TableHead>
                                             <TableHead className="py-8 uppercase font-black text-[10px] tracking-widest text-muted-foreground text-center">Sağlık / Durum</TableHead>
                                             {can.update && <TableHead className="pr-10 py-8 uppercase font-black text-[10px] tracking-widest text-muted-foreground text-right">Aksiyon</TableHead>}
@@ -511,12 +513,26 @@ export default function Show({ team, performance, can }: Props) {
                                         {team.players.map((player) => (
                                             <TableRow key={player.id} className="group hover:bg-slate-50/50 dark:hover:bg-white/[0.02] border-b border-slate-50 dark:border-white/5 transition-colors">
                                                 <TableCell className="pl-10 py-8">
-                                                    <div className="flex items-center gap-5">
-                                                        <div className={`h-16 w-16 rounded-3xl flex items-center justify-center font-black text-lg transition-transform group-hover:scale-110 ${player.id === team.captain?.id ? 'bg-amber-100 text-amber-700' : 'bg-slate-100 text-slate-500'}`}>
-                                                            {player.first_name[0]}{player.last_name[0]}
+                                                    <Link href={route('players.show', player.id)} className="flex items-center justify-center">
+                                                        <div className={`h-12 w-12 rounded-full flex items-center justify-center font-black text-sm relative transition-all group-hover:scale-110 ${player.jersey_number ? 'bg-neutral-900 text-white shadow-lg' : 'bg-slate-100 text-slate-300'}`}>
+                                                            {player.jersey_number || '??'}
+                                                            {player.is_licensed && (
+                                                                <div className="absolute -top-1 -right-1 bg-blue-600 text-white p-1 rounded-full shadow-lg border-2 border-white dark:border-neutral-900">
+                                                                    <Shield className="h-2 w-2" />
+                                                                </div>
+                                                            )}
                                                         </div>
+                                                    </Link>
+                                                </TableCell>
+                                                <TableCell className="py-8">
+                                                    <div className="flex items-center gap-5">
+                                                        <Link href={route('players.show', player.id)} className={`h-16 w-16 rounded-3xl flex items-center justify-center font-black text-lg transition-transform group-hover:scale-110 ${player.id === team.captain?.id ? 'bg-amber-100 text-amber-700' : 'bg-slate-100 text-slate-500'}`}>
+                                                            {player.first_name[0]}{player.last_name[0]}
+                                                        </Link>
                                                         <div>
-                                                            <h4 className="font-black uppercase text-base tracking-tighter leading-none">{player.first_name} {player.last_name}</h4>
+                                                            <Link href={route('players.show', player.id)}>
+                                                                <h4 className="font-black uppercase text-base tracking-tighter leading-none hover:text-blue-600 transition-colors">{player.first_name} {player.last_name}</h4>
+                                                            </Link>
                                                             <div className="mt-3 flex items-center gap-2">
                                                                 {player.id === team.captain?.id ? (
                                                                     <Badge className="bg-amber-600 text-white border-none py-1 px-3 text-[8px] font-black uppercase tracking-widest rounded-lg">KAPTAN</Badge>

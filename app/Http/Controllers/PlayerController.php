@@ -5,6 +5,9 @@ namespace App\Http\Controllers;
 use App\Models\Player;
 use App\Services\StatsService;
 use Inertia\Inertia;
+use Maatwebsite\Excel\Facades\Excel;
+use App\Exports\PlayerTemplateExport;
+use App\Imports\PlayerImport;
 
 class PlayerController extends Controller
 {
@@ -12,7 +15,7 @@ class PlayerController extends Controller
     {
         $query = Player::with(['unit', 'teams.tournament'])->latest();
 
-        if ($request->has('search')) {
+        if ($request->filled('search')) {
             $search = $request->get('search');
             $query->where(function($q) use ($search) {
                 $q->where('first_name', 'like', "%{$search}%")
@@ -22,10 +25,20 @@ class PlayerController extends Controller
             });
         }
 
+        if ($request->filled('filter')) {
+            $filter = $request->get('filter');
+            switch ($filter) {
+                case 'licensed': $query->where('is_licensed', true); break;
+                case 'company': $query->where('is_company_staff', true); break;
+                case 'permanent': $query->where('is_permanent_staff', true); break;
+                case 'available': $query->whereDoesntHave('teams'); break;
+            }
+        }
+
         return Inertia::render('players/index', [
             'players' => $query->paginate(15)->withQueryString(),
             'units' => \App\Models\Unit::all(),
-            'filters' => $request->only(['search'])
+            'filters' => $request->only(['search', 'filter'])
         ]);
     }
 
@@ -41,6 +54,7 @@ class PlayerController extends Controller
             'is_permanent_staff' => 'boolean',
             'is_licensed' => 'boolean',
             'health_certificate' => 'boolean',
+            'jersey_number' => 'nullable|integer|between:1,99',
             'team_id' => 'nullable|exists:teams,id',
             'is_captain' => 'boolean'
         ]);
@@ -88,6 +102,7 @@ class PlayerController extends Controller
             'is_permanent_staff' => 'boolean',
             'is_licensed' => 'boolean',
             'health_certificate' => 'boolean',
+            'jersey_number' => 'nullable|integer|between:1,99',
         ]);
 
         if ($request->has('health_certificate')) {
@@ -116,57 +131,20 @@ class PlayerController extends Controller
 
     public function downloadTemplate()
     {
-        $headers = [
-            "Content-type"        => "text/csv",
-            "Content-Disposition" => "attachment; filename=personel_taslak.csv",
-            "Pragma"              => "no-cache",
-            "Cache-Control"       => "must-revalidate, post-check=0, pre-check=0",
-            "Expires"             => "0"
-        ];
-
-        $columns = ['Ad', 'Soyad', 'TC_NO', 'Sicil_NO', 'Birim_ID', 'Firma_Personeli(0/1)', 'Lisansli(0/1)'];
-
-        $callback = function() use($columns) {
-            $file = fopen('php://output', 'w');
-            fputcsv($file, $columns);
-            fclose($file);
-        };
-
-        return response()->stream($callback, 200, $headers);
+        return Excel::download(new PlayerTemplateExport, 'personel_taslak.xlsx');
     }
 
     public function import(\Illuminate\Http\Request $request)
     {
         $request->validate([
-            'file' => 'required|file|mimes:csv,txt'
+            'file' => 'required|file|mimes:xlsx,xls,csv'
         ]);
 
-        $file = $request->file('file');
-        $handle = fopen($file->getRealPath(), "r");
-        
-        // Skip header
-        fgetcsv($handle);
-
-        $count = 0;
-        while (($data = fgetcsv($handle, 1000, ",")) !== FALSE) {
-            if (count($data) >= 5) {
-                Player::updateOrCreate(
-                    ['tc_id' => $data[2]],
-                    [
-                        'first_name' => $data[0],
-                        'last_name' => $data[1],
-                        'sicil_no' => $data[3],
-                        'unit_id' => $data[4],
-                        'is_company_staff' => isset($data[5]) ? (bool)$data[5] : false,
-                        'is_permanent_staff' => isset($data[5]) ? !(bool)$data[5] : true,
-                        'is_licensed' => isset($data[6]) ? (bool)$data[6] : false,
-                    ]
-                );
-                $count++;
-            }
+        try {
+            Excel::import(new PlayerImport, $request->file('file'));
+            return redirect()->back()->with('success', 'Toplu personel aktarımı başarıyla tamamlandı. Mükerrer kayıtlar güncellendi.');
+        } catch (\Exception $e) {
+            return redirect()->back()->with('error', 'Aktarım sırasında bir hata oluştu: ' . $e->getMessage());
         }
-        fclose($handle);
-
-        return redirect()->back()->with('success', "$count personel başarıyla aktarıldı.");
     }
 }

@@ -44,6 +44,11 @@ const mainNavItems: NavItem[] = [
         url: '/statistics',
         icon: BarChart3,
     },
+    {
+        title: 'Birim Tanımlama',
+        url: '/units',
+        icon: Building2,
+    },
 ];
 
 const footerNavItems: NavItem[] = [];
@@ -67,6 +72,11 @@ export function AppSidebar() {
         // Admin/Committee only items
         if (['Kullanıcı Yönetimi', 'Personel Havuzu'].includes(item.title)) {
             return auth.user?.role === 'super_admin' || auth.user?.role === 'committee';
+        }
+
+        // Super Admin only items
+        if (item.title === 'Birim Tanımlama') {
+            return auth.user?.role === 'super_admin';
         }
 
         return true;
