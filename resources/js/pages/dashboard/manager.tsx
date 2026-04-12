@@ -56,13 +56,23 @@ interface Props {
     tournaments: any[];
     upcoming_games: Game[];
     my_games: Game[];
+    latest_champion_tournament?: {
+        id: number;
+        name: string;
+        year: number;
+        champion: {
+            id: number;
+            name: string;
+            unit: { name: string };
+        };
+    };
 }
 
 const breadcrumbs: BreadcrumbItem[] = [
     { title: 'Yönetici Paneli', href: '/dashboard' },
 ];
 
-export default function ManagerDashboard({ stats, team, standing, tournaments, upcoming_games, my_games }: Props) {
+export default function ManagerDashboard({ stats, team, standing, tournaments, upcoming_games, my_games, latest_champion_tournament }: Props) {
     const { auth } = usePage<SharedData>().props;
     const nextGame = my_games.find(g => g.status === 'scheduled');
 
@@ -91,6 +101,45 @@ export default function ManagerDashboard({ stats, team, standing, tournaments, u
                     )}
                 </div>
 
+                {latest_champion_tournament && (
+                    <div className="animate-in fade-in slide-in-from-top duration-700">
+                        <Card className="border-none bg-gradient-to-r from-amber-400 via-amber-200 to-amber-500 dark:from-amber-900 dark:via-amber-700 dark:to-orange-950 text-amber-950 dark:text-amber-100 shadow-[0_30px_60px_rgba(245,158,11,0.2)] rounded-[3rem] overflow-hidden relative group">
+                            <div className="absolute inset-0 opacity-10 pointer-events-none bg-[url('https://www.transparenttextures.com/patterns/carbon-fibre.png')]"></div>
+                            <div className="absolute -right-20 -bottom-20 opacity-30 pointer-events-none group-hover:scale-110 transition-transform duration-1000">
+                                <Trophy className="h-96 w-96 text-white" />
+                            </div>
+                            
+                            <CardContent className="p-8 md:p-12 relative z-10 flex flex-col md:flex-row items-center justify-between gap-8">
+                                <div className="flex items-center gap-8">
+                                    <div className="h-24 w-24 md:h-32 md:w-32 bg-white/20 dark:bg-black/20 backdrop-blur-3xl rounded-[2.5rem] flex items-center justify-center shadow-2xl border border-white/50 dark:border-white/10 shrink-0">
+                                        <Trophy className="h-12 w-12 md:h-16 md:w-16 text-amber-600 dark:text-amber-400 animate-bounce" />
+                                    </div>
+                                    <div>
+                                        <Badge className="bg-white/30 dark:bg-white/10 text-amber-900 dark:text-amber-200 border-none font-black text-[9px] px-5 py-2 rounded-full uppercase tracking-[0.4em] mb-4 text-center">SON TURNUVA ŞAMPİYONU</Badge>
+                                        <h2 className="text-3xl md:text-5xl font-black uppercase tracking-tighter leading-none mb-3">
+                                            {latest_champion_tournament.champion.name}
+                                        </h2>
+                                        <div className="flex items-center gap-4">
+                                            <p className="font-black uppercase tracking-widest text-[9px] opacity-80 bg-black/10 dark:bg-white/5 px-4 py-2 rounded-xl">
+                                                {latest_champion_tournament.champion.unit.name}
+                                            </p>
+                                            <p className="font-black uppercase tracking-widest text-[9px] opacity-60">
+                                                {latest_champion_tournament.name} • {latest_champion_tournament.year}
+                                            </p>
+                                        </div>
+                                    </div>
+                                </div>
+                                <Link href={route('tournaments.show', latest_champion_tournament.id)}>
+                                    <Button className="bg-amber-600 hover:bg-amber-700 text-white rounded-[1.5rem] px-8 py-6 text-lg font-black uppercase tracking-tighter shadow-2xl transition-all hover:scale-105 active:scale-95 group">
+                                        DETAYLAR
+                                        <ArrowUpRight className="ml-3 h-5 w-5 group-hover:translate-x-1 group-hover:-translate-y-1 transition-transform" />
+                                    </Button>
+                                </Link>
+                            </CardContent>
+                        </Card>
+                    </div>
+                )}
+
                 {/* Main Grid */}
                 <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
                     
@@ -107,7 +156,7 @@ export default function ManagerDashboard({ stats, team, standing, tournaments, u
                                     <CardContent className="p-8 md:p-12 relative z-10">
                                         <Badge className="bg-white/20 text-white border-none font-black text-[10px] uppercase tracking-widest mb-6 py-1.5 px-4 rounded-full">KULÜP DURUMU</Badge>
                                         <h2 className="text-4xl font-black uppercase tracking-tighter mb-2">{team.name}</h2>
-                                        <p className="font-bold opacity-80 uppercase text-xs tracking-widest mb-8">{team.unit.name} • {team.tournament.name}</p>
+                                        <p className="font-bold opacity-80 uppercase text-xs tracking-widest mb-8">{team.unit.name} {team.tournament && `• ${team.tournament.name}`}</p>
                                         
                                         <div className="grid grid-cols-3 gap-4 border-t border-white/10 pt-8">
                                             <div className="text-center">

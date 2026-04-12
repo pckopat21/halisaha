@@ -5,7 +5,7 @@ import { Sidebar, SidebarContent, SidebarFooter, SidebarHeader, SidebarMenu, Sid
 import { Button } from '@/components/ui/button';
 import { type NavItem, type SharedData } from '@/types';
 import { Link, usePage } from '@inertiajs/react';
-import { LayoutGrid, Trophy, Users, CalendarDays, Briefcase, BookOpen, Folder, Building2 } from 'lucide-react';
+import { LayoutGrid, Trophy, Users, CalendarDays, Briefcase, BookOpen, Folder, Building2, BarChart3 } from 'lucide-react';
 import AppLogo from './app-logo';
 
 const mainNavItems: NavItem[] = [
@@ -38,6 +38,11 @@ const mainNavItems: NavItem[] = [
         title: 'Personel Havuzu',
         url: '/players',
         icon: Building2,
+    },
+    {
+        title: 'İstatistikler',
+        url: '/statistics',
+        icon: BarChart3,
     },
 ];
 

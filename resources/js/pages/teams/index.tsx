@@ -85,71 +85,82 @@ export default function Index({ teams, tournaments, units }: Props) {
                                 </Button>
                             </DialogTrigger>
                             <DialogContent className="sm:max-w-md rounded-[2rem] border-none shadow-2xl p-0 overflow-hidden">
-                                <DialogHeader className="p-8 bg-neutral-900 text-white">
-                                    <DialogTitle className="text-2xl font-black uppercase tracking-tighter flex items-center gap-3">
-                                        <Trophy className="h-6 w-6 text-blue-500" /> TAKIM OLUŞTUR
-                                    </DialogTitle>
-                                    <DialogDescription className="text-neutral-400 font-bold uppercase text-[10px] tracking-widest mt-1">
-                                        Turnuvaya katılmak için takım bilgilerinizi girin.
+                                <DialogHeader className="p-8 bg-slate-950 text-white">
+                                    <div className="flex items-center justify-between mb-4">
+                                        <DialogTitle className="text-3xl font-black uppercase tracking-tighter flex items-center gap-3">
+                                            <Trophy className="h-8 w-8 text-amber-500" /> TAKIM KUR
+                                        </DialogTitle>
+                                        <Badge className="bg-blue-600 text-white border-none font-black text-[9px] px-3 py-1 rounded-full uppercase tracking-widest">BAŞVURU SÜRECİ</Badge>
+                                    </div>
+                                    <DialogDescription className="text-white/40 font-bold uppercase text-[10px] tracking-widest leading-relaxed">
+                                        TURNUVAYA KATILMAK İÇİN TAKIM BİLGİLERİNİZİ GİRİN. FİKSTÜR ÇEKİLDİKTEN SONRA YENİ BAŞVURU KABUL EDİLMEMEKTEDİR.
                                     </DialogDescription>
                                 </DialogHeader>
-                                <form onSubmit={submit} className="p-8 space-y-6">
-                                    <div className="space-y-2">
-                                        <Label htmlFor="name" className="text-[10px] font-black uppercase tracking-widest text-neutral-400">Takım Adı</Label>
-                                        <Input 
-                                            id="name" 
-                                            placeholder="ÖRNEK: ANADOLU KARTALLARI" 
-                                            className="h-12 rounded-xl bg-neutral-50 border-neutral-100 uppercase font-bold text-sm"
-                                            value={data.name}
-                                            onChange={e => setData('name', e.target.value)}
-                                            required
-                                        />
-                                        {errors.name && <p className="text-rose-500 text-[10px] font-black uppercase">{errors.name}</p>}
-                                    </div>
+                                <form onSubmit={submit} className="p-8 space-y-8">
+                                    {tournaments.length === 0 && (
+                                        <div className="p-4 rounded-2xl bg-amber-50 border border-amber-100 flex items-center gap-3">
+                                            <AlertTriangle className="h-4 w-4 text-amber-600" />
+                                            <p className="text-[10px] font-black uppercase text-amber-900 tracking-tight">ŞU ANDA BAŞVURUYA AÇIK BİR TURNUVA BULUNMAMAKTADIR.</p>
+                                        </div>
+                                    )}
 
-                                    <div className="space-y-2">
-                                        <Label className="text-[10px] font-black uppercase tracking-widest text-neutral-400">Turnuva Seçimi</Label>
-                                        <Select onValueChange={val => setData('tournament_id', val)} defaultValue={data.tournament_id}>
-                                            <SelectTrigger className="h-12 rounded-xl bg-neutral-50 border-neutral-100 font-bold text-sm uppercase">
-                                                <SelectValue placeholder="TURNUVA SEÇİN" />
-                                            </SelectTrigger>
-                                            <SelectContent className="rounded-xl border-neutral-100">
-                                                {tournaments.map(t => (
-                                                    <SelectItem key={t.id} value={t.id.toString()} className="uppercase font-bold text-xs">{t.name}</SelectItem>
-                                                ))}
-                                                {tournaments.length === 0 && (
-                                                    <div className="p-3 text-[10px] font-black uppercase text-neutral-400 text-center italic">Başvuruya açık turnuva yok</div>
-                                                )}
-                                            </SelectContent>
-                                        </Select>
-                                        {errors.tournament_id && <p className="text-rose-500 text-[10px] font-black uppercase">{errors.tournament_id}</p>}
-                                    </div>
+                                    <div className="space-y-4">
+                                        <div className="space-y-2">
+                                            <Label htmlFor="name" className="text-[10px] font-black uppercase tracking-widest text-neutral-400 ml-1">TAKIM ADI</Label>
+                                            <Input 
+                                                id="name" 
+                                                placeholder="ÖRNEK: PERSONEL SPOR" 
+                                                className="h-14 rounded-2xl bg-neutral-50 border-none font-black uppercase text-sm px-6 focus:ring-2 focus:ring-blue-600/20"
+                                                value={data.name}
+                                                onChange={e => setData('name', e.target.value)}
+                                                required
+                                            />
+                                            {errors.name && <p className="text-rose-500 text-[10px] font-black uppercase ml-1">{errors.name}</p>}
+                                        </div>
 
-                                    <div className="space-y-2">
-                                        <Label className="text-[10px] font-black uppercase tracking-widest text-neutral-400">Birim (Departman)</Label>
-                                        <Select 
-                                            onValueChange={val => setData('unit_id', val)} 
-                                            defaultValue={data.unit_id}
-                                            disabled={!!auth.user.unit_id}
-                                        >
-                                            <SelectTrigger className="h-12 rounded-xl bg-neutral-50 border-neutral-100 font-bold text-sm uppercase">
-                                                <SelectValue placeholder="BİRİM SEÇİN" />
-                                            </SelectTrigger>
-                                            <SelectContent className="rounded-xl border-neutral-100">
-                                                {units.map(u => (
-                                                    <SelectItem key={u.id} value={u.id.toString()} className="uppercase font-bold text-xs">{u.name}</SelectItem>
-                                                ))}
-                                            </SelectContent>
-                                        </Select>
-                                        {errors.unit_id && <p className="text-rose-500 text-[10px] font-black uppercase">{errors.unit_id}</p>}
+                                        <div className="space-y-2">
+                                            <Label className="text-[10px] font-black uppercase tracking-widest text-neutral-400 ml-1">TURNUVA SEÇİMİ</Label>
+                                            <Select onValueChange={val => setData('tournament_id', val)} defaultValue={data.tournament_id}>
+                                                <SelectTrigger className="h-14 rounded-2xl bg-neutral-50 border-none font-black text-sm uppercase px-6">
+                                                    <SelectValue placeholder="BİR TURNUVA SEÇİN" />
+                                                </SelectTrigger>
+                                                <SelectContent className="rounded-2xl border-none shadow-3xl p-2">
+                                                    {tournaments.map(t => (
+                                                        <SelectItem key={t.id} value={t.id.toString()} className="uppercase font-black text-xs py-3 rounded-xl">
+                                                            {t.name}
+                                                        </SelectItem>
+                                                    ))}
+                                                </SelectContent>
+                                            </Select>
+                                            {errors.tournament_id && <p className="text-rose-500 text-[10px] font-black uppercase ml-1">{errors.tournament_id}</p>}
+                                        </div>
+
+                                        <div className="space-y-2">
+                                            <Label className="text-[10px] font-black uppercase tracking-widest text-neutral-400 ml-1">BİRİM (DEPARTMAN)</Label>
+                                            <Select 
+                                                onValueChange={val => setData('unit_id', val)} 
+                                                defaultValue={data.unit_id}
+                                                disabled={!!auth.user.unit_id}
+                                            >
+                                                <SelectTrigger className="h-14 rounded-2xl bg-neutral-50 border-none font-black text-sm uppercase px-6 opacity-80">
+                                                    <SelectValue placeholder="BİRİM SEÇİN" />
+                                                </SelectTrigger>
+                                                <SelectContent className="rounded-2xl border-none shadow-3xl p-2">
+                                                    {units.map(u => (
+                                                        <SelectItem key={u.id} value={u.id.toString()} className="uppercase font-black text-xs py-3 rounded-xl">{u.name}</SelectItem>
+                                                    ))}
+                                                </SelectContent>
+                                            </Select>
+                                            {errors.unit_id && <p className="text-rose-500 text-[10px] font-black uppercase ml-1">{errors.unit_id}</p>}
+                                        </div>
                                     </div>
 
                                     <Button 
                                         type="submit" 
-                                        disabled={processing}
-                                        className="w-full h-12 bg-blue-600 hover:bg-blue-700 text-white font-black uppercase tracking-widest text-xs rounded-xl shadow-lg shadow-blue-600/20"
+                                        disabled={processing || tournaments.length === 0}
+                                        className="w-full h-16 bg-blue-600 hover:bg-black text-white font-black uppercase tracking-[0.2em] text-xs rounded-2xl shadow-2xl shadow-blue-600/20 transition-all duration-300 transform active:scale-95"
                                     >
-                                        BAŞVURUYU TAMAMLA
+                                        BAŞVURUYU GÖNDER
                                     </Button>
                                 </form>
                             </DialogContent>

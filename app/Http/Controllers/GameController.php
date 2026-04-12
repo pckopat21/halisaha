@@ -63,6 +63,23 @@ class GameController extends Controller
         }
     }
 
+    public function reopen(Game $game)
+    {
+        Gate::authorize('approve', $game);
+
+        try {
+            $game->update(['status' => 'playing']);
+            
+            if ($game->group_id) {
+                $this->gameService->recalculateGroupStandings($game->group_id);
+            }
+
+            return redirect()->back()->with('success', 'Maç tekrar düzenlemeye açıldı.');
+        } catch (\Exception $e) {
+            return redirect()->back()->withErrors(['error' => $e->getMessage()]);
+        }
+    }
+
     public function logPenalty(Game $game, Request $request)
     {
         Gate::authorize('logEvent', $game);

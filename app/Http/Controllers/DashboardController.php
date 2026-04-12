@@ -24,6 +24,8 @@ class DashboardController extends Controller
             'games_count' => Game::count(),
             'players_count' => Player::count(),
             'top_scorer' => $activeTournament ? $statsService->getTopScorers($activeTournament, 1)->first() : null,
+            'goals_by_unit' => $activeTournament ? $statsService->getGoalsByUnit($activeTournament) : [],
+            'match_trends' => $activeTournament ? $statsService->getMatchTrends($activeTournament) : [],
         ];
 
         $upcomingGames = Game::with(['homeTeam.unit', 'awayTeam.unit'])
@@ -31,6 +33,12 @@ class DashboardController extends Controller
             ->orderBy('scheduled_at')
             ->take(5)
             ->get();
+
+        $latestChampionTournament = Tournament::whereNotNull('champion_id')
+            ->where('status', 'completed')
+            ->with(['champion.unit'])
+            ->latest()
+            ->first();
 
         if ($user->isCommittee()) {
             return Inertia::render('dashboard', [
@@ -42,6 +50,7 @@ class DashboardController extends Controller
                     ->get(),
                 'upcoming_games' => $upcomingGames,
                 'active_tournament' => $activeTournament,
+                'latest_champion_tournament' => $latestChampionTournament,
             ]);
         }
 
@@ -58,6 +67,7 @@ class DashboardController extends Controller
             'standing' => $myStanding,
             'tournaments' => Tournament::whereIn('status', ['registration', 'active'])->get(),
             'upcoming_games' => $upcomingGames,
+            'latest_champion_tournament' => $latestChampionTournament,
             'my_games' => $myTeam ? Game::where(function($q) use ($myTeam) {
                     $q->where('home_team_id', $myTeam->id)
                       ->orWhere('away_team_id', $myTeam->id);

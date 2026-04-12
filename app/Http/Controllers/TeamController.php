@@ -30,15 +30,16 @@ class TeamController extends Controller
 
         return Inertia::render('teams/index', [
             'teams' => $teams,
-            'tournaments' => Tournament::whereIn('status', ['registration', 'active'])->get(),
+            'tournaments' => Tournament::where('status', 'registration')->get(),
             'units' => \App\Models\Unit::all()
         ]);
     }
 
-    public function show(Team $team)
+    public function show(Team $team, \App\Services\StatsService $statsService)
     {
         return Inertia::render('teams/show', [
             'team' => $team->load(['players', 'unit', 'captain', 'tournament']),
+            'performance' => $statsService->getTeamPerformance($team),
             'can' => [
                 'update' => auth()->user()?->can('update', $team) ?? false,
                 'approve' => auth()->user()?->can('approve', $team) ?? false,
@@ -106,6 +107,12 @@ class TeamController extends Controller
             'name' => 'required|string|max:255',
         ]);
 
+        $tournament = Tournament::findOrFail($validated['tournament_id']);
+        
+        if ($tournament->status !== 'registration') {
+            return redirect()->back()->withErrors(['tournament_id' => 'Bu turnuva için başvuru süreci tamamlanmıştır.']);
+        }
+
         $unitId = $validated['unit_id'] ?? auth()->user()->unit_id;
 
         if (!$unitId) {
@@ -123,7 +130,7 @@ class TeamController extends Controller
         return redirect()->route('teams.show', $team->id)->with('success', 'Takım başvurusu oluşturuldu. Şimdi kadronuzu kurabilirsiniz.');
     }
 
-    public function addPlayer(Team $team, Request $request)
+    public function addPlayer(Team $team, Request $request, \App\Services\TournamentValidationService $validator)
     {
         Gate::authorize('manageRoster', $team);
 
@@ -133,25 +140,17 @@ class TeamController extends Controller
 
         $player = \App\Models\Player::findOrFail($validated['player_id']);
 
-        // Rule 11: Unit consistency
-        if ($player->unit_id !== $team->unit_id && !auth()->user()->isSuperAdmin()) {
-            return redirect()->back()->withErrors(['player_id' => 'Oyuncu sadece kendi biriminin takımında oynayabilir.']);
+        // Check if player is already in team
+        if ($team->players()->where('player_id', $player->id)->exists()) {
+            return redirect()->back()->withErrors(['player_id' => 'Bu oyuncu zaten kadroda yer alıyor.']);
         }
 
-        // Rule 1: Max 12 players
-        if ($team->players()->count() >= 12) {
-            return redirect()->back()->withErrors(['player_id' => 'Takım kadrosu en fazla 12 kişi olabilir.']);
-        }
+        // Simulate new roster for validation
+        $newRoster = $team->players->push($player);
+        $validation = $validator->validateTeamRoster($team, $newRoster);
 
-        // Rule 10: Player cannot be in multiple teams in the same tournament
-        $existsInTournament = \DB::table('team_player')
-            ->join('teams', 'team_player.team_id', '=', 'teams.id')
-            ->where('teams.tournament_id', $team->tournament_id)
-            ->where('team_player.player_id', $player->id)
-            ->exists();
-        
-        if ($existsInTournament) {
-            return redirect()->back()->withErrors(['player_id' => 'Bu oyuncu bu turnuvada başka bir takıma kayıtlıdır.']);
+        if (!$validation['is_valid'] && !$team->has_exception) {
+            return redirect()->back()->withErrors(['player_id' => $validation['errors'][0] ?? 'Kadro kuralları ihlal ediliyor.']);
         }
 
         $team->players()->syncWithoutDetaching([$validated['player_id']]);

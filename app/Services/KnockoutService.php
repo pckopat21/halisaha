@@ -163,4 +163,44 @@ class KnockoutService
             ]);
         }
     }
+
+    public function createThirdPlaceMatch(Tournament $tournament)
+    {
+        return DB::transaction(function () use ($tournament) {
+            $semiMatches = Game::where('tournament_id', $tournament->id)
+                ->where('round', 'semi')
+                ->get();
+
+            if ($semiMatches->count() < 2) {
+                throw new \Exception("3.lük maçı oluşturulabilmesi için her iki yarı final maçının da tanımlanmış olması gerekir.");
+            }
+
+            if ($semiMatches->where('status', '!=', 'completed')->isNotEmpty()) {
+                throw new \Exception("3.lük maçı oluşturulabilmesi için tüm yarı final maçlarının tamamlanmış olması gerekir.");
+            }
+
+            // A match for 3rd place already exists?
+            $exists = Game::where('tournament_id', $tournament->id)
+                ->where('round', 'third_place')
+                ->exists();
+            
+            if ($exists) {
+                throw new \Exception("Bu turnuva için zaten bir 3.lük maçı oluşturulmuş.");
+            }
+
+            $losers = $semiMatches->map(function ($match) {
+                return $this->getLoser($match);
+            });
+
+            $this->createKnockoutMatches($tournament, [[$losers[0], $losers[1]]], 'third_place');
+
+            return true;
+        });
+    }
+
+    private function getLoser(Game $match)
+    {
+        $winner = $this->getWinner($match);
+        return $match->home_team_id === $winner->id ? $match->awayTeam : $match->homeTeam;
+    }
 }

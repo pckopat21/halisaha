@@ -174,11 +174,33 @@ class GameService
             throw new \Exception("Eleme maçlarında beraberlik durumunda penaltı sonuçları girilmelidir.");
         }
 
-        $game->update(['status' => 'completed']);
-        
-        if ($game->group_id) {
-            $this->recalculateGroupStandings($game->group_id);
-        }
+        return DB::transaction(function () use ($game) {
+            $game->update(['status' => 'completed']);
+            
+            if ($game->group_id) {
+                $this->recalculateGroupStandings($game->group_id);
+            }
+
+            // Crown Champion logic
+            if ($game->round === 'final') {
+                $winnerId = null;
+                if ($game->home_score > $game->away_score) {
+                    $winnerId = $game->home_team_id;
+                } elseif ($game->away_score > $game->home_score) {
+                    $winnerId = $game->away_team_id;
+                } elseif ($game->has_penalties) {
+                    $winnerId = $game->home_penalty_score > $game->away_penalty_score 
+                        ? $game->home_team_id 
+                        : $game->away_team_id;
+                }
+
+                if ($winnerId) {
+                    $game->tournament->update(['champion_id' => $winnerId]);
+                }
+            }
+
+            return $game;
+        });
     }
 
     public function recalculateGroupStandings(int $groupId)

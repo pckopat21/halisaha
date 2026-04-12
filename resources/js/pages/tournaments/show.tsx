@@ -88,6 +88,8 @@ interface Tournament {
     name: string;
     year: number;
     status: 'draft' | 'registration' | 'active' | 'completed';
+    champion_id?: number | null;
+    champion?: { id: number; name: string; unit: { name: string } };
     teams: { id: number; name: string; unit: { name: string } }[];
     groups: Group[];
     games: Game[];
@@ -132,6 +134,8 @@ export default function Show({ tournament, stats }: Props) {
         current_round: '',
         next_round: '',
     });
+
+    const { post: postThirdPlace, processing: thirdPlaceProcessing } = useForm({});
 
     const resultForm = useForm({
         home_score: 0,
@@ -190,6 +194,12 @@ export default function Show({ tournament, stats }: Props) {
         }
     };
 
+    const handleThirdPlace = () => {
+        if (confirm('Yarı final mağluplarını eşleştirip 3.lük maçını oluşturmak istediğinize emin misiniz?')) {
+            postThirdPlace(route('tournaments.third-place', tournament.id));
+        }
+    };
+
     // Knockout progression helpers
     const knockoutGames = tournament.games.filter(g => g.round && g.round !== 'group');
     const roundsInOrder = ['round_16', 'quarter', 'semi', 'final'];
@@ -222,11 +232,28 @@ export default function Show({ tournament, stats }: Props) {
                     
                     <div className="relative z-10 flex flex-col md:flex-row md:items-end justify-between gap-8">
                         <div className="space-y-4">
-                            <Badge variant="outline" className="border-blue-100 text-blue-600 font-black uppercase tracking-[0.2em] py-1.5 px-4 rounded-full bg-blue-50/50 backdrop-blur-sm dark:border-blue-500/30 dark:text-blue-400 dark:bg-blue-500/5">
-                                {tournament.status === 'draft' ? 'KAYIT AŞAMASI' : 
-                                 tournament.status === 'active' ? 'TURNUVA DEVAM EDİYOR' : 
-                                 tournament.status === 'registration' ? 'KAYITLAR AÇIK' : 'TAMAMLANDI'}
-                            </Badge>
+                            <div className="flex flex-wrap items-center gap-3">
+                                <Badge variant="outline" className="border-blue-100 text-blue-600 font-black uppercase tracking-[0.2em] py-1.5 px-4 rounded-full bg-blue-50/50 backdrop-blur-sm dark:border-blue-500/30 dark:text-blue-400 dark:bg-blue-500/5">
+                                    {tournament.status === 'draft' ? 'KAYIT AŞAMASI' : 
+                                     tournament.status === 'active' ? 'TURNUVA DEVAM EDİYOR' : 
+                                     tournament.status === 'registration' ? 'KAYITLAR AÇIK' : 'TAMAMLANDI'}
+                                </Badge>
+                                
+                                {tournament.groups.length > 0 && (
+                                    <div className="flex items-center gap-2">
+                                        <a href={route('reports.standings', tournament.id)} target="_blank">
+                                            <Button variant="outline" size="sm" className="h-8 rounded-full border-emerald-200 text-emerald-600 hover:bg-emerald-50 text-[9px] font-black uppercase tracking-widest gap-2 bg-emerald-50/30">
+                                                <Edit3 className="h-3 w-3" /> PUAN DURUMU PDF
+                                            </Button>
+                                        </a>
+                                        <a href={route('reports.fixture', tournament.id)} target="_blank">
+                                            <Button variant="outline" size="sm" className="h-8 rounded-full border-blue-200 text-blue-600 hover:bg-blue-50 text-[9px] font-black uppercase tracking-widest gap-2 bg-blue-50/30">
+                                                <Calendar className="h-3 w-3" /> FİKSTÜR PDF
+                                            </Button>
+                                        </a>
+                                    </div>
+                                )}
+                            </div>
                             <h1 className="text-4xl md:text-6xl font-black uppercase tracking-tighter leading-none">{tournament.name}</h1>
                             <div className="flex flex-wrap items-center gap-6 text-muted-foreground">
                                 <div className="flex items-center gap-2">
@@ -321,11 +348,11 @@ export default function Show({ tournament, stats }: Props) {
                                         </p>
                                     )}
 
-                                    {tournament.groups.length > 0 && (
-                                        <div className="pt-4 mt-4 border-t border-slate-100 dark:border-white/5 space-y-6">
+                                    {tournament.groups.length > 0 && knockoutGames.length === 0 && (
+                                        <div className="pt-4 mt-4 border-t border-slate-100 dark:border-white/5 space-y-6 animate-in fade-in slide-in-from-bottom duration-500">
                                             <div className="flex items-center gap-2">
-                                                <Trophy className="h-4 w-4 text-amber-500" />
-                                                <span className="text-[10px] font-black uppercase tracking-widest text-amber-600">ELEME TURLARI AYARLARI</span>
+                                                <Trophy className="h-4 w-4 text-emerald-500" />
+                                                <span className="text-[10px] font-black uppercase tracking-widest text-emerald-600">ELEME TURLARI SİHİRBAZI</span>
                                             </div>
 
                                             <div className="grid grid-cols-2 gap-4">
@@ -370,24 +397,47 @@ export default function Show({ tournament, stats }: Props) {
                                             <Button 
                                                 onClick={() => startKnockout(route('tournaments.start-knockout', tournament.id))}
                                                 disabled={knockoutProcessing}
-                                                className="w-full h-12 bg-white dark:bg-white/5 border border-slate-200 dark:border-white/10 text-slate-900 dark:text-white font-black uppercase tracking-widest text-[10px] rounded-2xl hover:bg-slate-50 transition-all"
+                                                className="w-full h-12 bg-white dark:bg-white/5 border border-slate-200 dark:border-white/10 text-slate-900 dark:text-white font-black uppercase tracking-widest text-[10px] rounded-2xl hover:bg-slate-50 transition-all border-dashed"
                                             >
-                                                ELEME TURLARINI OLUŞTUR
+                                                ELEME TURLARINI BAŞLAT
                                             </Button>
+                                        </div>
+                                    )}
 
+                                    {knockoutGames.length > 0 && (
+                                        <div className="pt-4 mt-4 border-t border-slate-100 dark:border-white/5 space-y-4">
                                             {isLatestRoundCompleted && nextRoundName && (
-                                                <div className="pt-4 border-t border-dashed border-slate-200 dark:border-white/10">
+                                                <div className="animate-in zoom-in duration-500">
                                                     <Button 
                                                         onClick={() => handleAdvance(latestRound, nextRoundName)}
                                                         disabled={advanceProcessing}
-                                                        className="w-full h-14 bg-emerald-600 hover:bg-emerald-700 text-white font-black uppercase tracking-widest text-xs rounded-2xl shadow-lg shadow-emerald-500/20 flex items-center justify-center gap-3 animate-pulse hover:animate-none"
+                                                        className="w-full h-14 bg-emerald-600 hover:bg-emerald-700 text-white font-black uppercase tracking-widest text-xs rounded-2xl shadow-lg shadow-emerald-500/20 flex items-center justify-center gap-3"
                                                     >
-                                                        <Trophy className="h-4 w-4" />
+                                                        <ChevronRight className="h-4 w-4" />
                                                         {nextRoundName === 'semi' ? 'YARI FİNALLERİ OLUŞTUR' : 'FİNALİ OLUŞTUR'}
                                                         <ChevronRight className="h-4 w-4" />
                                                     </Button>
-                                                    <p className="text-[9px] text-center text-emerald-600 font-bold mt-3 uppercase tracking-tighter">Tüm {latestRound} maçları tamamlandı!</p>
                                                 </div>
+                                            )}
+
+                                            {/* 3rd Place Match Logic */}
+                                            {latestRound === 'semi' && isLatestRoundCompleted && !knockoutGames.some(g => g.round === 'third_place') && (
+                                                <div className="animate-in slide-in-from-right duration-500">
+                                                    <Button 
+                                                        onClick={handleThirdPlace}
+                                                        disabled={thirdPlaceProcessing}
+                                                        className="w-full h-12 bg-amber-500 hover:bg-amber-600 text-white font-black uppercase tracking-widest text-[10px] rounded-2xl shadow-lg shadow-amber-500/20 flex items-center justify-center gap-2 border border-amber-400/50 outline outline-offset-2 outline-amber-500/20"
+                                                    >
+                                                        <Medal className="h-4 w-4" />
+                                                        3.LÜK MAÇINI OLUŞTUR
+                                                    </Button>
+                                                </div>
+                                            )}
+
+                                            {(!isLatestRoundCompleted || (!nextRoundName && latestRound !== 'final')) && (
+                                                <p className="text-[9px] text-center text-blue-600 font-bold uppercase tracking-widest bg-blue-50 dark:bg-blue-500/5 py-3 rounded-xl">
+                                                    {latestRound.toUpperCase()} TURU MAÇLARI DEVAM EDİYOR
+                                                </p>
                                             )}
                                         </div>
                                     )}
@@ -395,6 +445,34 @@ export default function Show({ tournament, stats }: Props) {
                         )}
                     </div>
                 </div>
+
+                {tournament.champion && (
+                    <div className="mb-12 animate-in fade-in slide-in-from-top duration-700">
+                        <Card className="border-none bg-gradient-to-r from-amber-400 via-amber-500 to-amber-600 dark:from-amber-600 dark:via-amber-700 dark:to-amber-800 text-white shadow-[0_20px_50px_rgba(245,158,11,0.3)] rounded-[3rem] overflow-hidden relative">
+                            <div className="absolute inset-0 opacity-10 pointer-events-none bg-[url('https://www.transparenttextures.com/patterns/carbon-fibre.png')]"></div>
+                            <div className="absolute -right-20 -bottom-20 opacity-20 pointer-events-none">
+                                <Trophy className="h-96 w-96 text-white" />
+                            </div>
+                            
+                            <CardContent className="p-8 md:p-12 relative z-10 flex flex-col md:flex-row items-center justify-between gap-8">
+                                <div className="flex items-center gap-8">
+                                    <div className="h-24 w-24 md:h-32 md:w-32 bg-white/20 backdrop-blur-xl rounded-[2.5rem] flex items-center justify-center shadow-2xl border border-white/30 shrink-0">
+                                        <Trophy className="h-12 w-12 md:h-16 md:w-16 text-white animate-bounce" />
+                                    </div>
+                                    <div>
+                                        <Badge className="bg-white/20 text-white border-none font-black text-[10px] px-4 py-1.5 rounded-full uppercase tracking-[0.3em] mb-3">RESMİ ŞAMPİYON</Badge>
+                                        <h2 className="text-4xl md:text-6xl font-black uppercase tracking-tighter leading-none mb-2">{tournament.champion.name}</h2>
+                                        <p className="font-black uppercase tracking-widest text-xs opacity-80">{tournament.champion.unit.name} • {tournament.year} ZİRVESİ</p>
+                                    </div>
+                                </div>
+                                <div className="bg-white/10 backdrop-blur-md px-10 py-6 rounded-[2rem] border border-white/20 text-center">
+                                    <p className="text-[10px] font-black uppercase tracking-widest opacity-80 mb-1 leading-none">ZAFER ANISI</p>
+                                    <p className="text-3xl font-black italic tracking-tighter whitespace-nowrap">#ŞAMPİYON</p>
+                                </div>
+                            </CardContent>
+                        </Card>
+                    </div>
+                )}
 
                 <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
                     <div className="flex items-center justify-between mb-8">

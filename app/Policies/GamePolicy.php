@@ -29,6 +29,10 @@ class GamePolicy
      */
     public function logEvent(User $user, Game $game): bool
     {
+        if ($game->status === 'completed') {
+            return false;
+        }
+
         return $user->isReferee() || $user->isCommittee();
     }
 

@@ -51,6 +51,7 @@ class TournamentController extends Controller
                 'groups.standings.team', 
                 'groups.games.homeTeam.unit', 
                 'groups.games.awayTeam.unit',
+                'champion.unit',
                 'games' => function($q) {
                     $q->whereNull('group_id')->with(['homeTeam.unit', 'awayTeam.unit']);
                 }
@@ -88,6 +89,18 @@ class TournamentController extends Controller
         $tournament->update(['status' => 'completed']);
 
         return redirect()->back()->with('success', 'Turnuva başarıyla tamamlandı. Artık arşivde görünecektir.');
+    }
+
+    public function createThirdPlaceMatch(Tournament $tournament, KnockoutService $service)
+    {
+        Gate::authorize('update', $tournament);
+
+        try {
+            $service->createThirdPlaceMatch($tournament);
+            return back()->with('success', '3.lük maçı başarıyla oluşturuldu.');
+        } catch (\Exception $e) {
+            return back()->with('error', $e->getMessage());
+        }
     }
 
     public function draw(Tournament $tournament, Request $request)
