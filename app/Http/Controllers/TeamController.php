@@ -147,7 +147,7 @@ class TeamController extends Controller
 
         // Simulate new roster for validation
         $newRoster = $team->players->push($player);
-        $validation = $validator->validateTeamRoster($team, $newRoster);
+        $validation = $validator->validateTeamRoster($team, $newRoster, false);
 
         if (!$validation['is_valid'] && !$team->has_exception) {
             return redirect()->back()->withErrors(['player_id' => $validation['errors'][0] ?? 'Kadro kuralları ihlal ediliyor.']);

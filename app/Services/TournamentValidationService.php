@@ -16,18 +16,20 @@ class TournamentValidationService
      * @param Collection $players
      * @return array
      */
-    public function validateTeamRoster(Team $team, Collection $players): array
+    public function validateTeamRoster(Team $team, Collection $players, bool $checkFullCompliance = true): array
     {
         $errors = [];
         $tournament = $team->tournament;
 
-        // Rule 1: Team roster size (6-12)
+        // --- ALWAYS BLOCK RULES (Hard constraints for adding players) ---
+
+        // Rule: Team maximum roster size (12)
         $count = $players->count();
-        if ($count < 6 || $count > 12) {
-            $errors[] = "Takım kadrosu en az 6, en fazla 12 kişi olmalıdır. Mevcut: $count";
+        if ($count > 12) {
+            $errors[] = "Takım kadrosu en fazla 12 kişi olmalıdır. Mevcut: $count";
         }
 
-        // Rule 5: En fazla 5 firma personeli kadroda olabilir. (Kadrolu personel hariç)
+        // Rule 5: En fazla 5 firma personeli kadroda olabilir.
         $staffCount = $players->where('is_company_staff', true)->count();
         if ($staffCount > 5) {
             $errors[] = "Takım kadrosunda en fazla 5 FİRMA personeli olabilir. (Mevcut: $staffCount)";
@@ -37,11 +39,6 @@ class TournamentValidationService
         $licensedCount = $players->where('is_licensed', true)->count();
         if ($licensedCount > 2) {
             $errors[] = "En fazla 2 vizeli lisanslı oyuncu kadroda olabilir. Mevcut: $licensedCount";
-        }
-
-        // Rule 9: Captain must be a player in the roster
-        if (!$players->pluck('id')->contains($team->captain_id)) {
-            $errors[] = "Takım sorumlusu takım oyuncularından biri olmalıdır.";
         }
 
         foreach ($players as $player) {
@@ -54,25 +51,31 @@ class TournamentValidationService
             if ($otherTeam) {
                 $errors[] = "{$player->first_name} {$player->last_name} zaten başka bir takımda ({$otherTeam->name}) yer alıyor.";
             }
+        }
 
-            // Rule 11: If their own unit has a team, they must play for it
-            $unitTeam = Team::where('tournament_id', $tournament->id)
-                ->where('unit_id', $player->unit_id)
-                ->first();
-            
-            if ($unitTeam && $team->unit_id !== $player->unit_id && !$team->has_exception) {
-                $errors[] = "{$player->first_name} {$player->last_name} kendi birimi turnuvaya katıldığı için başka takımda oynayamaz (İstisna tanımlanmamış).";
+        // --- FINAL APPROVAL RULES (Only block if $checkFullCompliance is true) ---
+
+        if ($checkFullCompliance) {
+            // Rule 1: Minimum roster size
+            if ($count < 6) {
+                $errors[] = "Takım kadrosu en az 6 kişi olmalıdır. Mevcut: $count";
             }
 
-            // Rule 13: Different unit personnel check
-            if ($player->unit_id !== $team->unit_id && !$team->has_exception) {
-                // Technically Rule 13 is a "reason for disqualification", but we can block it at the roster level if no exception.
-                $errors[] = "{$player->first_name} {$player->last_name} farklı bir birimde görev yapıyor. İstisna tanımlanmadan kadroya eklenemez.";
+            // Rule 9: Captain must be in the roster
+            if (!$team->captain_id || !$players->pluck('id')->contains($team->captain_id)) {
+                $errors[] = "Takım sorumlusu atanmalı ve takım oyuncularından biri olmalıdır.";
             }
-            
-            // Rule 14: Health certificate check
-            if (!$player->health_certificate_at) {
-                $errors[] = "{$player->first_name} {$player->last_name} için sağlık belgesi tanımlanmamış.";
+
+            foreach ($players as $player) {
+                // Rule 11 & 13: Unit adherence
+                if ($player->unit_id !== $team->unit_id && !$team->has_exception) {
+                    $errors[] = "{$player->first_name} {$player->last_name} farklı bir birimde görev yapıyor. İstisna tanımlanmadan onay verilemez.";
+                }
+
+                // Rule 14: Health certificate check
+                if (!$player->health_certificate_at) {
+                    $errors[] = "{$player->first_name} {$player->last_name} için sağlık belgesi tanımlanmamış.";
+                }
             }
         }
 
