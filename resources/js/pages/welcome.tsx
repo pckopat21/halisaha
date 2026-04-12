@@ -103,28 +103,31 @@ export default function Welcome({ activeTournament, approvedTeams, auth }: PageP
                             <Trophy className="h-6 w-6 text-white" />
                         </div>
                         <div className="flex flex-col">
-                            <span className="text-xl font-black uppercase tracking-tighter leading-none text-slate-900">HALISAHA<span className="text-blue-600">PRO</span></span>
-                            <span className="text-[9px] font-black text-slate-400 uppercase tracking-[0.3em] mt-1">ELITE TOURNAMENT SYSTEM</span>
+                            <span className="text-xl md:text-2xl font-black uppercase tracking-tighter leading-none text-slate-900">HALISAHA<span className="text-blue-600">PRO</span></span>
+                            <span className="hidden md:block text-[9px] font-black text-slate-400 uppercase tracking-[0.3em] mt-1">ELITE TOURNAMENT SYSTEM</span>
                         </div>
                     </div>
 
-                    <div className="flex items-center gap-4">
+                    <div className="flex items-center gap-2 md:gap-4">
                         {auth?.user ? (
                             <Link href="/dashboard">
-                                <Button className="bg-slate-900 text-white hover:bg-blue-600 font-black uppercase tracking-widest text-[10px] rounded-2xl h-12 px-8 transition-all shadow-xl active:scale-95 border-none">
-                                    <LayoutDashboard className="mr-2 h-4 w-4" /> DASHBOARD
+                                <Button className="bg-slate-900 text-white hover:bg-blue-600 font-black uppercase tracking-widest text-[10px] rounded-2xl h-10 md:h-12 px-4 md:px-8 transition-all shadow-xl active:scale-95 border-none">
+                                    <LayoutDashboard className="h-4 w-4 md:mr-2" /> 
+                                    <span className="hidden md:inline">DASHBOARD</span>
                                 </Button>
                             </Link>
                         ) : (
-                            <div className="hidden md:flex items-center gap-3 bg-slate-100 p-1.5 rounded-[1.5rem] border border-slate-200 backdrop-blur-sm">
+                            <div className="flex items-center gap-2 md:gap-3 bg-slate-100 p-1 md:p-1.5 rounded-[1.5rem] border border-slate-200 backdrop-blur-sm">
                                 <Link href="/login">
-                                    <Button variant="ghost" className="text-slate-600 hover:text-blue-600 hover:bg-white font-black uppercase tracking-widest text-[10px] h-11 px-8 rounded-2xl">
-                                        GİRİŞ
+                                    <Button variant="ghost" className="text-slate-600 hover:text-blue-600 hover:bg-white font-black uppercase tracking-widest text-[10px] h-9 md:h-11 px-4 md:px-8 rounded-2xl">
+                                        <LogIn className="h-4 w-4 md:hidden" />
+                                        <span className="hidden md:inline">GİRİŞ</span>
                                     </Button>
                                 </Link>
                                 <Link href="/register">
-                                    <Button className="bg-blue-600 hover:bg-blue-700 text-white font-black uppercase tracking-widest text-[10px] rounded-2xl h-11 px-8 transition-all shadow-lg shadow-blue-600/20 active:scale-95">
-                                        KAYIT OL
+                                    <Button className="bg-blue-600 hover:bg-blue-700 text-white font-black uppercase tracking-widest text-[10px] rounded-2xl h-9 md:h-11 px-4 md:px-8 transition-all shadow-lg shadow-blue-600/20 active:scale-95">
+                                        <UserPlus className="h-4 w-4 md:hidden" />
+                                        <span className="hidden md:inline">KAYIT OL</span>
                                     </Button>
                                 </Link>
                             </div>
@@ -154,7 +157,7 @@ export default function Welcome({ activeTournament, approvedTeams, auth }: PageP
                                     <Trophy className="h-4 w-4 fill-current" />
                                     <span className="text-[10px] font-black uppercase tracking-[0.3em]">TURNUVA ŞAMPİYONU</span>
                                 </div>
-                                <h2 className="text-6xl md:text-8xl font-black uppercase tracking-tighter mb-4 text-transparent bg-clip-text bg-gradient-to-b from-amber-400 via-amber-600 to-amber-800 drop-shadow-2xl">
+                                <h2 className="text-4xl md:text-8xl font-black uppercase tracking-tighter mb-4 text-transparent bg-clip-text bg-gradient-to-b from-amber-400 via-amber-600 to-amber-800 drop-shadow-2xl">
                                     {activeTournament.champion.name}
                                 </h2>
                                 <p className="text-amber-700/60 font-black uppercase tracking-[0.4em] text-sm mb-12">
