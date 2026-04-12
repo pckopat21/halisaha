@@ -25,7 +25,9 @@ class TournamentController extends Controller
     public function index()
     {
         return Inertia::render('tournaments/index', [
-            'tournaments' => Tournament::withCount('teams')->latest()->get()
+            'tournaments' => Tournament::withCount(['teams' => function($q) {
+                $q->where('status', 'approved');
+            }])->latest()->get()
         ]);
     }
 
@@ -47,7 +49,12 @@ class TournamentController extends Controller
     {
         return Inertia::render('tournaments/show', [
             'tournament' => $tournament->load([
-                'teams.unit', 
+                'teams' => function($q) {
+                    if (!auth()->user()?->isCommittee()) {
+                        $q->where('status', 'approved');
+                    }
+                    $q->with('unit');
+                }, 
                 'groups.standings.team', 
                 'groups.games.homeTeam.unit', 
                 'groups.games.awayTeam.unit',
@@ -56,6 +63,16 @@ class TournamentController extends Controller
                     $q->whereNull('group_id')->with(['homeTeam.unit', 'awayTeam.unit']);
                 }
             ]),
+            'teamStats' => [
+                'total' => $tournament->teams()->count(),
+                'approved' => $tournament->teams()->where('status', 'approved')->count() ?: $tournament->teams()->where('status', 'Approved')->count(),
+                'pending' => $tournament->teams()->where('status', 'pending')->count() ?: $tournament->teams()->where('status', 'Pending')->count(),
+                'rejected' => $tournament->teams()->where('status', 'rejected')->count() ?: $tournament->teams()->where('status', 'Rejected')->count(),
+            ],
+            'isGroupStageCompleted' => $tournament->groups()->count() > 0 && 
+                !\App\Models\Game::whereIn('group_id', $tournament->groups()->pluck('id'))
+                    ->where('status', '!=', 'completed')
+                    ->exists(),
             'stats' => [
                 'topScorers' => $statsService->getTopScorers($tournament),
                 'fairPlay' => $statsService->getFairPlayTable($tournament)

@@ -1,14 +1,14 @@
 import AppLayout from '@/layouts/app-layout';
 import { type BreadcrumbItem } from '@/types';
-import { Head, Link, useForm } from '@inertiajs/react';
-import { 
-    Trophy, 
-    Plus, 
-    Settings, 
-    Play, 
-    Users, 
-    Calendar, 
-    ChevronRight, 
+import { Head, Link, useForm, router } from '@inertiajs/react';
+import {
+    Trophy,
+    Plus,
+    Settings,
+    Play,
+    Users,
+    Calendar,
+    ChevronRight,
     Flame,
     Clock,
     Medal,
@@ -66,7 +66,7 @@ export default function Index({ tournaments }: Props) {
     return (
         <AppLayout breadcrumbs={breadcrumbs}>
             <Head title="Turnuvalar" />
-            
+
             <div className="min-h-screen bg-background text-foreground p-6 md:p-12 font-sans overflow-x-hidden">
                 <div className="flex flex-col md:flex-row md:items-end justify-between gap-8 mb-12">
                     <div>
@@ -93,11 +93,11 @@ export default function Index({ tournaments }: Props) {
                             <form onSubmit={handleCreate} className="p-8 space-y-6">
                                 <div className="space-y-2">
                                     <Label htmlFor="name" className="text-[10px] font-black uppercase text-neutral-400">TURNUVA ADI</Label>
-                                    <Input 
-                                        id="name" 
-                                        value={data.name} 
+                                    <Input
+                                        id="name"
+                                        value={data.name}
                                         onChange={e => setData('name', e.target.value)}
-                                        placeholder="Örn: 2026 Bahar Turnuvası" 
+                                        placeholder="Örn: 2026 Bahar Turnuvası"
                                         className="h-12 rounded-xl bg-neutral-50 border-neutral-100 font-bold uppercase"
                                         required
                                     />
@@ -105,10 +105,10 @@ export default function Index({ tournaments }: Props) {
                                 </div>
                                 <div className="space-y-2">
                                     <Label htmlFor="year" className="text-[10px] font-black uppercase text-neutral-400">YIL</Label>
-                                    <Input 
-                                        id="year" 
+                                    <Input
+                                        id="year"
                                         type="number"
-                                        value={data.year} 
+                                        value={data.year}
                                         onChange={e => setData('year', parseInt(e.target.value))}
                                         className="h-12 rounded-xl bg-neutral-50 border-neutral-100 font-bold"
                                         required
@@ -131,17 +131,16 @@ export default function Index({ tournaments }: Props) {
                                     <div className="h-16 w-16 rounded-2xl bg-muted text-muted-foreground flex items-center justify-center border border-border group-hover:bg-blue-600 group-hover:text-white transition-all duration-500">
                                         <Trophy className="h-8 w-8" />
                                     </div>
-                                    <Badge 
+                                    <Badge
                                         variant="outline"
-                                        className={`uppercase tracking-widest text-[8px] font-black px-3 py-1.5 rounded-lg border-none ${
-                                            tournament.status === 'active' ? 'bg-emerald-500/10 text-emerald-500' : 
-                                            tournament.status === 'completed' ? 'bg-muted text-muted-foreground' : 
-                                            'bg-blue-500/10 text-blue-500'
-                                        }`}
+                                        className={`uppercase tracking-widest text-[8px] font-black px-3 py-1.5 rounded-lg border-none ${tournament.status === 'active' ? 'bg-emerald-500/10 text-emerald-500' :
+                                                tournament.status === 'completed' ? 'bg-muted text-muted-foreground' :
+                                                    'bg-blue-500/10 text-blue-500'
+                                            }`}
                                     >
-                                        {tournament.status === 'draft' ? 'TASLAK' : 
-                                         tournament.status === 'registration' ? 'KAYITLAR' :
-                                         tournament.status === 'active' ? 'AKTİF' : 'BİTTİ'}
+                                        {tournament.status === 'draft' ? 'TASLAK' :
+                                            tournament.status === 'registration' ? 'KAYITLAR' :
+                                                tournament.status === 'active' ? 'AKTİF' : 'BİTTİ'}
                                     </Badge>
                                 </div>
 
@@ -157,9 +156,9 @@ export default function Index({ tournaments }: Props) {
                                             DETAYLAR <ChevronRight className="ml-2 h-4 w-4 transition-transform group-hover/btn:translate-x-1" />
                                         </Button>
                                     </Link>
-                                    
+
                                     {tournament.status === 'draft' && (
-                                        <Button 
+                                        <Button
                                             onClick={() => handleDraw(tournament.id)}
                                             disabled={processing}
                                             className="h-12 w-12 bg-emerald-600 hover:bg-emerald-700 text-white p-0 rounded-xl shadow-lg shadow-emerald-600/20 active:scale-95 transition-all"
@@ -170,7 +169,7 @@ export default function Index({ tournaments }: Props) {
                                     )}
                                 </div>
                             </div>
-                            
+
                             {/* Decorative line */}
                             <div className="h-1.5 w-full bg-border group-hover:bg-blue-600 transition-colors" />
                         </Card>

@@ -21,13 +21,15 @@ class Game extends Model
         'has_penalties',
         'home_penalty_score',
         'away_penalty_score',
-        'round'
+        'round',
+        'started_at'
     ];
 
     protected $casts = [
         'scheduled_at' => 'datetime',
         'is_forfeit' => 'boolean',
         'has_penalties' => 'boolean',
+        'started_at' => 'datetime',
     ];
 
     public function tournament()

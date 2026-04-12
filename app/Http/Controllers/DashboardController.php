@@ -34,6 +34,10 @@ class DashboardController extends Controller
             ->take(5)
             ->get();
 
+        $liveGames = Game::with(['homeTeam.unit', 'awayTeam.unit'])
+            ->where('status', 'playing')
+            ->get();
+
         $latestChampionTournament = Tournament::whereNotNull('champion_id')
             ->where('status', 'completed')
             ->with(['champion.unit'])
@@ -51,6 +55,7 @@ class DashboardController extends Controller
                 'upcoming_games' => $upcomingGames,
                 'active_tournament' => $activeTournament,
                 'latest_champion_tournament' => $latestChampionTournament,
+                'live_games' => $liveGames,
             ]);
         }
 
@@ -68,6 +73,7 @@ class DashboardController extends Controller
             'tournaments' => Tournament::whereIn('status', ['registration', 'active'])->get(),
             'upcoming_games' => $upcomingGames,
             'latest_champion_tournament' => $latestChampionTournament,
+            'live_games' => $liveGames,
             'my_games' => $myTeam ? Game::where(function($q) use ($myTeam) {
                     $q->where('home_team_id', $myTeam->id)
                       ->orWhere('away_team_id', $myTeam->id);

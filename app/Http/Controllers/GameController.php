@@ -99,13 +99,17 @@ class GameController extends Controller
         Gate::authorize('approve', $game);
 
         $validated = $request->validate([
-            'home_score' => 'required|integer|min:0',
-            'away_score' => 'required|integer|min:0',
-            'status' => 'required|string|in:scheduled,live,completed',
-            'scheduled_at' => 'required|date',
+            'home_score' => 'nullable|integer|min:0',
+            'away_score' => 'nullable|integer|min:0',
+            'status' => 'required|string|in:scheduled,playing,completed',
+            'scheduled_at' => 'nullable|date',
         ]);
 
-        $game->update($validated);
+        $game->update(array_filter($validated, fn($val) => $val !== null));
+
+        if ($validated['status'] === 'playing' && !$game->started_at) {
+            $game->update(['started_at' => now()]);
+        }
 
         if ($validated['status'] === 'completed') {
             $this->gameService->completeMatch($game);

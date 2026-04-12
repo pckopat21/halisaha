@@ -1,15 +1,15 @@
 import AppLayout from '@/layouts/app-layout';
 import { BreadcrumbItem, SharedData } from '@/types';
 import { Head, Link, usePage, useForm, router } from '@inertiajs/react';
-import { 
-    Trophy, 
-    Users, 
-    Calendar, 
-    ArrowRight, 
-    Shield, 
-    Activity, 
-    Settings2, 
-    Dices, 
+import {
+    Trophy,
+    Users,
+    Calendar,
+    ArrowRight,
+    Shield,
+    Activity,
+    Settings2,
+    Dices,
     Table as TableIcon,
     PlayCircle,
     Clock,
@@ -34,7 +34,7 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { format, addDays } from 'date-fns';
 import { tr } from 'date-fns/locale';
 
@@ -51,12 +51,13 @@ interface Game {
     id: number;
     home_team_id: number;
     away_team_id: number;
-    home_team: { name: string; unit: { name: string } };
-    away_team: { name: string; unit: { name: string } };
+    home_team: { id: number; name: string; unit: { name: string } };
+    away_team: { id: number; name: string; unit: { name: string } };
     home_score: number | null;
     away_score: number | null;
-    status: 'scheduled' | 'live' | 'completed';
+    status: 'scheduled' | 'playing' | 'completed';
     scheduled_at: string;
+    started_at: string | null;
     round?: string;
     has_penalties?: boolean;
     home_penalty_score?: number;
@@ -66,7 +67,7 @@ interface Game {
 interface Standing {
     id: number;
     team_id: number;
-    team: { name: string; unit: { name: string } };
+    team: { id: number; name: string; unit: { name: string } };
     played: number;
     won: number;
     drawn: number;
@@ -97,6 +98,8 @@ interface Tournament {
 
 interface Props {
     tournament: Tournament;
+    teamStats: { total: number; approved: number; pending: number; rejected: number };
+    isGroupStageCompleted: boolean;
     stats: {
         topScorers: Player[];
         fairPlay: {
@@ -108,12 +111,27 @@ interface Props {
     };
 }
 
-export default function Show({ tournament, stats }: Props) {
+export default function Show({ tournament, teamStats, isGroupStageCompleted, stats }: Props) {
     const { auth } = usePage<SharedData>().props;
     const [selectedGame, setSelectedGame] = useState<Game | null>(null);
     const [isResultModalOpen, setIsResultModalOpen] = useState(false);
     const [activeTab, setActiveTab] = useState('groups');
-    
+    const [currentTime, setCurrentTime] = useState(new Date());
+
+    useEffect(() => {
+        const interval = setInterval(() => {
+            setCurrentTime(new Date());
+        }, 10000);
+        return () => clearInterval(interval);
+    }, []);
+
+    const getMatchMinute = (game: Game) => {
+        if (!game.started_at) return 1;
+        const start = new Date(game.started_at);
+        const diff = Math.floor((currentTime.getTime() - start.getTime()) / 60000);
+        return Math.min(90, Math.max(1, diff + 1));
+    };
+
     const isCommittee = auth.user?.role === 'committee' || auth.user?.role === 'super_admin';
 
     const { data: drawData, setData: setDrawData, post: postDraw, processing: drawProcessing } = useForm({
@@ -176,7 +194,7 @@ export default function Show({ tournament, stats }: Props) {
     const handleResultSubmit = (e: React.FormEvent) => {
         e.preventDefault();
         if (!selectedGame) return;
-        
+
         resultForm.post(route('games.quick-result', selectedGame.id), {
             onSuccess: () => {
                 setIsResultModalOpen(false);
@@ -203,11 +221,11 @@ export default function Show({ tournament, stats }: Props) {
     // Knockout progression helpers
     const knockoutGames = tournament.games.filter(g => g.round && g.round !== 'group');
     const roundsInOrder = ['round_16', 'quarter', 'semi', 'final'];
-    
+
     const latestRound = roundsInOrder.reverse().find(r => knockoutGames.some(g => g.round === r)) || 'none';
     roundsInOrder.reverse(); // reset order
 
-    const isLatestRoundCompleted = latestRound !== 'none' && 
+    const isLatestRoundCompleted = latestRound !== 'none' &&
         knockoutGames.filter(g => g.round === latestRound).every(g => g.status === 'completed');
 
     const nextRoundMap: Record<string, string> = {
@@ -223,22 +241,22 @@ export default function Show({ tournament, stats }: Props) {
         <AppLayout breadcrumbs={breadcrumbs}>
             <Head title={tournament.name} />
 
-            <div className="min-h-screen bg-background text-foreground p-4 md:p-8 font-sans selection:bg-blue-600 selection:text-white">
+            <div className="min-h-screen bg-background text-foreground p-3 md:p-8 font-sans selection:bg-blue-600 selection:text-white">
                 {/* Header Section */}
-                <div className="relative mb-12 p-8 md:p-12 rounded-[3rem] bg-card border border-border shadow-sm overflow-hidden dark:bg-blue-950/10 dark:border-white/5">
+                <div className="relative mb-8 p-6 md:p-12 rounded-[2rem] md:rounded-[3rem] bg-card border border-border shadow-sm overflow-hidden dark:bg-blue-950/10 dark:border-white/5">
                     <div className="absolute top-0 right-0 p-12 opacity-[0.03] dark:opacity-[0.05] pointer-events-none">
                         <Trophy className="h-64 w-64" />
                     </div>
-                    
+
                     <div className="relative z-10 flex flex-col md:flex-row md:items-end justify-between gap-8">
                         <div className="space-y-4">
                             <div className="flex flex-wrap items-center gap-3">
                                 <Badge variant="outline" className="border-blue-100 text-blue-600 font-black uppercase tracking-[0.2em] py-1.5 px-4 rounded-full bg-blue-50/50 backdrop-blur-sm dark:border-blue-500/30 dark:text-blue-400 dark:bg-blue-500/5">
-                                    {tournament.status === 'draft' ? 'KAYIT AŞAMASI' : 
-                                     tournament.status === 'active' ? 'TURNUVA DEVAM EDİYOR' : 
-                                     tournament.status === 'registration' ? 'KAYITLAR AÇIK' : 'TAMAMLANDI'}
+                                    {tournament.status === 'draft' ? 'KAYIT AŞAMASI' :
+                                        tournament.status === 'active' ? 'TURNUVA DEVAM EDİYOR' :
+                                            tournament.status === 'registration' ? 'KAYITLAR AÇIK' : 'TAMAMLANDI'}
                                 </Badge>
-                                
+
                                 {tournament.groups.length > 0 && (
                                     <div className="flex items-center gap-2">
                                         <a href={route('reports.standings', tournament.id)} target="_blank">
@@ -254,7 +272,7 @@ export default function Show({ tournament, stats }: Props) {
                                     </div>
                                 )}
                             </div>
-                            <h1 className="text-4xl md:text-6xl font-black uppercase tracking-tighter leading-none">{tournament.name}</h1>
+                            <h1 className="text-2xl md:text-6xl font-black uppercase tracking-tighter leading-tight md:leading-none">{tournament.name}</h1>
                             <div className="flex flex-wrap items-center gap-6 text-muted-foreground">
                                 <div className="flex items-center gap-2">
                                     <Calendar className="h-4 w-4 text-blue-600" />
@@ -262,18 +280,22 @@ export default function Show({ tournament, stats }: Props) {
                                 </div>
                                 <div className="flex items-center gap-2">
                                     <Users className="h-4 w-4 text-blue-600" />
-                                    <span className="text-xs font-bold uppercase tracking-widest">{tournament.teams.length} TAKIM</span>
+                                    <span className="text-xs font-bold uppercase tracking-widest">
+                                        {teamStats?.approved ?? 0} ONAYLI TAKIM
+                                        {isCommittee && (teamStats?.pending ?? 0) > 0 && <span className="ml-2 text-amber-500">({teamStats.pending} BEKLEMEDE)</span>}
+                                        {isCommittee && (teamStats?.rejected ?? 0) > 0 && <span className="ml-2 text-rose-500">({teamStats.rejected} RED)</span>}
+                                    </span>
                                 </div>
                             </div>
                         </div>
 
                         {isCommittee && (
-                            <div className="p-8 bg-slate-50 border border-slate-200 rounded-[3rem] flex flex-col gap-6 min-w-[350px] dark:bg-white/[0.03] dark:border-white/10 dark:backdrop-blur-xl">
+                            <div className="p-6 md:p-8 bg-slate-50 border border-slate-200 rounded-[2rem] md:rounded-[3rem] flex flex-col gap-6 w-full md:min-w-[350px] dark:bg-white/[0.03] dark:border-white/10 dark:backdrop-blur-xl">
                                 <div className="flex items-center justify-between mb-2">
                                     <p className="text-[10px] font-medium text-slate-500 uppercase tracking-widest">Yönetim Paneli</p>
                                     {tournament.status === 'active' && isFinalCompleted && (
-                                        <Button 
-                                            variant="ghost" 
+                                        <Button
+                                            variant="ghost"
                                             size="sm"
                                             onClick={handleComplete}
                                             className="h-7 px-3 text-[9px] font-black text-rose-600 hover:bg-rose-50 rounded-lg border border-rose-100 uppercase tracking-widest"
@@ -283,164 +305,178 @@ export default function Show({ tournament, stats }: Props) {
                                     )}
                                 </div>
                                 <p className="text-[10px] font-medium text-slate-500 mb-2">Grup maçları bittiyse veya manuel kura çekmek istiyorsanız aşağıdaki ayarları kullanın.</p>
-                                    
-                                    <div className="grid grid-cols-2 gap-4">
-                                        <div className="space-y-2">
-                                            <Label className="text-[10px] font-black uppercase tracking-widest text-slate-400">Grup Sayısı</Label>
-                                            <Input 
-                                                type="number" 
-                                                className="h-12 bg-white dark:bg-black/20 border-slate-200 dark:border-white/10 rounded-2xl font-bold"
-                                                value={drawData.group_count}
-                                                onChange={e => setDrawData('group_count', parseInt(e.target.value))}
-                                            />
-                                        </div>
-                                        <div className="space-y-2">
-                                            <Label className="text-[10px] font-black uppercase tracking-widest text-slate-400">Başlangıç Tarihi</Label>
-                                            <Input 
-                                                type="date" 
-                                                className="h-12 bg-white dark:bg-black/20 border-slate-200 dark:border-white/10 rounded-2xl font-bold"
-                                                value={drawData.start_date}
-                                                onChange={e => setDrawData('start_date', e.target.value)}
-                                            />
-                                        </div>
+
+                                <div className="grid grid-cols-2 gap-4">
+                                    <div className="space-y-2">
+                                        <Label className="text-[10px] font-black uppercase tracking-widest text-slate-400">Grup Sayısı</Label>
+                                        <Input
+                                            type="number"
+                                            className="h-12 bg-white dark:bg-black/20 border-slate-200 dark:border-white/10 rounded-2xl font-bold"
+                                            value={drawData.group_count}
+                                            onChange={e => setDrawData('group_count', parseInt(e.target.value))}
+                                        />
                                     </div>
-
-                                    <div className="grid grid-cols-3 gap-4">
-                                        <div className="space-y-2">
-                                            <Label className="text-[10px] font-black uppercase tracking-widest text-slate-400">Maç Saati</Label>
-                                            <Input 
-                                                type="time" 
-                                                className="h-12 bg-white dark:bg-black/20 border-slate-200 dark:border-white/10 rounded-2xl font-bold"
-                                                value={drawData.start_time}
-                                                onChange={e => setDrawData('start_time', e.target.value)}
-                                            />
-                                        </div>
-                                        <div className="space-y-2">
-                                            <Label className="text-[10px] font-black uppercase tracking-widest text-slate-400">Süre (Dk)</Label>
-                                            <Input 
-                                                type="number" 
-                                                className="h-12 bg-white dark:bg-black/20 border-slate-200 dark:border-white/10 rounded-2xl font-bold"
-                                                value={drawData.match_duration}
-                                                onChange={e => setDrawData('match_duration', parseInt(e.target.value))}
-                                            />
-                                        </div>
-                                        <div className="space-y-2">
-                                            <Label className="text-[10px] font-black uppercase tracking-widest text-slate-400">Ara (Dk)</Label>
-                                            <Input 
-                                                type="number" 
-                                                className="h-12 bg-white dark:bg-black/20 border-slate-200 dark:border-white/10 rounded-2xl font-bold"
-                                                value={drawData.buffer_time}
-                                                onChange={e => setDrawData('buffer_time', parseInt(e.target.value))}
-                                            />
-                                        </div>
+                                    <div className="space-y-2">
+                                        <Label className="text-[10px] font-black uppercase tracking-widest text-slate-400">Başlangıç Tarihi</Label>
+                                        <Input
+                                            type="date"
+                                            className="h-12 bg-white dark:bg-black/20 border-slate-200 dark:border-white/10 rounded-2xl font-bold"
+                                            value={drawData.start_date}
+                                            onChange={e => setDrawData('start_date', e.target.value)}
+                                        />
                                     </div>
+                                </div>
 
-                                    <Button 
-                                        onClick={handleDraw}
-                                        disabled={drawProcessing || tournament.teams.length === 0}
-                                        className="h-14 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white font-black uppercase tracking-widest text-xs rounded-3xl shadow-[0_10px_30px_-10px_rgba(37,99,235,0.5)] transition-all hover:scale-[1.02] active:scale-[0.98] disabled:opacity-50 disabled:grayscale"
-                                    >
-                                        {tournament.teams.length === 0 ? 'TAKIM BEKLENİYOR...' : 'KURA ÇEK VE BAŞLAT'}
-                                    </Button>
-                                    {tournament.teams.length === 0 && (
-                                        <p className="text-[9px] text-center text-rose-500 font-bold uppercase tracking-tighter">
-                                            Kura çekebilmek için en az bir takım onaylanmış olmalıdır.
-                                        </p>
-                                    )}
+                                <div className="grid grid-cols-3 gap-4">
+                                    <div className="space-y-2">
+                                        <Label className="text-[10px] font-black uppercase tracking-widest text-slate-400">Maç Saati</Label>
+                                        <Input
+                                            type="time"
+                                            className="h-12 bg-white dark:bg-black/20 border-slate-200 dark:border-white/10 rounded-2xl font-bold"
+                                            value={drawData.start_time}
+                                            onChange={e => setDrawData('start_time', e.target.value)}
+                                        />
+                                    </div>
+                                    <div className="space-y-2">
+                                        <Label className="text-[10px] font-black uppercase tracking-widest text-slate-400">Süre (Dk)</Label>
+                                        <Input
+                                            type="number"
+                                            className="h-12 bg-white dark:bg-black/20 border-slate-200 dark:border-white/10 rounded-2xl font-bold"
+                                            value={drawData.match_duration}
+                                            onChange={e => setDrawData('match_duration', parseInt(e.target.value))}
+                                        />
+                                    </div>
+                                    <div className="space-y-2">
+                                        <Label className="text-[10px] font-black uppercase tracking-widest text-slate-400">Ara (Dk)</Label>
+                                        <Input
+                                            type="number"
+                                            className="h-12 bg-white dark:bg-black/20 border-slate-200 dark:border-white/10 rounded-2xl font-bold"
+                                            value={drawData.buffer_time}
+                                            onChange={e => setDrawData('buffer_time', parseInt(e.target.value))}
+                                        />
+                                    </div>
+                                </div>
 
-                                    {tournament.groups.length > 0 && knockoutGames.length === 0 && (
-                                        <div className="pt-4 mt-4 border-t border-slate-100 dark:border-white/5 space-y-6 animate-in fade-in slide-in-from-bottom duration-500">
-                                            <div className="flex items-center gap-2">
-                                                <Trophy className="h-4 w-4 text-emerald-500" />
-                                                <span className="text-[10px] font-black uppercase tracking-widest text-emerald-600">ELEME TURLARI SİHİRBAZI</span>
-                                            </div>
+                                <Button
+                                    onClick={handleDraw}
+                                    disabled={drawProcessing || tournament.teams.length === 0}
+                                    className="h-14 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white font-black uppercase tracking-widest text-xs rounded-3xl shadow-[0_10px_30px_-10px_rgba(37,99,235,0.5)] transition-all hover:scale-[1.02] active:scale-[0.98] disabled:opacity-50 disabled:grayscale"
+                                >
+                                    {tournament.teams.length === 0 ? 'TAKIM BEKLENİYOR...' : 'KURA ÇEK VE BAŞLAT'}
+                                </Button>
+                                {tournament.teams.length === 0 && (
+                                    <p className="text-[9px] text-center text-rose-500 font-bold uppercase tracking-tighter">
+                                        Kura çekebilmek için en az bir takım onaylanmış olmalıdır.
+                                    </p>
+                                )}
 
-                                            <div className="grid grid-cols-2 gap-4">
-                                                <div className="space-y-2">
-                                                    <Label className="text-[10px] font-black uppercase tracking-widest text-slate-400">Tur Seviyesi</Label>
-                                                    <select 
-                                                        className="w-full h-12 px-4 bg-white dark:bg-black/20 border-slate-200 dark:border-white/10 rounded-2xl font-bold text-sm outline-none"
-                                                        value={knockoutData.round_name}
-                                                        onChange={e => setKnockoutData('round_name', e.target.value)}
-                                                    >
-                                                        <option value="round_16">Son 16</option>
-                                                        <option value="quarter">Çeyrek Final</option>
-                                                        <option value="semi">Yarı Final</option>
-                                                        <option value="final">Final</option>
-                                                    </select>
-                                                </div>
-                                                <div className="space-y-2">
-                                                    <Label className="text-[10px] font-black uppercase tracking-widest text-slate-400">Gruptan Çıkan</Label>
-                                                    <select 
-                                                        className="w-full h-12 px-4 bg-white dark:bg-black/20 border-slate-200 dark:border-white/10 rounded-2xl font-bold text-sm outline-none"
-                                                        value={knockoutData.advance_count}
-                                                        onChange={e => setKnockoutData('advance_count', parseInt(e.target.value))}
-                                                    >
-                                                        <option value={1}>Her Gruptan 1.</option>
-                                                        <option value={2}>İlk 2 Takım</option>
-                                                        <option value={4}>İlk 4 Takım</option>
-                                                    </select>
-                                                </div>
-                                                <div className="space-y-2 col-span-2">
-                                                    <Label className="text-[10px] font-black uppercase tracking-widest text-slate-400">Eşleşme Mantığı</Label>
-                                                    <select 
-                                                        className="w-full h-12 px-4 bg-white dark:bg-black/20 border-slate-200 dark:border-white/10 rounded-2xl font-bold text-sm outline-none"
-                                                        value={knockoutData.pairing_type}
-                                                        onChange={e => setKnockoutData('pairing_type', e.target.value)}
-                                                    >
-                                                        <option value="cross">Çapraz Eşleşme (1. vs 2.)</option>
-                                                        <option value="random">Rastgele Eşleşme</option>
-                                                    </select>
-                                                </div>
-                                            </div>
-
-                                            <Button 
-                                                onClick={() => startKnockout(route('tournaments.start-knockout', tournament.id))}
-                                                disabled={knockoutProcessing}
-                                                className="w-full h-12 bg-white dark:bg-white/5 border border-slate-200 dark:border-white/10 text-slate-900 dark:text-white font-black uppercase tracking-widest text-[10px] rounded-2xl hover:bg-slate-50 transition-all border-dashed"
-                                            >
-                                                ELEME TURLARINI BAŞLAT
-                                            </Button>
+                                {tournament.groups.length > 0 && knockoutGames.length === 0 && (
+                                    <div className="pt-4 mt-4 border-t border-slate-100 dark:border-white/5 space-y-6 animate-in fade-in slide-in-from-bottom duration-500">
+                                        <div className="flex items-center gap-2">
+                                            <Trophy className="h-4 w-4 text-emerald-500" />
+                                            <span className="text-[10px] font-black uppercase tracking-widest text-emerald-600">ELEME TURLARI SİHİRBAZI</span>
                                         </div>
-                                    )}
 
-                                    {knockoutGames.length > 0 && (
-                                        <div className="pt-4 mt-4 border-t border-slate-100 dark:border-white/5 space-y-4">
-                                            {isLatestRoundCompleted && nextRoundName && (
-                                                <div className="animate-in zoom-in duration-500">
-                                                    <Button 
-                                                        onClick={() => handleAdvance(latestRound, nextRoundName)}
-                                                        disabled={advanceProcessing}
-                                                        className="w-full h-14 bg-emerald-600 hover:bg-emerald-700 text-white font-black uppercase tracking-widest text-xs rounded-2xl shadow-lg shadow-emerald-500/20 flex items-center justify-center gap-3"
-                                                    >
-                                                        <ChevronRight className="h-4 w-4" />
-                                                        {nextRoundName === 'semi' ? 'YARI FİNALLERİ OLUŞTUR' : 'FİNALİ OLUŞTUR'}
-                                                        <ChevronRight className="h-4 w-4" />
-                                                    </Button>
+                                        {!isGroupStageCompleted ? (
+                                            <div className="p-6 bg-amber-50 dark:bg-amber-500/5 border border-amber-100 dark:border-amber-500/20 rounded-3xl space-y-3">
+                                                <div className="flex items-center gap-3 text-amber-600">
+                                                    <AlertCircle className="h-4 w-4" />
+                                                    <span className="text-[10px] font-black uppercase tracking-widest">KURA ÇEKİMİ KİLİTLİ</span>
                                                 </div>
-                                            )}
-
-                                            {/* 3rd Place Match Logic */}
-                                            {latestRound === 'semi' && isLatestRoundCompleted && !knockoutGames.some(g => g.round === 'third_place') && (
-                                                <div className="animate-in slide-in-from-right duration-500">
-                                                    <Button 
-                                                        onClick={handleThirdPlace}
-                                                        disabled={thirdPlaceProcessing}
-                                                        className="w-full h-12 bg-amber-500 hover:bg-amber-600 text-white font-black uppercase tracking-widest text-[10px] rounded-2xl shadow-lg shadow-amber-500/20 flex items-center justify-center gap-2 border border-amber-400/50 outline outline-offset-2 outline-amber-500/20"
-                                                    >
-                                                        <Medal className="h-4 w-4" />
-                                                        3.LÜK MAÇINI OLUŞTUR
-                                                    </Button>
-                                                </div>
-                                            )}
-
-                                            {(!isLatestRoundCompleted || (!nextRoundName && latestRound !== 'final')) && (
-                                                <p className="text-[9px] text-center text-blue-600 font-bold uppercase tracking-widest bg-blue-50 dark:bg-blue-500/5 py-3 rounded-xl">
-                                                    {latestRound.toUpperCase()} TURU MAÇLARI DEVAM EDİYOR
+                                                <p className="text-[10px] text-amber-700/70 font-bold uppercase tracking-tight leading-relaxed">
+                                                    Tüm grup maçları tamamlanmadan eleme turları kurası çekilemez. Lütfen devam eden maçları (Fikstür sekmesinden) tamamlayın.
                                                 </p>
-                                            )}
-                                        </div>
-                                    )}
+                                            </div>
+                                        ) : (
+                                            <>
+                                                <div className="grid grid-cols-2 gap-4">
+                                                    <div className="space-y-2">
+                                                        <Label className="text-[10px] font-black uppercase tracking-widest text-slate-400">Tur Seviyesi</Label>
+                                                        <select
+                                                            className="w-full h-12 px-4 bg-white dark:bg-black/20 border-slate-200 dark:border-white/10 rounded-2xl font-bold text-sm outline-none"
+                                                            value={knockoutData.round_name}
+                                                            onChange={e => setKnockoutData('round_name', e.target.value)}
+                                                        >
+                                                            <option value="round_16">Son 16</option>
+                                                            <option value="quarter">Çeyrek Final</option>
+                                                            <option value="semi">Yarı Final</option>
+                                                            <option value="final">Final</option>
+                                                        </select>
+                                                    </div>
+                                                    <div className="space-y-2">
+                                                        <Label className="text-[10px] font-black uppercase tracking-widest text-slate-400">Gruptan Çıkan</Label>
+                                                        <select
+                                                            className="w-full h-12 px-4 bg-white dark:bg-black/20 border-slate-200 dark:border-white/10 rounded-2xl font-bold text-sm outline-none"
+                                                            value={knockoutData.advance_count}
+                                                            onChange={e => setKnockoutData('advance_count', parseInt(e.target.value))}
+                                                        >
+                                                            <option value={1}>Her Gruptan 1.</option>
+                                                            <option value={2}>İlk 2 Takım</option>
+                                                            <option value={4}>İlk 4 Takım</option>
+                                                        </select>
+                                                    </div>
+                                                    <div className="space-y-2 col-span-2">
+                                                        <Label className="text-[10px] font-black uppercase tracking-widest text-slate-400">Eşleşme Mantığı</Label>
+                                                        <select
+                                                            className="w-full h-12 px-4 bg-white dark:bg-black/20 border-slate-200 dark:border-white/10 rounded-2xl font-bold text-sm outline-none"
+                                                            value={knockoutData.pairing_type}
+                                                            onChange={e => setKnockoutData('pairing_type', e.target.value)}
+                                                        >
+                                                            <option value="cross">Çapraz Eşleşme (1. vs 2.)</option>
+                                                            <option value="random">Rastgele Eşleşme</option>
+                                                        </select>
+                                                    </div>
+                                                </div>
+
+                                                <Button
+                                                    onClick={() => startKnockout(route('tournaments.start-knockout', tournament.id))}
+                                                    disabled={knockoutProcessing}
+                                                    className="w-full h-12 bg-white dark:bg-white/5 border border-slate-200 dark:border-white/10 text-slate-900 dark:text-white font-black uppercase tracking-widest text-[10px] rounded-2xl hover:bg-slate-50 transition-all border-dashed"
+                                                >
+                                                    ELEME TURLARINI BAŞLAT
+                                                </Button>
+                                            </>
+                                        )}
+                                    </div>
+                                )}
+
+                                {knockoutGames.length > 0 && (
+                                    <div className="pt-4 mt-4 border-t border-slate-100 dark:border-white/5 space-y-4">
+                                        {isLatestRoundCompleted && nextRoundName && (
+                                            <div className="animate-in zoom-in duration-500">
+                                                <Button
+                                                    onClick={() => handleAdvance(latestRound, nextRoundName)}
+                                                    disabled={advanceProcessing}
+                                                    className="w-full h-14 bg-emerald-600 hover:bg-emerald-700 text-white font-black uppercase tracking-widest text-xs rounded-2xl shadow-lg shadow-emerald-500/20 flex items-center justify-center gap-3"
+                                                >
+                                                    <ChevronRight className="h-4 w-4" />
+                                                    {nextRoundName === 'semi' ? 'YARI FİNALLERİ OLUŞTUR' : 'FİNALİ OLUŞTUR'}
+                                                    <ChevronRight className="h-4 w-4" />
+                                                </Button>
+                                            </div>
+                                        )}
+
+                                        {/* 3rd Place Match Logic */}
+                                        {latestRound === 'semi' && isLatestRoundCompleted && !knockoutGames.some(g => g.round === 'third_place') && (
+                                            <div className="animate-in slide-in-from-right duration-500">
+                                                <Button
+                                                    onClick={handleThirdPlace}
+                                                    disabled={thirdPlaceProcessing}
+                                                    className="w-full h-12 bg-amber-500 hover:bg-amber-600 text-white font-black uppercase tracking-widest text-[10px] rounded-2xl shadow-lg shadow-amber-500/20 flex items-center justify-center gap-2 border border-amber-400/50 outline outline-offset-2 outline-amber-500/20"
+                                                >
+                                                    <Medal className="h-4 w-4" />
+                                                    3.LÜK MAÇINI OLUŞTUR
+                                                </Button>
+                                            </div>
+                                        )}
+
+                                        {(!isLatestRoundCompleted || (!nextRoundName && latestRound !== 'final')) && (
+                                            <p className="text-[9px] text-center text-blue-600 font-bold uppercase tracking-widest bg-blue-50 dark:bg-blue-500/5 py-3 rounded-xl">
+                                                {latestRound.toUpperCase()} TURU MAÇLARI DEVAM EDİYOR
+                                            </p>
+                                        )}
+                                    </div>
+                                )}
                             </div>
                         )}
                     </div>
@@ -453,7 +489,7 @@ export default function Show({ tournament, stats }: Props) {
                             <div className="absolute -right-20 -bottom-20 opacity-20 pointer-events-none">
                                 <Trophy className="h-96 w-96 text-white" />
                             </div>
-                            
+
                             <CardContent className="p-8 md:p-12 relative z-10 flex flex-col md:flex-row items-center justify-between gap-8">
                                 <div className="flex items-center gap-8">
                                     <div className="h-24 w-24 md:h-32 md:w-32 bg-white/20 backdrop-blur-xl rounded-[2.5rem] flex items-center justify-center shadow-2xl border border-white/30 shrink-0">
@@ -475,13 +511,13 @@ export default function Show({ tournament, stats }: Props) {
                 )}
 
                 <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-                    <div className="flex items-center justify-between mb-8">
-                        <TabsList className="bg-card border border-border p-1 rounded-full h-auto">
-                            <TabsTrigger value="groups" className="px-6 py-2.5 rounded-full data-[state=active]:bg-blue-600 data-[state=active]:text-white data-[state=active]:shadow-lg font-black uppercase tracking-widest text-[10px] transition-all">Puan Durumu</TabsTrigger>
-                            <TabsTrigger value="fixtures" className="px-6 py-2.5 rounded-full data-[state=active]:bg-blue-600 data-[state=active]:text-white data-[state=active]:shadow-lg font-black uppercase tracking-widest text-[10px] transition-all">Fikstür</TabsTrigger>
-                            <TabsTrigger value="knockout" className="px-6 py-2.5 rounded-full data-[state=active]:bg-blue-600 data-[state=active]:text-white data-[state=active]:shadow-lg font-black uppercase tracking-widest text-[10px] transition-all">Eleme Turları</TabsTrigger>
-                            <TabsTrigger value="stats" className="px-6 py-2.5 rounded-full data-[state=active]:bg-blue-600 data-[state=active]:text-white data-[state=active]:shadow-lg font-black uppercase tracking-widest text-[10px] transition-all">İstatistikler</TabsTrigger>
-                            <TabsTrigger value="teams" className="px-6 py-2.5 rounded-full data-[state=active]:bg-blue-600 data-[state=active]:text-white data-[state=active]:shadow-lg font-black uppercase tracking-widest text-[10px] transition-all">Takımlar</TabsTrigger>
+                    <div className="overflow-x-auto -mx-4 px-4 md:mx-0 md:px-0 mb-8">
+                        <TabsList className="bg-card border border-border p-1 rounded-full h-auto w-max inline-flex">
+                            <TabsTrigger value="groups" className="px-5 md:px-6 py-2 md:py-2.5 rounded-full data-[state=active]:bg-blue-600 data-[state=active]:text-white data-[state=active]:shadow-lg font-black uppercase tracking-widest text-[9px] md:text-[10px] transition-all">Puan Durumu</TabsTrigger>
+                            <TabsTrigger value="fixtures" className="px-5 md:px-6 py-2 md:py-2.5 rounded-full data-[state=active]:bg-blue-600 data-[state=active]:text-white data-[state=active]:shadow-lg font-black uppercase tracking-widest text-[9px] md:text-[10px] transition-all">Fikstür</TabsTrigger>
+                            <TabsTrigger value="knockout" className="px-5 md:px-6 py-2 md:py-2.5 rounded-full data-[state=active]:bg-blue-600 data-[state=active]:text-white data-[state=active]:shadow-lg font-black uppercase tracking-widest text-[9px] md:text-[10px] transition-all">Eleme Turları</TabsTrigger>
+                            <TabsTrigger value="stats" className="px-5 md:px-6 py-2 md:py-2.5 rounded-full data-[state=active]:bg-blue-600 data-[state=active]:text-white data-[state=active]:shadow-lg font-black uppercase tracking-widest text-[9px] md:text-[10px] transition-all">İstatistikler</TabsTrigger>
+                            <TabsTrigger value="teams" className="px-5 md:px-6 py-2 md:py-2.5 rounded-full data-[state=active]:bg-blue-600 data-[state=active]:text-white data-[state=active]:shadow-lg font-black uppercase tracking-widest text-[9px] md:text-[10px] transition-all">Takımlar</TabsTrigger>
                         </TabsList>
                     </div>
 
@@ -504,7 +540,8 @@ export default function Show({ tournament, stats }: Props) {
                                         </div>
                                     </CardHeader>
                                     <CardContent className="p-0">
-                                        <Table>
+                                        <div className="overflow-x-auto">
+                                            <Table>
                                             <TableHeader className="bg-neutral-50/50 dark:bg-black/10">
                                                 <TableRow className="hover:bg-transparent border-none">
                                                     <TableHead className="w-16 font-black text-[10px] uppercase tracking-widest text-center">#</TableHead>
@@ -518,7 +555,7 @@ export default function Show({ tournament, stats }: Props) {
                                                 </TableRow>
                                             </TableHeader>
                                             <TableBody>
-                                                {group.standings?.sort((a,b) => (b.points - a.points) || ((b.goals_for - b.goals_against) - (a.goals_for - a.goals_against))).map((s, idx) => (
+                                                {group.standings?.sort((a, b) => (b.points - a.points) || ((b.goals_for - b.goals_against) - (a.goals_for - a.goals_against))).map((s, idx) => (
                                                     <TableRow key={idx} className="border-b border-slate-50 dark:border-white/5 hover:bg-slate-50/50 dark:hover:bg-white/[0.02] transition-colors group">
                                                         <TableCell className="text-center">
                                                             <span className={`w-7 h-7 flex items-center justify-center rounded-full text-xs font-black ${idx < 2 ? 'bg-emerald-50 text-emerald-600 dark:bg-emerald-500/10 dark:text-emerald-500' : 'text-slate-400'}`}>
@@ -547,7 +584,8 @@ export default function Show({ tournament, stats }: Props) {
                                                     </TableRow>
                                                 ))}
                                             </TableBody>
-                                        </Table>
+                                            </Table>
+                                        </div>
                                     </CardContent>
                                 </Card>
                             ))
@@ -569,15 +607,15 @@ export default function Show({ tournament, stats }: Props) {
                                         </div>
                                         <h3 className="text-xl font-black uppercase tracking-tighter">{group.name} FİKSTÜRÜ</h3>
                                     </div>
-                                    
+
                                     <div className="grid gap-4">
-                                        {group.games.sort((a,b) => new Date(a.scheduled_at).getTime() - new Date(b.scheduled_at).getTime()).map(game => (
+                                        {group.games.sort((a, b) => new Date(a.scheduled_at).getTime() - new Date(b.scheduled_at).getTime()).map(game => (
                                             <Card key={game.id} className="bg-card border-border rounded-[2rem] hover:bg-muted/50 transition-all group overflow-hidden shadow-sm relative">
                                                 <CardContent className="p-6">
                                                     {isCommittee && (
-                                                        <Button 
-                                                            size="icon" 
-                                                            variant="ghost" 
+                                                        <Button
+                                                            size="icon"
+                                                            variant="ghost"
                                                             onClick={() => openResultModal(game)}
                                                             className="absolute top-4 right-4 h-8 w-8 rounded-full bg-muted/50 hover:bg-blue-600 hover:text-white transition-all"
                                                         >
@@ -587,11 +625,11 @@ export default function Show({ tournament, stats }: Props) {
                                                     <div className="grid grid-cols-1 md:grid-cols-3 items-center gap-8">
                                                         <div className="flex items-center gap-6 justify-end">
                                                             <div className="text-right">
-                                                                <p className="font-black uppercase text-sm tracking-tight group-hover:text-blue-500 transition-colors line-clamp-1">{game.home_team.name}</p>
-                                                                <p className="text-[9px] font-black text-muted-foreground uppercase tracking-widest mt-1">{game.home_team.unit.name}</p>
+                                                                <p className="font-black uppercase text-sm tracking-tight group-hover:text-blue-500 transition-colors line-clamp-1">{game.home_team?.name || 'BELİRLENMEDİ'}</p>
+                                                                <p className="text-[9px] font-black text-muted-foreground uppercase tracking-widest mt-1">{game.home_team?.unit?.name || '---'}</p>
                                                             </div>
                                                             <div className="h-12 w-12 rounded-2xl bg-muted flex items-center justify-center font-black text-xs text-muted-foreground group-hover:bg-blue-600 group-hover:text-white transition-all shadow-inner shrink-0">
-                                                                {game.home_team.name.substring(0, 2).toUpperCase()}
+                                                                {(game.home_team?.name || '??').substring(0, 2).toUpperCase()}
                                                             </div>
                                                         </div>
 
@@ -601,11 +639,18 @@ export default function Show({ tournament, stats }: Props) {
                                                                     {game.status === 'scheduled' ? (
                                                                         <span className="text-lg font-black">{format(new Date(game.scheduled_at), 'HH:mm')}</span>
                                                                     ) : (
-                                                                        <>
-                                                                            <span className="text-3xl font-black tabular-nums">{game.home_score ?? 0}</span>
-                                                                            <span className="text-muted-foreground text-sm font-black">-</span>
-                                                                            <span className="text-3xl font-black tabular-nums">{game.away_score ?? 0}</span>
-                                                                        </>
+                                                                        <div className="flex flex-col items-center gap-1">
+                                                                            {game.status === 'playing' && (
+                                                                                <span className="text-[8px] font-black text-emerald-500 animate-pulse tracking-[0.2em] absolute -top-4 left-1/2 -translate-x-1/2 whitespace-nowrap">
+                                                                                    ● {getMatchMinute(game)}' CANLI
+                                                                                </span>
+                                                                            )}
+                                                                            <div className="flex items-center justify-center gap-4">
+                                                                                <span className="text-3xl font-black tabular-nums">{game.home_score ?? 0}</span>
+                                                                                <span className="text-muted-foreground text-sm font-black">-</span>
+                                                                                <span className="text-3xl font-black tabular-nums">{game.away_score ?? 0}</span>
+                                                                            </div>
+                                                                        </div>
                                                                     )}
                                                                 </div>
                                                             </Link>
@@ -616,12 +661,12 @@ export default function Show({ tournament, stats }: Props) {
                                                         </div>
 
                                                         <div className="flex items-center gap-6 justify-start">
-                                                            <div className="h-12 w-12 rounded-2xl bg-muted flex items-center justify-center font-black text-xs text-muted-foreground group-hover:bg-blue-600 group-hover:text-white transition-all shadow-inner shrink-0">
-                                                                {game.away_team.name.substring(0, 2).toUpperCase()}
+                                                            <div className="h-12 w-12 rounded-2xl bg-muted flex items-center justify-center font-black text-xs text-muted-foreground group-hover:bg-rose-600 group-hover:text-white transition-all shadow-inner shrink-0">
+                                                                {(game.away_team?.name || '??').substring(0, 2).toUpperCase()}
                                                             </div>
                                                             <div className="text-left">
-                                                                <p className="font-black uppercase text-sm tracking-tight group-hover:text-blue-500 transition-colors line-clamp-1">{game.away_team.name}</p>
-                                                                <p className="text-[9px] font-black text-muted-foreground uppercase tracking-widest mt-1">{game.away_team.unit.name}</p>
+                                                                <p className="font-black uppercase text-sm tracking-tight group-hover:text-rose-500 transition-colors line-clamp-1">{game.away_team?.name || 'BELİRLENMEDİ'}</p>
+                                                                <p className="text-[9px] font-black text-muted-foreground uppercase tracking-widest mt-1">{game.away_team?.unit?.name || '---'}</p>
                                                             </div>
                                                         </div>
                                                     </div>
@@ -642,13 +687,13 @@ export default function Show({ tournament, stats }: Props) {
                     <TabsContent value="knockout" className="space-y-8 mt-0 border-none outline-none">
                         <Card className="border-none shadow-2xl bg-white/80 dark:bg-neutral-900/80 backdrop-blur-3xl rounded-[3rem] overflow-hidden">
                             <div className="p-12">
-                                <div className="flex flex-col items-center justify-center mb-12 text-center">
+                                <div className="flex flex-col items-center justify-center mb-12 text-center px-4">
                                     <Badge className="bg-amber-100 text-amber-600 dark:bg-amber-500/10 dark:text-amber-500 border-none font-black mb-4 uppercase tracking-widest text-[9px]">GÖRSEL MAÇ AĞACI</Badge>
-                                    <h3 className="text-4xl font-black text-slate-900 dark:text-white tracking-tight">ELEME TURLARI</h3>
-                                    <p className="text-slate-500 mt-2 font-medium">Şampiyonluğa giden yol burada şekilleniyor.</p>
+                                    <h3 className="text-2xl md:text-4xl font-black text-slate-900 dark:text-white tracking-tight leading-tight">ELEME TURLARI</h3>
+                                    <p className="text-slate-500 mt-2 font-medium text-xs md:text-base px-6">Şampiyonluğa giden yol burada şekilleniyor.</p>
                                 </div>
 
-                                <div className="flex flex-nowrap overflow-x-auto pb-8 gap-24 justify-center min-h-[500px] items-center">
+                                <div className="flex flex-nowrap overflow-x-auto pb-12 gap-12 md:gap-24 justify-start md:justify-center min-h-[500px] items-center -mx-6 px-6">
                                     {['quarter', 'semi', 'final'].map((round) => {
                                         const matches = (tournament.games || []).filter(g => g.round === round);
                                         if (matches.length === 0) return null;
@@ -663,21 +708,21 @@ export default function Show({ tournament, stats }: Props) {
                                                 <div className="flex flex-col gap-12">
                                                     {matches.map((m) => (
                                                         <Link key={m.id} href={route('games.show', m.id)} className="relative group">
-                                                            <div className="w-[280px] bg-white dark:bg-neutral-800 rounded-3xl shadow-xl border-2 border-slate-100 dark:border-white/5 group-hover:border-blue-500 transition-all p-4 z-10 relative">
+                                                            <div className="w-[260px] md:w-[280px] bg-white dark:bg-neutral-800 rounded-2xl md:rounded-3xl shadow-xl border-2 border-slate-100 dark:border-white/5 group-hover:border-blue-500 transition-all p-3 md:p-4 z-10 relative">
                                                                 <div className="space-y-4">
                                                                     <div className="flex items-center justify-between">
                                                                         <div className="flex items-center gap-3">
-                                                                            <div className="w-8 h-8 rounded-xl bg-slate-50 dark:bg-black/20 flex items-center justify-center text-[10px] font-black">{m.home_team.name.substring(0, 2).toUpperCase()}</div>
-                                                                            <span className="font-bold text-sm truncate w-32">{m.home_team.name}</span>
+                                                                            <div className="w-8 h-8 rounded-xl bg-slate-50 dark:bg-black/20 flex items-center justify-center text-[10px] font-black">{(m.home_team?.name || '??').substring(0, 2).toUpperCase()}</div>
+                                                                            <span className="font-bold text-sm truncate w-32">{m.home_team?.name || 'BELİRLENMEDİ'}</span>
                                                                         </div>
-                                                                        <span className={`text-xl font-black tabular-nums ${m.status === 'completed' && m.home_score > m.away_score ? 'text-blue-600' : 'text-slate-400'}`}>{m.home_score}</span>
+                                                                        <span className={`text-xl font-black tabular-nums ${m.status === 'completed' && (m.home_score ?? 0) > (m.away_score ?? 0) ? 'text-blue-600' : 'text-slate-400'}`}>{m.home_score ?? 0}</span>
                                                                     </div>
                                                                     <div className="flex items-center justify-between">
                                                                         <div className="flex items-center gap-3">
-                                                                            <div className="w-8 h-8 rounded-xl bg-slate-50 dark:bg-black/20 flex items-center justify-center text-[10px] font-black">{m.away_team.name.substring(0, 2).toUpperCase()}</div>
-                                                                            <span className="font-bold text-sm truncate w-32">{m.away_team.name}</span>
+                                                                            <div className="w-8 h-8 rounded-xl bg-slate-50 dark:bg-black/20 flex items-center justify-center text-[10px] font-black">{(m.away_team?.name || '??').substring(0, 2).toUpperCase()}</div>
+                                                                            <span className="font-bold text-sm truncate w-32">{m.away_team?.name || 'BELİRLENMEDİ'}</span>
                                                                         </div>
-                                                                        <span className={`text-xl font-black tabular-nums ${m.status === 'completed' && m.away_score > m.home_score ? 'text-blue-600' : 'text-slate-400'}`}>{m.away_score}</span>
+                                                                        <span className={`text-xl font-black tabular-nums ${m.status === 'completed' && (m.away_score ?? 0) > (m.home_score ?? 0) ? 'text-blue-600' : 'text-slate-400'}`}>{m.away_score ?? 0}</span>
                                                                     </div>
                                                                 </div>
                                                             </div>
@@ -690,7 +735,7 @@ export default function Show({ tournament, stats }: Props) {
                                             </div>
                                         );
                                     })}
-                                    
+
                                     {(!tournament.games || tournament.games.filter(g => g.round && g.round !== 'group').length === 0) && (
                                         <div className="flex flex-col items-center justify-center py-20 text-center opacity-40">
                                             <Trophy className="h-20 w-20 mb-6 text-slate-200" />
@@ -859,8 +904,8 @@ export default function Show({ tournament, stats }: Props) {
                                     </div>
                                     <div className="space-y-2 text-center">
                                         <Label className="text-[9px] font-black text-muted-foreground uppercase tracking-widest truncate block w-32">{selectedGame?.home_team.name}</Label>
-                                        <Input 
-                                            type="number" 
+                                        <Input
+                                            type="number"
                                             value={resultForm.data.home_score}
                                             onChange={e => resultForm.setData('home_score', parseInt(e.target.value) || 0)}
                                             className="h-16 text-3xl font-black text-center rounded-2xl bg-background border-border"
@@ -876,8 +921,8 @@ export default function Show({ tournament, stats }: Props) {
                                     </div>
                                     <div className="space-y-2 text-center">
                                         <Label className="text-[9px] font-black text-muted-foreground uppercase tracking-widest truncate block w-32">{selectedGame?.away_team.name}</Label>
-                                        <Input 
-                                            type="number" 
+                                        <Input
+                                            type="number"
                                             value={resultForm.data.away_score}
                                             onChange={e => resultForm.setData('away_score', parseInt(e.target.value) || 0)}
                                             className="h-16 text-3xl font-black text-center rounded-2xl bg-background border-border"
@@ -902,8 +947,8 @@ export default function Show({ tournament, stats }: Props) {
                                 </div>
                                 <div className="space-y-2">
                                     <Label className="text-[10px] font-black text-muted-foreground uppercase tracking-widest">MAÇ TARİH/SAAT</Label>
-                                    <Input 
-                                        type="datetime-local" 
+                                    <Input
+                                        type="datetime-local"
                                         value={resultForm.data.scheduled_at}
                                         onChange={e => resultForm.setData('scheduled_at', e.target.value)}
                                         className="h-12 rounded-xl bg-muted/50 border-transparent font-bold"
@@ -913,16 +958,16 @@ export default function Show({ tournament, stats }: Props) {
                         </div>
 
                         <DialogFooter className="p-8 pt-0 flex gap-3">
-                            <Button 
-                                type="button" 
-                                variant="ghost" 
+                            <Button
+                                type="button"
+                                variant="ghost"
                                 onClick={() => setIsResultModalOpen(false)}
                                 className="h-12 px-6 rounded-xl font-black uppercase text-[10px] tracking-widest text-muted-foreground"
                             >
                                 İPTAL
                             </Button>
-                            <Button 
-                                type="submit" 
+                            <Button
+                                type="submit"
                                 disabled={resultForm.processing}
                                 className="h-12 px-8 bg-blue-600 hover:bg-blue-700 text-white font-black uppercase tracking-widest text-[10px] rounded-xl flex-1 shadow-lg shadow-blue-600/20"
                             >

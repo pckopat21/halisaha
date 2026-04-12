@@ -5,7 +5,7 @@ import { Trophy, Clock, User, AlertTriangle, Goal, Ban, Repeat, X, Shield, Play,
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter, DialogTrigger } from '@/components/ui/dialog';
 
 interface Player {
@@ -25,6 +25,7 @@ interface Game {
     group?: { name: string };
     events: any[];
     scheduled_at: string;
+    started_at: string | null;
     home_penalty_score?: number;
     away_penalty_score?: number;
 }
@@ -39,9 +40,37 @@ export default function Show({ game }: Props) {
     const isReferee = auth.user?.role === 'referee';
     const canManageEvents = isCommittee || isReferee;
     
-    const [selectedMinute, setSelectedMinute] = useState('10');
+    const [selectedMinute, setSelectedMinute] = useState('1');
+    const [currentTime, setCurrentTime] = useState(new Date());
     const [isCompleteDialogOpen, setIsCompleteDialogOpen] = useState(false);
     const [isReopenDialogOpen, setIsReopenDialogOpen] = useState(false);
+
+    useEffect(() => {
+        let interval: any;
+        if (game.status === 'playing') {
+            interval = setInterval(() => {
+                setCurrentTime(new Date());
+            }, 10000);
+        }
+        return () => clearInterval(interval);
+    }, [game.status]);
+
+    const matchMinute = (() => {
+        if (game.status === 'scheduled') return 0;
+        if (game.status === 'completed') return game.events.length > 0 ? Math.max(...game.events.map((e: any) => e.minute)) : 50;
+        if (!game.started_at) return 1;
+
+        const start = new Date(game.started_at);
+        const diff = Math.floor((currentTime.getTime() - start.getTime()) / 60000);
+        return Math.min(90, Math.max(1, diff + 1));
+    })();
+
+    // Auto-update selected minute if user hasn't typed manually
+    useEffect(() => {
+        if (game.status === 'playing') {
+            setSelectedMinute(matchMinute.toString());
+        }
+    }, [matchMinute, game.status]);
 
     const submitEvent = (teamId: number, playerId: number, type: string) => {
         router.post(route('games.event', game.id), {
@@ -121,10 +150,10 @@ export default function Show({ game }: Props) {
                                         {game.tournament.name} • {game.group?.name || 'ELEME TURU'}
                                     </Badge>
                                     <div className="flex items-center gap-3 text-slate-400">
-                                        <TimerIcon className="h-4 w-4 text-blue-500" />
+                                        <TimerIcon className={`h-4 w-4 ${game.status === 'playing' ? 'text-emerald-500 animate-spin-slow' : 'text-blue-500'}`} />
                                         <span className="font-black uppercase tracking-widest text-[10px]">
                                             {game.status === 'scheduled' ? 'BAŞLAMADI' : 
-                                             game.status === 'playing' ? 'OYNANIYOR' : 'MÜSABAKA BİTTİ'}
+                                             game.status === 'playing' ? `${matchMinute}. DAKİKA` : 'MÜSABAKA BİTTİ'}
                                         </span>
                                     </div>
                                 </div>

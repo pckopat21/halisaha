@@ -15,11 +15,13 @@ import {
     Swords,
     ArrowUpRight,
     Search,
-    UserPlus
+    UserPlus,
+    Timer as TimerIcon
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { useState, useEffect } from 'react';
 import { format } from 'date-fns';
 import { tr } from 'date-fns/locale';
 
@@ -47,6 +49,7 @@ interface Game {
     away_score: number;
     status: string;
     scheduled_at: string;
+    started_at: string | null;
 }
 
 interface Props {
@@ -56,6 +59,7 @@ interface Props {
     tournaments: any[];
     upcoming_games: Game[];
     my_games: Game[];
+    live_games: Game[];
     latest_champion_tournament?: {
         id: number;
         name: string;
@@ -72,8 +76,24 @@ const breadcrumbs: BreadcrumbItem[] = [
     { title: 'Yönetici Paneli', href: '/dashboard' },
 ];
 
-export default function ManagerDashboard({ stats, team, standing, tournaments, upcoming_games, my_games, latest_champion_tournament }: Props) {
+export default function ManagerDashboard({ stats, team, standing, tournaments, upcoming_games, my_games, live_games, latest_champion_tournament }: Props) {
     const { auth } = usePage<SharedData>().props;
+    const [currentTime, setCurrentTime] = useState(new Date());
+
+    useEffect(() => {
+        const interval = setInterval(() => {
+            setCurrentTime(new Date());
+        }, 10000);
+        return () => clearInterval(interval);
+    }, []);
+
+    const getMatchMinute = (game: Game) => {
+        if (!game.started_at) return 1;
+        const start = new Date(game.started_at);
+        const diff = Math.floor((currentTime.getTime() - start.getTime()) / 60000);
+        return Math.min(90, Math.max(1, diff + 1));
+    };
+
     const nextGame = my_games.find(g => g.status === 'scheduled');
 
     return (
@@ -137,6 +157,66 @@ export default function ManagerDashboard({ stats, team, standing, tournaments, u
                                 </Link>
                             </CardContent>
                         </Card>
+                    </div>
+                )}
+
+                {/* Live Matches Spotlight */}
+                {live_games.length > 0 && (
+                    <div className="animate-in zoom-in duration-700">
+                        <div className="flex items-center gap-4 mb-6">
+                            <div className="h-px bg-rose-500/20 flex-1" />
+                            <Badge className="bg-rose-600 text-white border-none font-black text-[10px] items-center gap-2 uppercase tracking-[0.3em] px-6 py-2 rounded-full shadow-lg shadow-rose-600/30">
+                                <span className="w-2 h-2 bg-white rounded-full animate-ping" /> ŞİMDİ CANLI
+                            </Badge>
+                            <div className="h-px bg-rose-500/20 flex-1" />
+                        </div>
+                        
+                        <div className={`grid grid-cols-1 ${live_games.length > 1 ? 'lg:grid-cols-2' : ''} gap-8`}>
+                            {live_games.map((game) => (
+                                <Card key={game.id} className="border-none bg-slate-900 text-white rounded-[3rem] overflow-hidden shadow-2xl shadow-rose-900/10 group">
+                                    <div className="absolute inset-0 opacity-10 bg-[url('https://www.transparenttextures.com/patterns/carbon-fibre.png')]"></div>
+                                    <CardContent className="p-10 relative z-10">
+                                        <div className="flex items-center justify-between gap-8">
+                                            {/* Home Team */}
+                                            <div className="flex-1 flex flex-col items-center gap-4 text-center">
+                                                <div className="w-16 h-16 md:w-20 md:h-20 rounded-3xl bg-white/5 border border-white/10 flex items-center justify-center text-2xl font-black text-blue-400">
+                                                    {(game.home_team?.name || '?').charAt(0)}
+                                                </div>
+                                                <span className="font-black uppercase tracking-tight text-sm md:text-lg line-clamp-1">{game.home_team?.name || 'BELİRLENMEDİ'}</span>
+                                            </div>
+
+                                            {/* Live Score */}
+                                            <div className="flex flex-col items-center gap-4">
+                                                <div className="flex items-center gap-6">
+                                                    <span className="text-5xl md:text-7xl font-black tabular-nums">{game.home_score}</span>
+                                                    <span className="text-2xl font-black text-slate-700 animate-pulse">:</span>
+                                                    <span className="text-5xl md:text-7xl font-black tabular-nums">{game.away_score}</span>
+                                                </div>
+                                                <div className="bg-rose-600/20 border border-rose-500/30 px-6 py-1.5 rounded-full flex items-center gap-3">
+                                                    <TimerIcon className="h-4 w-4 text-rose-500 animate-spin-slow" />
+                                                    <span className="font-black text-rose-500 text-xs tabular-nums tracking-widest">{getMatchMinute(game)}' DAKİKA</span>
+                                                </div>
+                                            </div>
+
+                                            {/* Away Team */}
+                                            <div className="flex-1 flex flex-col items-center gap-4 text-center">
+                                                <div className="w-16 h-16 md:w-20 md:h-20 rounded-3xl bg-white/5 border border-white/10 flex items-center justify-center text-2xl font-black text-slate-400">
+                                                    {(game.away_team?.name || '?').charAt(0)}
+                                                </div>
+                                                <span className="font-black uppercase tracking-tight text-sm md:text-lg line-clamp-1">{game.away_team?.name || 'BELİRLENMEDİ'}</span>
+                                            </div>
+                                        </div>
+
+                                        <Link href={route('games.show', game.id)} className="mt-8 block">
+                                            <Button className="w-full bg-white text-slate-900 hover:bg-slate-100 dark:bg-white/10 dark:text-white dark:hover:bg-white/20 rounded-2xl h-14 font-black uppercase tracking-widest text-xs">
+                                                MAÇI CANLI TAKİP ET
+                                                <Activity className="ml-3 h-4 w-4 text-rose-600" />
+                                            </Button>
+                                        </Link>
+                                    </CardContent>
+                                </Card>
+                            ))}
+                        </div>
                     </div>
                 )}
 

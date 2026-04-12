@@ -15,17 +15,16 @@ class TeamController extends Controller
         $user = auth()->user();
         $query = Team::with(['unit', 'tournament', 'owner'])->withCount('players');
 
-        if ($user && !$user->isCommittee()) {
-            // For team managers, we still let them see all teams (as requested: "diğer takımları görebilir")
-            // but we might want to flag which ones they own in the frontend.
-            // For the index, we list all approved teams plus any pending team of the user.
+        if ($user && $user->isCommittee()) {
+            // Admins must see everything to manage approvals/rejections
+            $teams = $query->latest()->get();
+        } elseif ($user) {
             $teams = $query->where(function ($q) use ($user) {
                 $q->where('status', 'approved')
                   ->orWhere('user_id', $user->id);
             })->latest()->get();
         } else {
-            // Admins see everything
-            $teams = $query->latest()->get();
+            $teams = $query->where('status', 'approved')->latest()->get();
         }
 
         return Inertia::render('teams/index', [

@@ -35,8 +35,10 @@ class TournamentService
         DB::transaction(function () use ($tournament, $groupCount, $startDate, $matchStartTime, $matchDurationMinutes, $bufferMinutes) {
             $startDate = $startDate ?? Carbon::tomorrow();
             
-            // 1. Get all approved teams
-            $teams = $tournament->teams()->where('status', 'approved')->get();
+            // 1. Get all approved teams (case-insensitive check)
+            $teams = $tournament->teams()
+                ->whereIn('status', ['approved', 'Approved'])
+                ->get();
             
             // 2. Separate seeded teams (Rule 22 & 23)
             $seeds = $teams->where('seed_level', '>', 0)->sortBy('seed_level');
