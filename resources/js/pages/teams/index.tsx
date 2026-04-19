@@ -32,7 +32,13 @@ interface Team {
     name: string;
     status: 'pending' | 'approved' | 'rejected' | 'disqualified';
     unit: { name: string } | null;
-    tournament: { name: string } | null;
+    tournament: { 
+        name: string;
+        settings: {
+            max_roster_size: number;
+            min_roster_size: number;
+        };
+    } | null;
     user_id: number;
     players_count: number;
 }
@@ -216,8 +222,8 @@ export default function Index({ teams, tournaments, units }: Props) {
                                         </TableCell>
                                         <TableCell className="py-6">
                                             <div className="flex items-center gap-2">
-                                                <Badge variant="outline" className={`border-none px-2 py-0.5 rounded-md text-[10px] font-black ${team.players_count < 6 ? 'bg-rose-50 text-rose-600' : team.players_count >= 12 ? 'bg-blue-50 text-blue-600' : 'bg-neutral-50 text-neutral-600'}`}>
-                                                    <Users className="h-3 w-3 mr-1.5" /> {team.players_count} / 12
+                                                <Badge variant="outline" className={`border-none px-2 py-0.5 rounded-md text-[10px] font-black ${team.players_count < (team.tournament?.settings.min_roster_size ?? 6) ? 'bg-rose-50 text-rose-600' : team.players_count >= (team.tournament?.settings.max_roster_size ?? 12) ? 'bg-blue-50 text-blue-600' : 'bg-neutral-50 text-neutral-600'}`}>
+                                                    <Users className="h-3 w-3 mr-1.5" /> {team.players_count} / {team.tournament?.settings.max_roster_size ?? 12}
                                                 </Badge>
                                             </div>
                                         </TableCell>

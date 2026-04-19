@@ -16,7 +16,8 @@ import {
     ArrowUpRight,
     Search,
     UserPlus,
-    Timer as TimerIcon
+    Timer as TimerIcon,
+    MapPin,
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -50,6 +51,7 @@ interface Game {
     status: string;
     scheduled_at: string;
     started_at: string | null;
+    field?: { id: number; name: string; location: string | null };
 }
 
 interface Props {
@@ -195,9 +197,17 @@ export default function ManagerDashboard({ stats, team, standing, tournaments, u
                                                     <span className="text-2xl font-black text-rose-500 animate-pulse">:</span>
                                                     <span className="text-5xl md:text-7xl font-black tabular-nums drop-shadow-2xl">{game.away_score}</span>
                                                 </div>
-                                                <div className="bg-rose-600/20 border border-rose-500/30 px-6 py-1.5 rounded-full flex items-center gap-3 backdrop-blur-md">
-                                                    <TimerIcon className="h-4 w-4 text-rose-500 animate-spin-slow" />
-                                                    <span className="font-black text-rose-500 text-xs tabular-nums tracking-widest">{getMatchMinute(game)}' DAKİKA</span>
+                                                <div className="flex flex-col items-center gap-1">
+                                                    <div className="bg-rose-600/20 border border-rose-500/30 px-6 py-1.5 rounded-full flex items-center gap-3 backdrop-blur-md">
+                                                        <TimerIcon className="h-4 w-4 text-rose-500 animate-spin-slow" />
+                                                        <span className="font-black text-rose-500 text-xs tabular-nums tracking-widest">{getMatchMinute(game)}' DAKİKA</span>
+                                                    </div>
+                                                    {game.field && (
+                                                        <div className="flex items-center gap-1.5 text-[9px] font-black text-white/40 uppercase tracking-widest mt-1">
+                                                            <MapPin className="h-3 w-3" />
+                                                            {game.field.name}
+                                                        </div>
+                                                    )}
                                                 </div>
                                             </div>
 
@@ -280,8 +290,16 @@ export default function ManagerDashboard({ stats, team, standing, tournaments, u
                                                         <span className="text-[10px] font-black uppercase mt-2 text-center line-clamp-1">{nextGame.home_team.name}</span>
                                                     </div>
                                                     <div className="flex flex-col items-center">
-                                                        <span className="text-2xl font-black text-blue-600 tabular-nums">{format(new Date(nextGame.scheduled_at), 'HH:mm')}</span>
+                                                        <div className="bg-slate-100 dark:bg-white/5 px-4 py-1.5 rounded-full border border-border">
+                                                            <span className="text-2xl font-black text-blue-600 tabular-nums">{format(new Date(nextGame.scheduled_at), 'HH:mm')}</span>
+                                                        </div>
                                                         <span className="text-[9px] font-bold text-muted-foreground uppercase">{format(new Date(nextGame.scheduled_at), 'd MMM', { locale: tr })}</span>
+                                                        {nextGame.field && (
+                                                            <span className="text-[8px] font-black uppercase text-blue-600 flex items-center gap-1 mt-1">
+                                                                <MapPin className="h-2.5 w-2.5" />
+                                                                {nextGame.field.name}
+                                                            </span>
+                                                        )}
                                                     </div>
                                                     <div className="flex flex-col items-center flex-1">
                                                         <div className="w-12 h-12 rounded-2xl bg-muted flex items-center justify-center font-black text-xs">{nextGame.away_team.name.substring(0, 2).toUpperCase()}</div>
@@ -348,8 +366,15 @@ export default function ManagerDashboard({ stats, team, standing, tournaments, u
                                                         </div>
                                                         <div className="text-left">
                                                             <p className="font-black text-sm uppercase tracking-tight">{game.away_team.name}</p>
-                                                            <div className="flex items-center gap-2 font-black text-[9px] text-blue-600 uppercase tracking-widest">
-                                                                <Clock className="h-3 w-3" /> {format(new Date(game.scheduled_at), 'd MMM HH:mm', { locale: tr })}
+                                                            <div className="flex flex-col gap-0.5">
+                                                                <div className="flex items-center gap-2 font-black text-[9px] text-blue-600 uppercase tracking-widest">
+                                                                    <Clock className="h-3 w-3" /> {format(new Date(game.scheduled_at), 'd MMM HH:mm', { locale: tr })}
+                                                                </div>
+                                                                {game.field && (
+                                                                    <div className="flex items-center gap-2 font-black text-[8px] text-emerald-600 uppercase tracking-widest">
+                                                                        <MapPin className="h-2.5 w-2.5" /> {game.field.name}
+                                                                    </div>
+                                                                )}
                                                             </div>
                                                         </div>
                                                     </div>

@@ -32,7 +32,8 @@ import {
     TrendingUp,
     PieChart as PieChartIcon,
     CheckCircle2,
-    Timer as TimerIcon
+    Timer as TimerIcon,
+    MapPin,
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -66,6 +67,7 @@ interface Game {
     status: string;
     scheduled_at: string;
     started_at: string | null;
+    field?: { id: number; name: string; location: string | null };
 }
 
 interface Props {
@@ -243,9 +245,17 @@ export default function Dashboard({ stats, recent_games, upcoming_games, live_ga
                                                     <span className="text-2xl font-black text-rose-500 animate-pulse">:</span>
                                                     <span className="text-5xl md:text-7xl font-black tabular-nums drop-shadow-2xl">{game.away_score}</span>
                                                 </div>
-                                                <div className="bg-rose-600/20 border border-rose-500/30 px-6 py-1.5 rounded-full flex items-center gap-3 backdrop-blur-md">
-                                                    <TimerIcon className="h-4 w-4 text-rose-500 animate-spin-slow" />
-                                                    <span className="font-black text-rose-500 text-xs tabular-nums tracking-widest">{getMatchMinute(game)}' DAKİKA</span>
+                                                <div className="flex flex-col items-center gap-1">
+                                                    <div className="bg-rose-600/20 border border-rose-500/30 px-6 py-1.5 rounded-full flex items-center gap-3 backdrop-blur-md">
+                                                        <TimerIcon className="h-4 w-4 text-rose-500 animate-spin-slow" />
+                                                        <span className="font-black text-rose-500 text-xs tabular-nums tracking-widest">{getMatchMinute(game)}' DAKİKA</span>
+                                                    </div>
+                                                    {game.field && (
+                                                        <div className="flex items-center gap-1.5 text-[9px] font-black text-white/40 uppercase tracking-widest mt-1">
+                                                            <MapPin className="h-3 w-3" />
+                                                            {game.field.name}
+                                                        </div>
+                                                    )}
                                                 </div>
                                             </div>
 
@@ -382,7 +392,15 @@ export default function Dashboard({ stats, recent_games, upcoming_games, live_ga
                                                     <div className="bg-slate-100 dark:bg-white/5 px-4 py-1.5 rounded-full border border-border">
                                                         <span className="text-lg font-black tabular-nums">{format(new Date(game.scheduled_at), 'HH:mm')}</span>
                                                     </div>
-                                                    <span className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">{format(new Date(game.scheduled_at), 'd MMMM', { locale: tr })}</span>
+                                                    <div className="flex flex-col items-center">
+                                                        <span className="text-[9px] font-black uppercase tracking-widest text-muted-foreground">{format(new Date(game.scheduled_at), 'd MMMM', { locale: tr })}</span>
+                                                        {game.field && (
+                                                            <span className="text-[8px] font-black uppercase tracking-widest text-blue-600/60 flex items-center gap-1 mt-0.5">
+                                                                <MapPin className="h-2.5 w-2.5" />
+                                                                {game.field.name}
+                                                            </span>
+                                                        )}
+                                                    </div>
                                                 </div>
 
                                                 <div className="flex flex-1 items-center justify-end gap-4">

@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\Tournament;
+use App\Models\Field;
 use App\Services\TournamentService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
@@ -58,11 +59,13 @@ class TournamentController extends Controller
                 'groups.standings.team', 
                 'groups.games.homeTeam.unit', 
                 'groups.games.awayTeam.unit',
+                'groups.games.field',
                 'champion.unit',
                 'games' => function($q) {
-                    $q->whereNull('group_id')->with(['homeTeam.unit', 'awayTeam.unit']);
+                    $q->whereNull('group_id')->with(['homeTeam.unit', 'awayTeam.unit', 'field']);
                 }
             ]),
+            'fields' => Field::where('is_active', true)->get(),
             'teamStats' => [
                 'total' => $tournament->teams()->count(),
                 'approved' => $tournament->teams()->where('status', 'approved')->count() ?: $tournament->teams()->where('status', 'Approved')->count(),
@@ -159,7 +162,6 @@ class TournamentController extends Controller
         // Delete all related games for this tournament
         \App\Models\Game::where('tournament_id', $tournament->id)->delete();
         
-        // Delete all groups and their standings
         foreach ($tournament->groups as $group) {
             \App\Models\Standing::where('group_id', $group->id)->delete();
             $group->delete();
@@ -171,5 +173,28 @@ class TournamentController extends Controller
         ]);
 
         return redirect()->back()->with('success', 'Turnuva başarıyla sıfırlandı. Tüm fikstür ve sonuçlar silindi.');
+    }
+
+    public function updateSettings(Tournament $tournament, Request $request)
+    {
+        Gate::authorize('update', $tournament);
+
+        $validated = $request->validate([
+            'settings' => 'required|array',
+            'settings.max_roster_size' => 'required|integer|min:1',
+            'settings.min_roster_size' => 'required|integer|min:1',
+            'settings.max_licensed_players' => 'required|integer|min:0',
+            'settings.max_company_players' => 'required|integer|min:0',
+            'settings.max_licensed_on_pitch' => 'required|integer|min:0',
+            'settings.max_company_on_pitch' => 'required|integer|min:0',
+            'settings.yellow_card_limit' => 'required|integer|min:1',
+            'settings.substitution_limit' => 'required|integer|min:0',
+            'settings.total_players_on_pitch' => 'required|integer|min:1',
+            'settings.min_players_on_pitch' => 'required|integer|min:1',
+        ]);
+
+        $tournament->update(['settings' => $validated['settings']]);
+
+        return back()->with('success', 'Turnuva kuralları başarıyla güncellendi.');
     }
 }

@@ -10,6 +10,13 @@ use Inertia\Inertia;
 
 class TeamController extends Controller
 {
+    protected $disciplineService;
+
+    public function __construct(\App\Services\DisciplineService $disciplineService)
+    {
+        $this->disciplineService = $disciplineService;
+    }
+
     public function index()
     {
         $user = auth()->user();
@@ -36,9 +43,38 @@ class TeamController extends Controller
 
     public function show(Team $team, \App\Services\StatsService $statsService)
     {
+        // Find next game for this team to check suspension status
+        $nextGame = \App\Models\Game::where(function($q) use ($team) {
+            $q->where('home_team_id', $team->id)
+              ->orWhere('away_team_id', $team->id);
+        })
+        ->whereIn('status', ['scheduled', 'playing'])
+        ->with(['homeTeam', 'awayTeam', 'field'])
+        ->orderBy('scheduled_at')
+        ->first();
+
+        $team->load(['players', 'unit', 'captain', 'tournament']);
+
+        foreach ($team->players as $player) {
+            $player->yellow_cards_count = \App\Models\GameEvent::where('player_id', $player->id)
+                ->where('event_type', 'yellow_card')
+                ->whereHas('game', function($q) use ($team) {
+                    $q->where('tournament_id', $team->tournament_id);
+                })
+                ->count();
+            
+            if ($nextGame) {
+                $player->suspension = $this->disciplineService->isPlayerSuspended($player, $nextGame);
+            } else {
+                // If no upcoming game, check general status (e.g. pending red card carryover)
+                $player->suspension = ['is_suspended' => false, 'reason' => null];
+            }
+        }
+
         return Inertia::render('teams/show', [
-            'team' => $team->load(['players', 'unit', 'captain', 'tournament']),
+            'team' => $team,
             'performance' => $statsService->getTeamPerformance($team),
+            'nextMatch' => $nextGame,
             'can' => [
                 'update' => auth()->user()?->can('update', $team) ?? false,
                 'approve' => auth()->user()?->can('approve', $team) ?? false,

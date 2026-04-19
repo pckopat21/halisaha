@@ -11,7 +11,7 @@ class Game extends Model
         'group_id',
         'home_team_id',
         'away_team_id',
-        'pitch_id',
+        'field_id',
         'scheduled_at',
         'winner_team_id',
         'is_forfeit',
@@ -65,5 +65,10 @@ class Game extends Model
     public function events()
     {
         return $this->hasMany(GameEvent::class);
+    }
+
+    public function field()
+    {
+        return $this->belongsTo(Field::class);
     }
 }

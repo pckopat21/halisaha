@@ -23,7 +23,9 @@ import {
     Edit3,
     Save,
     X,
-    Timer
+    Timer,
+    Settings,
+    MapPin,
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Table, TableHeader, TableBody, TableHead, TableRow, TableCell } from '@/components/ui/table';
@@ -37,6 +39,12 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useState, useEffect } from 'react';
 import { format, addDays } from 'date-fns';
 import { tr } from 'date-fns/locale';
+
+interface Field {
+    id: number;
+    name: string;
+    location: string | null;
+}
 
 interface Player {
     id: number;
@@ -62,6 +70,7 @@ interface Game {
     has_penalties?: boolean;
     home_penalty_score?: number;
     away_penalty_score?: number;
+    field?: Field | null;
 }
 
 interface Standing {
@@ -94,6 +103,18 @@ interface Tournament {
     teams: { id: number; name: string; unit: { name: string } }[];
     groups: Group[];
     games: Game[];
+    settings: {
+        max_roster_size: number;
+        min_roster_size: number;
+        max_licensed_players: number;
+        max_company_players: number;
+        max_licensed_on_pitch: number;
+        max_company_on_pitch: number;
+        yellow_card_limit: number;
+        substitution_limit: number;
+        total_players_on_pitch: number;
+        min_players_on_pitch: number;
+    };
 }
 
 interface Props {
@@ -109,13 +130,19 @@ interface Props {
             points: number;
         }[];
     };
+    fields: Field[];
 }
 
-export default function Show({ tournament, teamStats, isGroupStageCompleted, stats }: Props) {
+export default function Show({ tournament, teamStats, isGroupStageCompleted, stats, fields }: Props) {
     const { auth } = usePage<SharedData>().props;
     const [selectedGame, setSelectedGame] = useState<Game | null>(null);
     const [isResultModalOpen, setIsResultModalOpen] = useState(false);
+    const [isFieldModalOpen, setIsFieldModalOpen] = useState(false);
     const [activeTab, setActiveTab] = useState('groups');
+    
+    const { data: fieldData, setData: setFieldData, post: postField, processing: fieldProcessing } = useForm({
+        field_id: '',
+    });
     const [currentTime, setCurrentTime] = useState(new Date());
 
     useEffect(() => {
@@ -147,6 +174,31 @@ export default function Show({ tournament, teamStats, isGroupStageCompleted, sta
         advance_count: 2,
         pairing_type: 'cross',
     });
+
+    const settingsForm = useForm({
+        settings: {
+            max_roster_size: tournament.settings.max_roster_size,
+            min_roster_size: tournament.settings.min_roster_size,
+            max_licensed_players: tournament.settings.max_licensed_players,
+            max_company_players: tournament.settings.max_company_players,
+            max_licensed_on_pitch: tournament.settings.max_licensed_on_pitch,
+            max_company_on_pitch: tournament.settings.max_company_on_pitch,
+            yellow_card_limit: tournament.settings.yellow_card_limit,
+            substitution_limit: tournament.settings.substitution_limit,
+            total_players_on_pitch: tournament.settings.total_players_on_pitch,
+            min_players_on_pitch: tournament.settings.min_players_on_pitch,
+        }
+    });
+
+    const handleSettingsSubmit = (e: React.FormEvent) => {
+        e.preventDefault();
+        settingsForm.post(route('tournaments.update-settings', tournament.id), {
+            preserveScroll: true,
+            onSuccess: () => {
+                // Success message is handled by flash messages
+            }
+        });
+    };
 
     const [isResetModalOpen, setIsResetModalOpen] = useState(false);
     const [isDrawConfirmModalOpen, setIsDrawConfirmModalOpen] = useState(false);
@@ -203,6 +255,24 @@ export default function Show({ tournament, teamStats, isGroupStageCompleted, sta
             scheduled_at: format(new Date(game.scheduled_at), "yyyy-MM-dd'T'HH:mm"),
         });
         setIsResultModalOpen(true);
+    };
+
+    const openFieldModal = (game: Game) => {
+        setSelectedGame(game);
+        setFieldData('field_id', game.field?.id?.toString() || '');
+        setIsFieldModalOpen(true);
+    };
+
+    const handleFieldSubmit = (e: React.FormEvent) => {
+        e.preventDefault();
+        if (!selectedGame) return;
+
+        postField(route('games.assign-field', selectedGame.id), {
+            onSuccess: () => {
+                setIsFieldModalOpen(false);
+                setSelectedGame(null);
+            },
+        });
     };
 
     const handleResultSubmit = (e: React.FormEvent) => {
@@ -574,6 +644,9 @@ export default function Show({ tournament, teamStats, isGroupStageCompleted, sta
                             <TabsTrigger value="knockout" className="px-5 md:px-6 py-2 md:py-2.5 rounded-full data-[state=active]:bg-blue-600 data-[state=active]:text-white data-[state=active]:shadow-lg font-black uppercase tracking-widest text-[9px] md:text-[10px] transition-all">Eleme Turları</TabsTrigger>
                             <TabsTrigger value="stats" className="px-5 md:px-6 py-2 md:py-2.5 rounded-full data-[state=active]:bg-blue-600 data-[state=active]:text-white data-[state=active]:shadow-lg font-black uppercase tracking-widest text-[9px] md:text-[10px] transition-all">İstatistikler</TabsTrigger>
                             <TabsTrigger value="teams" className="px-5 md:px-6 py-2 md:py-2.5 rounded-full data-[state=active]:bg-blue-600 data-[state=active]:text-white data-[state=active]:shadow-lg font-black uppercase tracking-widest text-[9px] md:text-[10px] transition-all">Takımlar</TabsTrigger>
+                            {isCommittee && (
+                                <TabsTrigger value="settings" className="px-5 md:px-6 py-2 md:py-2.5 rounded-full data-[state=active]:bg-blue-600 data-[state=active]:text-white data-[state=active]:shadow-lg font-black uppercase tracking-widest text-[9px] md:text-[10px] transition-all">Kurallar</TabsTrigger>
+                            )}
                         </TabsList>
                     </div>
 
@@ -711,9 +784,26 @@ export default function Show({ tournament, teamStats, isGroupStageCompleted, sta
                                                                         )}
                                                                     </div>
                                                                 </Link>
-                                                                <div className="flex items-center gap-2 text-[10px] font-black text-muted-foreground uppercase tracking-widest">
-                                                                    <Clock className="h-3 w-3 text-blue-600" />
-                                                                    {format(new Date(game.scheduled_at), 'd MMMM yyyy', { locale: tr })}
+                                                                <div className="flex flex-wrap items-center justify-center gap-x-3 gap-y-2 text-[10px] font-black text-muted-foreground uppercase tracking-widest">
+                                                                    <div className="flex items-center gap-1.5">
+                                                                        <Clock className="h-3 w-3 text-blue-600" />
+                                                                        {format(new Date(game.scheduled_at), 'd MMMM yyyy', { locale: tr })}
+                                                                    </div>
+                                                                    {game.field && (
+                                                                        <div className="flex items-center gap-1.5 border-l border-slate-200 dark:border-white/10 pl-3">
+                                                                            <MapPin className="h-3 w-3 text-emerald-500" />
+                                                                            {game.field.name}
+                                                                        </div>
+                                                                    )}
+                                                                    {isCommittee && (
+                                                                        <button 
+                                                                            type="button"
+                                                                            onClick={() => openFieldModal(game)}
+                                                                            className="text-[9px] text-blue-600 hover:text-blue-700 bg-blue-50 dark:bg-blue-600/10 px-2 py-0.5 rounded-md transition-colors"
+                                                                        >
+                                                                            {game.field ? 'DEĞİŞTİR' : '+ SAHA SEÇ'}
+                                                                        </button>
+                                                                    )}
                                                                 </div>
                                                             </div>
 
@@ -791,9 +881,26 @@ export default function Show({ tournament, teamStats, isGroupStageCompleted, sta
                                                                         )}
                                                                     </div>
                                                                 </Link>
-                                                                <div className="flex items-center gap-2 text-[10px] font-black text-muted-foreground uppercase tracking-widest">
-                                                                    <Clock className="h-3 w-3 text-rose-600" />
-                                                                    {format(new Date(game.scheduled_at), 'd MMMM yyyy', { locale: tr })}
+                                                                <div className="flex flex-wrap items-center justify-center gap-x-3 gap-y-2 text-[10px] font-black text-muted-foreground uppercase tracking-widest">
+                                                                    <div className="flex items-center gap-1.5">
+                                                                        <Clock className="h-3 w-3 text-rose-600" />
+                                                                        {format(new Date(game.scheduled_at), 'd MMMM yyyy', { locale: tr })}
+                                                                    </div>
+                                                                    {game.field && (
+                                                                        <div className="flex items-center gap-1.5 border-l border-slate-200 dark:border-white/10 pl-3">
+                                                                            <MapPin className="h-3 w-3 text-emerald-500" />
+                                                                            {game.field.name}
+                                                                        </div>
+                                                                    )}
+                                                                    {isCommittee && (
+                                                                        <button 
+                                                                            type="button"
+                                                                            onClick={() => openFieldModal(game)}
+                                                                            className="text-[9px] text-blue-600 hover:text-blue-700 bg-blue-50 dark:bg-blue-600/10 px-2 py-0.5 rounded-md transition-colors"
+                                                                        >
+                                                                            {game.field ? 'DEĞİŞTİR' : '+ SAHA SEÇ'}
+                                                                        </button>
+                                                                    )}
                                                                 </div>
                                                             </div>
 
@@ -1043,8 +1150,224 @@ export default function Show({ tournament, teamStats, isGroupStageCompleted, sta
                             </Card>
                         ))}
                     </TabsContent>
-                </Tabs>
-            </div>
+
+                    {isCommittee && (
+                        <TabsContent value="settings" className="mt-0 border-none outline-none">
+                            <Card className="border-none shadow-2xl bg-white/80 dark:bg-neutral-900/80 backdrop-blur-3xl rounded-[3rem] overflow-hidden">
+                                <CardHeader className="p-12 border-b border-border bg-slate-50/50 dark:bg-black/20">
+                                    <div className="flex items-center gap-6">
+                                        <div className="h-16 w-16 bg-blue-600 rounded-[1.5rem] flex items-center justify-center shadow-xl shadow-blue-500/20">
+                                            <Settings className="h-8 w-8 text-white" />
+                                        </div>
+                                        <div>
+                                            <CardTitle className="text-3xl font-black uppercase tracking-tighter">Turnuva Kuralları</CardTitle>
+                                            <CardDescription className="text-xs font-black uppercase tracking-widest text-blue-600 mt-1">KADRO VE SAHA LİMİTLERİNİ ÖZELLEŞTİRİN</CardDescription>
+                                        </div>
+                                    </div>
+                                </CardHeader>
+                                <CardContent className="p-12">
+                                    <form onSubmit={handleSettingsSubmit} className="space-y-12">
+                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-12">
+                                            {/* Kadro Limitleri */}
+                                            <div className="space-y-6">
+                                                <div className="flex items-center gap-3 mb-2">
+                                                    <Users className="h-5 w-5 text-slate-400" />
+                                                    <h4 className="text-sm font-black uppercase tracking-[0.2em] text-slate-500">Kadro Yapısı</h4>
+                                                </div>
+                                                <div className="grid grid-cols-2 gap-6">
+                                                    <div className="space-y-2">
+                                                        <Label className="text-[10px] font-black uppercase tracking-widest text-slate-400">Min. Kadro Sayısı</Label>
+                                                        <Input 
+                                                            type="number" 
+                                                            className="h-14 rounded-2xl font-bold bg-white dark:bg-black/20"
+                                                            value={settingsForm.data.settings.min_roster_size}
+                                                            onChange={e => settingsForm.setData('settings', { ...settingsForm.data.settings, min_roster_size: parseInt(e.target.value) })}
+                                                        />
+                                                    </div>
+                                                    <div className="space-y-2">
+                                                        <Label className="text-[10px] font-black uppercase tracking-widest text-slate-400">Max. Kadro Sayısı</Label>
+                                                        <Input 
+                                                            type="number" 
+                                                            className="h-14 rounded-2xl font-bold bg-white dark:bg-black/20"
+                                                            value={settingsForm.data.settings.max_roster_size}
+                                                            onChange={e => settingsForm.setData('settings', { ...settingsForm.data.settings, max_roster_size: parseInt(e.target.value) })}
+                                                        />
+                                                    </div>
+                                                </div>
+                                                <div className="grid grid-cols-2 gap-6">
+                                                    <div className="space-y-2">
+                                                        <Label className="text-[10px] font-black uppercase tracking-widest text-emerald-600">Max. Lisanslı Personel</Label>
+                                                        <Input 
+                                                            type="number" 
+                                                            className="h-14 rounded-2xl font-bold bg-white dark:bg-black/20 border-emerald-100/50"
+                                                            value={settingsForm.data.settings.max_licensed_players}
+                                                            onChange={e => settingsForm.setData('settings', { ...settingsForm.data.settings, max_licensed_players: parseInt(e.target.value) })}
+                                                        />
+                                                    </div>
+                                                    <div className="space-y-2">
+                                                        <Label className="text-[10px] font-black uppercase tracking-widest text-blue-600">Max. Firma Personeli</Label>
+                                                        <Input 
+                                                            type="number" 
+                                                            className="h-14 rounded-2xl font-bold bg-white dark:bg-black/20 border-blue-100/50"
+                                                            value={settingsForm.data.settings.max_company_players}
+                                                            onChange={e => settingsForm.setData('settings', { ...settingsForm.data.settings, max_company_players: parseInt(e.target.value) })}
+                                                        />
+                                                    </div>
+                                                </div>
+                                            </div>
+
+                                            {/* Saha Limitleri */}
+                                            <div className="space-y-6">
+                                                <div className="flex items-center gap-3 mb-2">
+                                                    <Trophy className="h-5 w-5 text-slate-400" />
+                                                    <h4 className="text-sm font-black uppercase tracking-[0.2em] text-slate-500">Saha İçi Limitler</h4>
+                                                </div>
+                                                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                                    <div className="space-y-2">
+                                                        <Label className="text-[10px] font-black uppercase tracking-widest text-emerald-600">Sahada Max. Lisanslı</Label>
+                                                        <Input 
+                                                            type="number" 
+                                                            className="h-14 rounded-2xl font-bold bg-emerald-500/5 border-emerald-100/50"
+                                                            value={settingsForm.data.settings.max_licensed_on_pitch}
+                                                            onChange={e => settingsForm.setData('settings', { ...settingsForm.data.settings, max_licensed_on_pitch: parseInt(e.target.value) })}
+                                                        />
+                                                    </div>
+                                                    <div className="space-y-2">
+                                                        <Label className="text-[10px] font-black uppercase tracking-widest text-blue-600">Sahada Max. Firma</Label>
+                                                        <Input 
+                                                            type="number" 
+                                                            className="h-14 rounded-2xl font-bold bg-blue-500/5 border-blue-100/50"
+                                                            value={settingsForm.data.settings.max_company_on_pitch}
+                                                            onChange={e => settingsForm.setData('settings', { ...settingsForm.data.settings, max_company_on_pitch: parseInt(e.target.value) })}
+                                                        />
+                                                    </div>
+                                                    <div className="space-y-2">
+                                                        <Label className="text-[10px] font-black uppercase tracking-widest text-slate-600">Toplam Oyuncu (Kaleci Dahil)</Label>
+                                                        <Input 
+                                                            type="number" 
+                                                            className="h-14 rounded-2xl font-bold bg-slate-500/5 border-slate-100/50"
+                                                            value={settingsForm.data.settings.total_players_on_pitch}
+                                                            onChange={e => settingsForm.setData('settings', { ...settingsForm.data.settings, total_players_on_pitch: parseInt(e.target.value) })}
+                                                        />
+                                                    </div>
+                                                    <div className="space-y-2">
+                                                        <Label className="text-[10px] font-black uppercase tracking-widest text-orange-600">Min. Oyuncu Sayısı (Maç Başlaması İçin)</Label>
+                                                        <Input 
+                                                            type="number" 
+                                                            className="h-14 rounded-2xl font-bold bg-orange-500/5 border-orange-100/50"
+                                                            value={settingsForm.data.settings.min_players_on_pitch}
+                                                            onChange={e => settingsForm.setData('settings', { ...settingsForm.data.settings, min_players_on_pitch: parseInt(e.target.value) })}
+                                                        />
+                                                    </div>
+                                                    <div className="space-y-2">
+                                                        <Label className="text-[10px] font-black uppercase tracking-widest text-rose-600">Sarı Kart Cezası (Limit)</Label>
+                                                        <Input 
+                                                            type="number" 
+                                                            className="h-14 rounded-2xl font-bold bg-rose-500/5 border-rose-100/50"
+                                                            value={settingsForm.data.settings.yellow_card_limit}
+                                                            onChange={e => settingsForm.setData('settings', { ...settingsForm.data.settings, yellow_card_limit: parseInt(e.target.value) })}
+                                                        />
+                                                    </div>
+                                                    <div className="space-y-2">
+                                                        <Label className="text-[10px] font-black uppercase tracking-widest text-amber-600">Max Değişiklik Hakkı</Label>
+                                                        <Input 
+                                                            type="number" 
+                                                            className="h-14 rounded-2xl font-bold bg-amber-500/5 border-amber-100/50"
+                                                            value={settingsForm.data.settings.substitution_limit}
+                                                            onChange={e => settingsForm.setData('settings', { ...settingsForm.data.settings, substitution_limit: parseInt(e.target.value) })}
+                                                        />
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                        <div className="flex flex-col md:flex-row items-center justify-between p-8 bg-blue-600 rounded-[2.5rem] text-white shadow-xl shadow-blue-600/20 gap-6">
+                                            <div className="flex items-center gap-4">
+                                                <div className="h-14 w-14 bg-white/20 rounded-2xl flex items-center justify-center shrink-0">
+                                                    <Shield className="h-8 w-8" />
+                                                </div>
+                                                <div>
+                                                    <p className="text-[10px] font-black uppercase tracking-widest opacity-80">Güvenlik ve Kurallar</p>
+                                                    <p className="font-bold text-sm tracking-tight leading-relaxed max-w-xl">Kural değişiklikleri mevcut takımları etkilemez, yeni oyuncu girişlerinde ve onaylama süreçlerinde otomatik olarak devreye girer.</p>
+                                                </div>
+                                            </div>
+                                            <Button 
+                                                disabled={settingsForm.processing}
+                                                className="w-full md:w-auto h-16 px-12 bg-white text-blue-600 hover:bg-slate-50 font-black uppercase tracking-widest text-[10px] rounded-[1.5rem] shadow-xl transition-all hover:scale-105 active:scale-95 shrink-0"
+                                            >
+                                                {settingsForm.processing ? 'GÜNCELLENİYOR...' : 'AYARLARI KAYDET'}
+                                            </Button>
+                                        </div>
+                                    </form>
+                                </CardContent>
+                            </Card>
+                        </TabsContent>
+                    )}
+                    </Tabs>
+
+            {/* Field Selection Modal */}
+            <Dialog open={isFieldModalOpen} onOpenChange={setIsFieldModalOpen}>
+                <DialogContent className="max-w-md rounded-[2.5rem] p-0 overflow-hidden border-border bg-background shadow-3xl">
+                    <DialogHeader className="p-10 bg-slate-900 text-white">
+                        <div className="w-16 h-16 bg-blue-600 rounded-3xl flex items-center justify-center mb-6 shadow-xl shadow-blue-500/20">
+                            <MapPin className="h-8 w-8 text-white" />
+                        </div>
+                        <DialogTitle className="text-3xl font-black uppercase tracking-tighter">SAHA ATA</DialogTitle>
+                        <DialogDescription className="text-white/40 font-bold uppercase text-[10px] tracking-widest mt-2 px-1">
+                            {selectedGame?.home_team?.name} VS {selectedGame?.away_team?.name} MAÇININ OYNANACAĞI SAHAYI SEÇİN.
+                        </DialogDescription>
+                    </DialogHeader>
+
+                    <form onSubmit={handleFieldSubmit} className="p-10 space-y-8">
+                        <div className="space-y-4">
+                            <Label className="text-[10px] font-black uppercase tracking-widest text-neutral-400 ml-1">MÜSAİT SAHALAR</Label>
+                            <div className="grid grid-cols-1 gap-3">
+                                {fields.map((field) => (
+                                    <button
+                                        key={field.id}
+                                        type="button"
+                                        onClick={() => setFieldData('field_id', field.id.toString())}
+                                        className={`flex items-center justify-between p-5 rounded-3xl border-2 transition-all text-left ${
+                                            fieldData.field_id === field.id.toString()
+                                                ? 'border-blue-600 bg-blue-50 text-blue-900 shadow-lg'
+                                                : 'border-slate-50 hover:border-slate-200 bg-slate-50/50 text-slate-600'
+                                        }`}
+                                    >
+                                        <div className="flex items-center gap-4">
+                                            <div className={`h-10 w-10 rounded-2xl flex items-center justify-center font-black ${
+                                                fieldData.field_id === field.id.toString() ? 'bg-blue-600 text-white' : 'bg-slate-200 text-slate-500'
+                                            }`}>
+                                                {field.name.substring(0, 1).toUpperCase()}
+                                            </div>
+                                            <div>
+                                                <p className="font-black uppercase text-sm">{field.name}</p>
+                                                {field.location && <p className="text-[9px] font-bold opacity-60 uppercase">{field.location}</p>}
+                                            </div>
+                                        </div>
+                                        {fieldData.field_id === field.id.toString() && (
+                                            <CheckCircle2 className="h-5 w-5 text-blue-600" />
+                                        )}
+                                    </button>
+                                ))}
+                                {fields.length === 0 && (
+                                    <div className="p-8 text-center bg-slate-50 rounded-3xl opacity-50 space-y-2">
+                                        <Info className="h-6 w-6 mx-auto text-slate-400" />
+                                        <p className="text-[10px] font-black uppercase text-slate-400">Önce Saha Yönetimi menüsünden saha tanımlamalısınız.</p>
+                                    </div>
+                                )}
+                            </div>
+                        </div>
+
+                        <Button
+                            type="submit"
+                            disabled={fieldProcessing || !fieldData.field_id}
+                            className="w-full h-16 bg-blue-600 hover:bg-black text-white rounded-[1.5rem] font-black uppercase tracking-widest text-xs shadow-2xl transition-all"
+                        >
+                            SAHA ATAMASINI TAMAMLA
+                        </Button>
+                    </form>
+                </DialogContent>
+            </Dialog>
 
             {/* Quick Result Modal */}
             <Dialog open={isResultModalOpen} onOpenChange={setIsResultModalOpen}>
@@ -1319,6 +1642,7 @@ export default function Show({ tournament, teamStats, isGroupStageCompleted, sta
                     </DialogFooter>
                 </DialogContent>
             </Dialog>
-        </AppLayout>
+        </div>
+    </AppLayout>
     );
 }

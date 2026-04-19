@@ -1,33 +1,58 @@
 import AppLayout from '@/layouts/app-layout';
 import { type BreadcrumbItem } from '@/types';
 import { Head, usePage, router, Link } from '@inertiajs/react';
-import { Trophy, Clock, User, AlertTriangle, Goal, Ban, Repeat, X, Shield, Play, CheckCircle2, Timer as TimerIcon, ArrowLeft, Activity, Target, Undo2, AlertCircle, Info } from 'lucide-react';
+import { Trophy, Clock, User, AlertTriangle, Goal, Ban, Repeat, X, Shield, Play, CheckCircle2, Timer as TimerIcon, ArrowLeft, Activity, Target, Undo2, AlertCircle, Info, Users, MapPin } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { useState, useEffect } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter, DialogTrigger } from '@/components/ui/dialog';
 
+interface Field {
+    id: number;
+    name: string;
+    location: string | null;
+}
+
 interface Player {
     id: number;
     first_name: string;
     last_name: string;
+    suspension?: {
+        is_suspended: boolean;
+        reason: string | null;
+    };
 }
 
 interface Game {
     id: number;
-    home_team: { id: number; name: string; players: Player[] };
-    away_team: { id: number; name: string; players: Player[] };
+    home_team: { id: number; name: string; user_id: number; players: Player[]; can_manage_roster?: boolean };
+    away_team: { id: number; name: string; user_id: number; players: Player[]; can_manage_roster?: boolean };
     home_score: number;
     away_score: number;
     status: 'scheduled' | 'playing' | 'completed';
-    tournament: { id: number; name: string };
+    tournament: { 
+        id: number; 
+        name: string;
+        settings: {
+            max_roster_size: number;
+            min_roster_size: number;
+            total_players_on_pitch: number;
+            max_licensed_on_pitch: number;
+            max_company_on_pitch: number;
+            yellow_card_limit: number;
+            substitution_limit: number;
+            min_players_on_pitch: number;
+        }
+    };
     group?: { name: string };
     events: any[];
+    rosters: any[];
     scheduled_at: string;
     started_at: string | null;
     home_penalty_score?: number;
     away_penalty_score?: number;
+    field?: Field | null;
 }
 
 interface Props {
@@ -44,6 +69,108 @@ export default function Show({ game }: Props) {
     const [currentTime, setCurrentTime] = useState(new Date());
     const [isCompleteDialogOpen, setIsCompleteDialogOpen] = useState(false);
     const [isReopenDialogOpen, setIsReopenDialogOpen] = useState(false);
+    const [isRosterModalOpen, setIsRosterModalOpen] = useState(false);
+    const [isSubModalOpen, setIsSubModalOpen] = useState(false);
+    const [managingTeam, setManagingTeam] = useState<any>(null);
+    const [subOutPlayer, setSubOutPlayer] = useState<any>(null);
+    const [selectedRoster, setSelectedRoster] = useState<{id: number, is_starting: boolean}[]>([]);
+    const [rosterProcessing, setRosterProcessing] = useState(false);
+
+    const onPitchIds = (teamId: number) => {
+        let players = game.rosters
+            .filter((r: any) => r.team_id === teamId && r.is_starting)
+            .map((r: any) => r.player_id);
+        
+        // If no rosters defined, we treat everyone as "on pitch" potentially 
+        // but for substitution logic we need a base. 
+        // Let's assume if no rosters, everyone is eligible but substitution logic is disabled.
+        if (game.rosters.filter((r: any) => r.team_id === teamId).length === 0) return [];
+
+        game.events.filter(e => e.team_id === teamId).forEach((e: any) => {
+            if (e.event_type === 'sub_in') players.push(e.player_id);
+            if (e.event_type === 'sub_out' || e.event_type === 'red_card') {
+                players = players.filter(id => id !== e.player_id);
+            }
+        });
+        return players;
+    };
+
+    const eligibleForSubIn = (teamId: number) => {
+        const onPitch = onPitchIds(teamId);
+        return game.rosters
+            .filter((r: any) => r.team_id === teamId && !onPitch.includes(r.player_id))
+            .map((r: any) => {
+                const p = game.home_team.id === teamId ? game.home_team.players.find(p => p.id === r.player_id) : game.away_team.players.find(p => p.id === r.player_id);
+                
+                // Also check if they were already subbed OUT (can't come back in usually)
+                const alreadySubbedOut = game.events.some(e => e.team_id === teamId && e.player_id === r.player_id && e.event_type === 'sub_out');
+                if (alreadySubbedOut) return null;
+                
+                return p;
+            }).filter(Boolean);
+    };
+
+    const submitSubstitution = (inPlayerId: number) => {
+        router.post(route('games.event', game.id), {
+            team_id: managingTeam.id,
+            player_id: subOutPlayer.id,
+            event_type: 'sub_out',
+            minute: selectedMinute
+        }, {
+            preserveScroll: true,
+            onSuccess: () => {
+                router.post(route('games.event', game.id), {
+                    team_id: managingTeam.id,
+                    player_id: inPlayerId,
+                    event_type: 'sub_in',
+                    minute: selectedMinute,
+                    details: { replaced_player_id: subOutPlayer.id }
+                }, {
+                    preserveScroll: true,
+                    onSuccess: () => setIsSubModalOpen(false)
+                });
+            }
+        });
+    };
+
+    const togglePlayerInRoster = (playerId: number) => {
+        setSelectedRoster(prev => {
+            const exists = prev.find(p => p.id === playerId);
+            if (exists) {
+                if (exists.is_starting) {
+                    return prev.map(p => p.id === playerId ? { ...p, is_starting: false } : p);
+                } else {
+                    return prev.filter(p => p.id !== playerId);
+                }
+            } else {
+                return [...prev, { id: playerId, is_starting: true }];
+            }
+        });
+    };
+
+    const saveRoster = () => {
+        setRosterProcessing(true);
+        router.post(route('games.roster.update', game.id), {
+            team_id: managingTeam.id,
+            players: selectedRoster
+        }, {
+            onSuccess: () => {
+                setIsRosterModalOpen(false);
+                setRosterProcessing(false);
+            },
+            onError: () => setRosterProcessing(false),
+            preserveScroll: true
+        });
+    };
+
+    const openRosterModal = (team: any) => {
+        setManagingTeam(team);
+        const existingRoster = game.rosters
+            .filter((r: any) => r.team_id === team.id)
+            .map((r: any) => ({ id: r.player_id, is_starting: r.is_starting }));
+        setSelectedRoster(existingRoster);
+        setIsRosterModalOpen(true);
+    };
 
     useEffect(() => {
         let interval: any;
@@ -149,12 +276,23 @@ export default function Show({ game }: Props) {
                                     <Badge variant="outline" className="border-white/10 text-white/40 font-black text-[9px] px-4 py-1.5 rounded-full uppercase tracking-[0.3em] bg-white/5">
                                         {game.tournament.name} • {game.group?.name || 'ELEME TURU'}
                                     </Badge>
-                                    <div className="flex items-center gap-3 text-slate-400">
-                                        <TimerIcon className={`h-4 w-4 ${game.status === 'playing' ? 'text-emerald-500 animate-spin-slow' : 'text-blue-500'}`} />
-                                        <span className="font-black uppercase tracking-widest text-[10px]">
-                                            {game.status === 'scheduled' ? 'BAŞLAMADI' : 
-                                             game.status === 'playing' ? `${matchMinute}. DAKİKA` : 'MÜSABAKA BİTTİ'}
-                                        </span>
+                                    <div className="flex items-center gap-6 text-slate-400">
+                                        <div className="flex items-center gap-2">
+                                            <TimerIcon className={`h-4 w-4 ${game.status === 'playing' ? 'text-emerald-500 animate-spin-slow' : 'text-blue-500'}`} />
+                                            <span className="font-black uppercase tracking-widest text-[10px]">
+                                                {game.status === 'scheduled' ? 'BAŞLAMADI' : 
+                                                 game.status === 'playing' ? `${matchMinute}. DAKİKA` : 'MÜSABAKA BİTTİ'}
+                                            </span>
+                                        </div>
+                                        {game.field && (
+                                            <div className="flex items-center gap-2 border-l border-white/10 pl-6">
+                                                <MapPin className="h-4 w-4 text-rose-500" />
+                                                <span className="font-black uppercase tracking-widest text-[10px] text-white/60">
+                                                    {game.field.name}
+                                                    {game.field.location && <span className="ml-2 opacity-50 font-medium">({game.field.location})</span>}
+                                                </span>
+                                            </div>
+                                        )}
                                     </div>
                                 </div>
                             </div>
@@ -258,29 +396,75 @@ export default function Show({ game }: Props) {
                                 <CardContent className="p-8 grid grid-cols-1 md:grid-cols-2 gap-8">
                                     {[game.home_team, game.away_team].map((team) => (
                                         <div key={team.id} className="space-y-6">
-                                            <Badge className="bg-white/10 text-white border-white/20 font-black text-[10px] px-4 py-1.5 rounded-full uppercase tracking-widest w-full justify-center">
-                                                {team.name} KONTROLLERİ
-                                            </Badge>
-                                            <div className="space-y-3">
-                                                {team.players.map((player) => (
-                                                    <div key={player.id} className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-4 bg-white/5 border border-white/10 rounded-2xl hover:bg-white/10 transition-colors">
-                                                        <span className="font-black text-sm uppercase truncate max-w-[150px]">{player.first_name} {player.last_name}</span>
-                                                        <div className="flex gap-1.5 self-end">
-                                                            <Button onClick={() => submitEvent(team.id, player.id, 'goal')} size="sm" className="h-10 px-3 bg-emerald-500 hover:bg-emerald-600 border-none rounded-xl shadow-lg shadow-emerald-900/40" title="Gol">
-                                                                <Goal className="h-4 w-4" />
-                                                            </Button>
-                                                            <Button onClick={() => submitEvent(team.id, player.id, 'assist')} size="sm" className="h-10 px-3 bg-blue-400 hover:bg-blue-500 border-none rounded-xl shadow-lg shadow-blue-900/40" title="Asist">
-                                                                <Target className="h-4 w-4" />
-                                                            </Button>
-                                                            <Button onClick={() => submitEvent(team.id, player.id, 'yellow_card')} size="sm" className="h-10 px-3 bg-amber-400 hover:bg-amber-500 border-none rounded-xl shadow-lg shadow-amber-900/40" title="Sarı Kart">
-                                                                <div className="h-4 w-3 bg-white/50 rounded-sm" />
-                                                            </Button>
-                                                            <Button onClick={() => submitEvent(team.id, player.id, 'red_card')} size="sm" className="h-10 px-3 bg-rose-500 hover:bg-rose-600 border-none rounded-xl shadow-lg shadow-rose-900/40" title="Kırmızı Kart">
-                                                                <div className="h-4 w-3 bg-white/50 rounded-sm" />
-                                                            </Button>
-                                                        </div>
+                                            <div className="flex items-center justify-between gap-4">
+                                                <div className="flex flex-col flex-1">
+                                                    <Badge className={`border-none font-black text-xs px-4 py-1.5 rounded-xl uppercase tracking-widest ${team.id === game.home_team.id ? 'bg-blue-600 text-white' : 'bg-slate-400 text-white'}`}>
+                                                        {team.name} KONTROLLERİ
+                                                    </Badge>
+                                                    <div className="flex items-center gap-2 mt-2 px-1">
+                                                        <Repeat className="h-3 w-3 text-slate-500" />
+                                                        <span className="text-[9px] font-black uppercase tracking-widest text-slate-500">
+                                                            DEĞİŞİKLİK: {game.events.filter(e => e.team_id === team.id && e.event_type === 'sub_in').length} / {game.tournament.settings.substitution_limit}
+                                                        </span>
                                                     </div>
-                                                ))}
+                                                </div>
+                                                {team.can_manage_roster && (
+                                                    <Button 
+                                                        onClick={() => openRosterModal(team)}
+                                                        variant="outline" 
+                                                        size="sm" 
+                                                        className="h-9 px-4 border-white/20 bg-white/5 hover:bg-white/10 text-[10px] font-black uppercase tracking-widest rounded-xl transition-all shrink-0"
+                                                    >
+                                                        <Users className="h-3.5 w-3.5 mr-2" /> ESAME LİSTESİ
+                                                    </Button>
+                                                )}
+                                            </div>
+                                            <div className="space-y-3">
+                                                {(game.rosters.filter((r: any) => r.team_id === team.id).length > 0 
+                                                    ? team.players.filter((p: any) => game.rosters.some((r: any) => r.player_id === p.id))
+                                                    : team.players
+                                                ).map((player: any) => {
+                                                    const isSuspended = player.suspension?.is_suspended;
+                                                    const isOnPitch = onPitchIds(team.id).includes(player.id);
+                                                    const isRosterEmpty = game.rosters.filter((r: any) => r.team_id === team.id).length === 0;
+
+                                                    return (
+                                                        <div key={player.id} className={`flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-4 border rounded-2xl transition-all ${isSuspended ? 'bg-rose-500/5 border-rose-500/20 opacity-80' : !isOnPitch && !isRosterEmpty ? 'bg-slate-500/5 border-white/5 opacity-40' : 'bg-white/5 border-white/10 hover:bg-white/10'}`}>
+                                                            <div className="flex items-center gap-3">
+                                                                <div className="flex flex-col">
+                                                                    <span className="font-black text-sm uppercase truncate max-w-[150px]">{player.first_name} {player.last_name}</span>
+                                                                    {!isOnPitch && !isRosterEmpty && <span className="text-[8px] font-black uppercase text-slate-500">YEDEK KULÜBESİNDE</span>}
+                                                                </div>
+                                                                {isSuspended && (
+                                                                    <Badge className="bg-rose-600 text-white border-none text-[8px] font-black px-2 py-0.5 rounded-md animate-pulse" title={player.suspension?.reason || ''}>
+                                                                        CEZALI
+                                                                    </Badge>
+                                                                )}
+                                                            </div>
+                                                            <div className="flex gap-1.5 self-end">
+                                                                <Button disabled={isSuspended} onClick={() => submitEvent(team.id, player.id, 'goal')} size="sm" className="h-10 px-3 bg-emerald-500 hover:bg-emerald-600 border-none rounded-xl shadow-lg shadow-emerald-900/40 disabled:opacity-30" title="Gol">
+                                                                    <Goal className="h-4 w-4" />
+                                                                </Button>
+                                                                <Button disabled={isSuspended} onClick={() => submitEvent(team.id, player.id, 'assist')} size="sm" className="h-10 px-3 bg-blue-400 hover:bg-blue-500 border-none rounded-xl shadow-lg shadow-blue-900/40 disabled:opacity-30" title="Asist">
+                                                                    <Target className="h-4 w-4" />
+                                                                </Button>
+                                                                <Button disabled={isSuspended} onClick={() => submitEvent(team.id, player.id, 'yellow_card')} size="sm" className="h-10 px-3 bg-amber-400 hover:bg-amber-500 border-none rounded-xl shadow-lg shadow-amber-900/40 disabled:opacity-30" title="Sarı Kart">
+                                                                    <div className="h-4 w-3 bg-white/50 rounded-sm" />
+                                                                </Button>
+                                                                <Button disabled={isSuspended} onClick={() => submitEvent(team.id, player.id, 'red_card')} size="sm" className="h-10 px-3 bg-rose-500 hover:bg-rose-600 border-none rounded-xl shadow-lg shadow-rose-900/40 disabled:opacity-30" title="Kırmızı Kart">
+                                                                    <div className="h-4 w-3 bg-white/50 rounded-sm" />
+                                                                </Button>
+                                                                {onPitchIds(team.id).includes(player.id) && (
+                                                                    <Button 
+                                                                        onClick={() => { setManagingTeam(team); setSubOutPlayer(player); setIsSubModalOpen(true); }}
+                                                                        size="sm" className="h-10 px-3 bg-slate-700 hover:bg-slate-800 border-none rounded-xl shadow-lg" title="Oyuncu Değiştir">
+                                                                        <Repeat className="h-4 w-4" />
+                                                                    </Button>
+                                                                )}
+                                                            </div>
+                                                        </div>
+                                                    );
+                                                })}
                                             </div>
                                         </div>
                                     ))}
@@ -390,7 +574,10 @@ export default function Show({ game }: Props) {
                                         <div key={team.id} className="space-y-4">
                                             <p className="text-[10px] font-black uppercase tracking-widest text-slate-500">{team.name} ATICILARI</p>
                                             <div className="flex flex-wrap gap-2">
-                                                {team.players.map((p) => (
+                                                {(game.rosters.filter((r: any) => r.team_id === team.id).length > 0 
+                                                    ? team.players.filter((p: any) => onPitchIds(team.id).includes(p.id))
+                                                    : team.players
+                                                ).map((p) => (
                                                     <Button 
                                                         key={p.id} 
                                                         size="sm" 
@@ -410,6 +597,128 @@ export default function Show({ game }: Props) {
 
                     </div>
                 </div>
+            {/* Roster Selection Modal */}
+            <Dialog open={isRosterModalOpen} onOpenChange={setIsRosterModalOpen}>
+                <DialogContent className="max-w-2xl bg-slate-900 border-white/10 text-white rounded-[2.5rem] p-0 overflow-hidden shadow-[0_0_100px_rgba(0,0,0,1)]">
+                    <div className="p-8 border-b border-white/5 bg-white/5">
+                        <DialogHeader>
+                            <DialogTitle className="text-2xl font-black uppercase tracking-tighter flex items-center gap-4">
+                                <Users className="h-8 w-8 text-blue-500" /> ESAME LİSTESİ DÜZENLE
+                            </DialogTitle>
+                            <DialogDescription className="text-xs font-bold uppercase tracking-widest text-slate-400 mt-2">
+                                {managingTeam?.name} • MAÇ KADROSU VE DİZİLİŞ
+                            </DialogDescription>
+                        </DialogHeader>
+                    </div>
+                    
+                    <div className="p-8 max-h-[60vh] overflow-y-auto">
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            {managingTeam?.players.map((player: any) => {
+                                const inRoster = selectedRoster.find(p => p.id === player.id);
+                                const isStarting = inRoster?.is_starting;
+                                const isSuspended = player.suspension?.is_suspended;
+                                
+                                return (
+                                    <div 
+                                        key={player.id} 
+                                        onClick={() => !isSuspended && togglePlayerInRoster(player.id)}
+                                        className={`flex items-center justify-between p-4 rounded-2xl border transition-all cursor-pointer group ${
+                                            isSuspended ? 'bg-rose-500/5 border-rose-500/20 opacity-50 cursor-not-allowed' :
+                                            inRoster ? (isStarting ? 'bg-emerald-500/10 border-emerald-500/50' : 'bg-blue-500/10 border-blue-500/50') : 
+                                            'bg-white/5 border-white/5 hover:border-white/20'
+                                        }`}
+                                    >
+                                        <div className="flex flex-col gap-0.5">
+                                            <span className="text-sm font-black uppercase tracking-tight">{player.first_name} {player.last_name}</span>
+                                            <div className="flex items-center gap-2">
+                                                {isSuspended ? (
+                                                    <span className="text-[9px] font-black text-rose-500 uppercase tracking-widest">{player.suspension?.reason}</span>
+                                                ) : inRoster ? (
+                                                    <Badge className={`border-none text-[8px] font-black px-2 py-0.5 rounded-md uppercase tracking-widest ${isStarting ? 'bg-emerald-500 text-white' : 'bg-blue-500 text-white'}`}>
+                                                        {isStarting ? 'İLK KADRO' : 'YEDEK'}
+                                                    </Badge>
+                                                ) : (
+                                                    <span className="text-[9px] font-bold text-slate-500 uppercase tracking-widest">KADRO DIŞI</span>
+                                                )}
+                                            </div>
+                                        </div>
+                                        {!isSuspended && (
+                                            <div className={`h-6 w-6 rounded-full border-2 flex items-center justify-center transition-all ${inRoster ? 'bg-white border-white' : 'border-white/20 group-hover:border-white/50'}`}>
+                                                {inRoster && <CheckCircle2 className={`h-4 w-4 ${isStarting ? 'text-emerald-600' : 'text-blue-600'}`} />}
+                                            </div>
+                                        )}
+                                    </div>
+                                );
+                            })}
+                        </div>
+                    </div>
+
+                    <div className="p-8 border-t border-white/5 bg-white/5 flex flex-col md:flex-row items-center justify-between gap-6">
+                        <div className="flex items-center gap-6">
+                            <div className="flex flex-col">
+                                <span className="text-[10px] font-black uppercase tracking-widest text-slate-500">İlk Kadro</span>
+                                <span className={`text-xl font-black tabular-nums ${selectedRoster.filter(p => p.is_starting).length > (game.tournament.settings.total_players_on_pitch || 7) ? 'text-rose-500' : 'text-emerald-500'}`}>
+                                    {selectedRoster.filter(p => p.is_starting).length} / {game.tournament.settings.total_players_on_pitch || 7}
+                                </span>
+                            </div>
+                            <div className="flex flex-col border-l border-white/10 pl-6">
+                                <span className="text-[10px] font-black uppercase tracking-widest text-slate-500">Toplam Kadro</span>
+                                <span className={`text-xl font-black tabular-nums ${selectedRoster.length > (game.tournament.settings.max_roster_size || 12) ? 'text-rose-500' : 'text-slate-200'}`}>
+                                    {selectedRoster.length} / {game.tournament.settings.max_roster_size || 12}
+                                </span>
+                            </div>
+                        </div>
+                        <div className="flex items-center gap-3 w-full md:w-auto">
+                            <Button variant="ghost" onClick={() => setIsRosterModalOpen(false)} className="h-14 font-black uppercase tracking-widest text-xs rounded-xl flex-1 md:flex-none">İPTAL</Button>
+                            <Button 
+                                onClick={saveRoster} 
+                                disabled={rosterProcessing}
+                                className="h-14 px-10 bg-blue-600 hover:bg-blue-700 text-white border-none font-black uppercase tracking-widest text-xs rounded-xl shadow-xl shadow-blue-900/40 flex-1 md:flex-none"
+                            >
+                                {rosterProcessing ? 'KAYDEDİLİYOR...' : 'KADROYU ONAYLA'}
+                            </Button>
+                        </div>
+                    </div>
+                </DialogContent>
+            </Dialog>
+
+            {/* Substitution Modal */}
+            <Dialog open={isSubModalOpen} onOpenChange={setIsSubModalOpen}>
+                <DialogContent className="max-w-md bg-slate-900 border-white/10 text-white rounded-[2.5rem] p-0 overflow-hidden shadow-2xl">
+                    <div className="p-8 border-b border-white/5 bg-white/5">
+                        <DialogHeader>
+                            <DialogTitle className="text-xl font-black uppercase tracking-tighter flex items-center gap-4">
+                                <Repeat className="h-6 w-6 text-amber-500" /> OYUNCU DEĞİŞİKLİĞİ
+                            </DialogTitle>
+                            <DialogDescription className="text-xs font-bold uppercase tracking-widest text-slate-400 mt-2">
+                                {subOutPlayer?.first_name} {subOutPlayer?.last_name} OYUNDAN ÇIKIYOR
+                            </DialogDescription>
+                        </DialogHeader>
+                    </div>
+                    <div className="p-8">
+                        <p className="text-[10px] font-black uppercase tracking-widest mb-6 text-slate-500">OYUNA GİRECEK YEDEK OYUNCU SEÇİN</p>
+                        <div className="grid grid-cols-1 gap-3">
+                            {eligibleForSubIn(managingTeam?.id || 0).map((player: any) => (
+                                <Button 
+                                    key={player.id}
+                                    onClick={() => submitSubstitution(player.id)}
+                                    variant="outline"
+                                    className="h-14 justify-between border-white/5 bg-white/5 hover:bg-white/10 rounded-2xl p-4 transition-all"
+                                >
+                                    <span className="font-black text-sm uppercase">{player.first_name} {player.last_name}</span>
+                                    <div className="h-6 w-6 rounded-full bg-blue-600 flex items-center justify-center">
+                                        <Play className="h-3 w-3 fill-white" />
+                                    </div>
+                                </Button>
+                            ))}
+                            {eligibleForSubIn(managingTeam?.id || 0).length === 0 && (
+                                <p className="text-center py-8 text-xs font-bold text-slate-600 uppercase tracking-widest">Girebilecek yedek oyuncu kalmadı.</p>
+                            )}
+                        </div>
+                    </div>
+                </DialogContent>
+            </Dialog>
+
             </div>
         </AppLayout>
     );

@@ -43,4 +43,34 @@ class GamePolicy
     {
         return $user->isCommittee();
     }
+
+    /**
+     * Determine whether the user can manage the roster for the game.
+     */
+    public function manageRoster(User $user, Game $game): bool
+    {
+        if ($game->status === 'completed' || $game->status === 'playing') {
+            return false;
+        }
+
+        // Committee can always override (except if completed)
+        if ($user->isCommittee()) {
+            return true;
+        }
+
+        // Managers can manage if it's their team and not locked
+        $isMyTeam = $user->id === $game->homeTeam?->user_id || $user->id === $game->awayTeam?->user_id;
+        
+        if (!$isMyTeam) {
+            return false;
+        }
+
+        // Time lock: 30 minutes before start
+        $scheduledAt = \Carbon\Carbon::parse($game->scheduled_at);
+        if (now()->diffInMinutes($scheduledAt, false) < 30) {
+            return false;
+        }
+
+        return true;
+    }
 }

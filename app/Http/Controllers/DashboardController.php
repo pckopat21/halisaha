@@ -28,13 +28,13 @@ class DashboardController extends Controller
             'match_trends' => $activeTournament ? $statsService->getMatchTrends($activeTournament) : [],
         ];
 
-        $upcomingGames = Game::with(['homeTeam.unit', 'awayTeam.unit'])
+        $upcomingGames = Game::with(['homeTeam.unit', 'awayTeam.unit', 'field'])
             ->where('status', 'scheduled')
             ->orderBy('scheduled_at')
             ->take(5)
             ->get();
 
-        $liveGames = Game::with(['homeTeam.unit', 'awayTeam.unit'])
+        $liveGames = Game::with(['homeTeam.unit', 'awayTeam.unit', 'field'])
             ->where('status', 'playing')
             ->get();
 

@@ -11,6 +11,7 @@ use App\Http\Controllers\PlayerController;
 use App\Http\Controllers\UnitController;
 use App\Http\Controllers\PlayerSearchController;
 use App\Http\Controllers\StatisticsController;
+use App\Http\Controllers\FieldController;
 
 Route::get('/', function () {
     $activeTournament = \App\Models\Tournament::whereIn('status', ['active', 'registration'])
@@ -77,6 +78,7 @@ Route::middleware(['auth'])->group(function () {
     Route::post('/tournaments/{tournament}/third-place', [TournamentController::class, 'createThirdPlaceMatch'])->name('tournaments.third-place');
     Route::post('/tournaments/{tournament}/complete', [TournamentController::class, 'complete'])->name('tournaments.complete');
     Route::post('/tournaments/{tournament}/reset', [TournamentController::class, 'reset'])->name('tournaments.reset');
+    Route::post('/tournaments/{tournament}/settings', [TournamentController::class, 'updateSettings'])->name('tournaments.update-settings');
 
     // Team Management
     Route::post('teams', [TeamController::class, 'store'])->name('teams.store');
@@ -97,6 +99,7 @@ Route::middleware(['auth'])->group(function () {
 
     // Game Management
     Route::post('games/{game}/event', [GameController::class, 'logEvent'])->name('games.event');
+    Route::post('games/{game}/roster', [GameController::class, 'updateRoster'])->name('games.roster.update');
     Route::delete('games/{game}/events/{event}', [GameController::class, 'destroyEvent'])->name('games.events.destroy');
     Route::post('games/{game}/penalty', [GameController::class, 'logPenalty'])->name('games.penalty');
     Route::post('games/{game}/quick-result', [GameController::class, 'updateQuickResult'])->name('games.quick-result');
@@ -108,6 +111,10 @@ Route::middleware(['auth'])->group(function () {
     Route::post('users/{user}/role', [DashboardController::class, 'updateRole'])->name('users.role');
 
     Route::resource('units', UnitController::class);
+
+    // Field Management
+    Route::resource('fields', FieldController::class);
+    Route::post('games/{game}/assign-field', [GameController::class, 'assignField'])->name('games.assign-field');
 
     // Tournament Reports (PDF)
     Route::get('/reports/standings/{tournament}', [App\Http\Controllers\ReportController::class, 'standings'])->name('reports.standings');

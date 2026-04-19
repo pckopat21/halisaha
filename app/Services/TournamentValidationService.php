@@ -21,24 +21,29 @@ class TournamentValidationService
         $errors = [];
         $tournament = $team->tournament;
 
+        $settings = $tournament->settings;
+
         // --- ALWAYS BLOCK RULES (Hard constraints for adding players) ---
 
-        // Rule: Team maximum roster size (12)
+        // Rule: Team maximum roster size
+        $maxSize = $settings['max_roster_size'] ?? 12;
         $count = $players->count();
-        if ($count > 12) {
-            $errors[] = "Takım kadrosu en fazla 12 kişi olmalıdır. Mevcut: $count";
+        if ($count > $maxSize) {
+            $errors[] = "Takım kadrosu en fazla $maxSize kişi olmalıdır. Mevcut: $count";
         }
 
-        // Rule 5: En fazla 5 firma personeli kadroda olabilir.
+        // Rule: Company personnel limit
+        $maxStaff = $settings['max_company_players'] ?? 5;
         $staffCount = $players->where('is_company_staff', true)->count();
-        if ($staffCount > 5) {
-            $errors[] = "Takım kadrosunda en fazla 5 FİRMA personeli olabilir. (Mevcut: $staffCount)";
+        if ($staffCount > $maxStaff) {
+            $errors[] = "Takım kadrosunda en fazla $maxStaff FİRMA personeli olabilir. (Mevcut: $staffCount)";
         }
 
-        // Rule 7: Max 2 licensed players
+        // Rule: Licensed players limit
+        $maxLicensed = $settings['max_licensed_players'] ?? 2;
         $licensedCount = $players->where('is_licensed', true)->count();
-        if ($licensedCount > 2) {
-            $errors[] = "En fazla 2 vizeli lisanslı oyuncu kadroda olabilir. Mevcut: $licensedCount";
+        if ($licensedCount > $maxLicensed) {
+            $errors[] = "En fazla $maxLicensed vizeli lisanslı oyuncu kadroda olabilir. Mevcut: $licensedCount";
         }
 
         foreach ($players as $player) {
@@ -57,8 +62,9 @@ class TournamentValidationService
 
         if ($checkFullCompliance) {
             // Rule 1: Minimum roster size
-            if ($count < 6) {
-                $errors[] = "Takım kadrosu en az 6 kişi olmalıdır. Mevcut: $count";
+            $minSize = $settings['min_roster_size'] ?? 6;
+            if ($count < $minSize) {
+                $errors[] = "Takım kadrosu en az $minSize kişi olmalıdır. Mevcut: $count";
             }
 
             // Rule 9: Captain must be in the roster
@@ -101,20 +107,54 @@ class TournamentValidationService
     /**
      * Rule 6 & 8: Validates if a pitch line-up is valid.
      */
-    public function validatePitchLineup(Collection $onPitchPlayers): array
+    public function validatePitchLineup(Collection $onPitchPlayers, array $settings): array
     {
         $errors = [];
 
-        // Rule 6: Max 3 company staff on pitch
+        // Rule: Max company staff on pitch
+        $maxStaffOnPitch = $settings['max_company_on_pitch'] ?? 3;
         $staffOnPitch = $onPitchPlayers->where('is_company_staff', true)->count();
-        if ($staffOnPitch > 3) {
-            $errors[] = "Aynı anda sahada en fazla 3 firma personeli olabilir.";
+        if ($staffOnPitch > $maxStaffOnPitch) {
+            $errors[] = "Aynı anda sahada en fazla $maxStaffOnPitch firma personeli olabilir.";
         }
 
-        // Rule 8: Max 1 licensed player on pitch
+        // Rule: Max licensed player on pitch
+        $maxLicensedOnPitch = $settings['max_licensed_on_pitch'] ?? 1;
         $licensedOnPitch = $onPitchPlayers->where('is_licensed', true)->count();
-        if ($licensedOnPitch > 1) {
-            $errors[] = "Aynı anda sahada en fazla 1 lisanslı oyuncu olabilir.";
+        if ($licensedOnPitch > $maxLicensedOnPitch) {
+            $errors[] = "Aynı anda sahada en fazla $maxLicensedOnPitch lisanslı oyuncu olabilir.";
+        }
+
+        return [
+            'is_valid' => empty($errors),
+            'errors' => $errors
+        ];
+    }
+
+    /**
+     * Validates a game-specific lineup (GameRoster).
+     */
+    public function validateGameRoster(\App\Models\Game $game, Collection $startingPlayers, int $totalRosterCount): array
+    {
+        $errors = [];
+        $settings = $game->tournament->settings;
+
+        // Rule: Max starting players
+        $maxOnPitch = $settings['total_players_on_pitch'] ?? 7;
+        if ($startingPlayers->count() > $maxOnPitch) {
+            $errors[] = "İlk kadro en fazla $maxOnPitch kişi olabilir.";
+        }
+
+        // Use validatePitchLineup for standard pitch limits (licensed/company)
+        $pitchValidation = $this->validatePitchLineup($startingPlayers, $settings);
+        if (!$pitchValidation['is_valid']) {
+            $errors = array_merge($errors, $pitchValidation['errors']);
+        }
+
+        // Rule: Total roster size (starting + subs)
+        $maxRoster = $settings['max_roster_size'] ?? 12;
+        if ($totalRosterCount > $maxRoster) {
+            $errors[] = "Maç kadrosu (as + yedek) en fazla $maxRoster kişi olabilir.";
         }
 
         return [
