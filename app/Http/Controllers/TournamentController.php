@@ -145,4 +145,31 @@ class TournamentController extends Controller
 
         return redirect()->back()->with('success', 'Kura çekildi ve fikstür oluşturuldu.');
     }
+
+    public function reset(Tournament $tournament, Request $request)
+    {
+        Gate::authorize('update', $tournament);
+
+        $expectedPassword = now()->format('dmY');
+        
+        if ($request->password !== $expectedPassword) {
+            return back()->with('error', 'Hatalı sıfırlama şifresi! Şifre bugünün tarihi olmalıdır (GGAAYYYY).');
+        }
+
+        // Delete all related games for this tournament
+        \App\Models\Game::where('tournament_id', $tournament->id)->delete();
+        
+        // Delete all groups and their standings
+        foreach ($tournament->groups as $group) {
+            \App\Models\Standing::where('group_id', $group->id)->delete();
+            $group->delete();
+        }
+
+        $tournament->update([
+            'status' => 'registration',
+            'champion_id' => null
+        ]);
+
+        return redirect()->back()->with('success', 'Turnuva başarıyla sıfırlandı. Tüm fikstür ve sonuçlar silindi.');
+    }
 }

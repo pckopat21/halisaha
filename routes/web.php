@@ -76,6 +76,7 @@ Route::middleware(['auth'])->group(function () {
     Route::post('/tournaments/{tournament}/advance-round', [TournamentController::class, 'advanceRound'])->name('tournaments.advance-round');
     Route::post('/tournaments/{tournament}/third-place', [TournamentController::class, 'createThirdPlaceMatch'])->name('tournaments.third-place');
     Route::post('/tournaments/{tournament}/complete', [TournamentController::class, 'complete'])->name('tournaments.complete');
+    Route::post('/tournaments/{tournament}/reset', [TournamentController::class, 'reset'])->name('tournaments.reset');
 
     // Team Management
     Route::post('teams', [TeamController::class, 'store'])->name('teams.store');

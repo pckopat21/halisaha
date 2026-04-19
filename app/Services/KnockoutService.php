@@ -85,6 +85,13 @@ class KnockoutService
                 }
             }
 
+            if (empty($pairings) && $winners->count() > 0) {
+                if ($winners->count() === 1 && $nextRound === 'final') {
+                    throw new \Exception("Zaten sadece bir kazanan var. Bu turda eşleşme yapılacak başka takım yok.");
+                }
+                throw new \Exception("Eşleşme yapılabilecek yeterli takım bulunamadı. Turnuva ağacı bu tura kadar daralmış olabilir.");
+            }
+
             $this->createKnockoutMatches($tournament, $pairings, $nextRound);
 
             return true;

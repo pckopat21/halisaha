@@ -143,17 +143,23 @@ export default function Show({ tournament, teamStats, isGroupStageCompleted, sta
     });
 
     const { data: knockoutData, setData: setKnockoutData, post: startKnockout, processing: knockoutProcessing } = useForm({
-        round_name: 'quarter',
+        round_name: tournament.groups.length * 2 > 4 ? 'quarter' : 'semi',
         advance_count: 2,
         pairing_type: 'cross',
     });
 
-    const { post: postAdvance, processing: advanceProcessing } = useForm({
+    const [isResetModalOpen, setIsResetModalOpen] = useState(false);
+    const [isDrawConfirmModalOpen, setIsDrawConfirmModalOpen] = useState(false);
+    const [isAdvanceConfirmModalOpen, setIsAdvanceConfirmModalOpen] = useState(false);
+    const [isThirdPlaceConfirmModalOpen, setIsThirdPlaceConfirmModalOpen] = useState(false);
+    const [isCompleteConfirmModalOpen, setIsCompleteConfirmModalOpen] = useState(false);
+
+    const advanceForm = useForm({
         current_round: '',
         next_round: '',
     });
 
-    const { post: postThirdPlace, processing: thirdPlaceProcessing } = useForm({});
+    const thirdPlaceForm = useForm({});
 
     const resultForm = useForm({
         home_score: 0,
@@ -162,10 +168,14 @@ export default function Show({ tournament, teamStats, isGroupStageCompleted, sta
         scheduled_at: '',
     });
 
-    const handleComplete = () => {
-        if (confirm('Turnuvayı tamamlandı olarak işaretlemek istiyor musunuz? Bu işlemden sonra sistem yeni turnuvalara odaklanacaktır.')) {
-            router.post(route('tournaments.complete', tournament.id));
-        }
+    const resetForm = useForm({
+        password: '',
+    });
+
+    const handleCompleteSubmit = () => {
+        router.post(route('tournaments.complete', tournament.id), {}, {
+            onSuccess: () => setIsCompleteConfirmModalOpen(false)
+        });
     };
 
     const breadcrumbs: BreadcrumbItem[] = [
@@ -173,11 +183,15 @@ export default function Show({ tournament, teamStats, isGroupStageCompleted, sta
         { title: tournament.name, href: `/tournaments/${tournament.id}` },
     ];
 
-    const handleDraw = (e: React.FormEvent) => {
+    const handleDrawClick = (e: React.FormEvent) => {
         e.preventDefault();
-        if (confirm('Kura çekimi mevcut tüm grupları ve fikstürü sıfırlayacaktır. Devam etmek istiyor musunuz?')) {
-            postDraw(route('tournaments.draw', tournament.id));
-        }
+        setIsDrawConfirmModalOpen(true);
+    };
+
+    const handleDrawSubmit = () => {
+        postDraw(route('tournaments.draw', tournament.id), {
+            onSuccess: () => setIsDrawConfirmModalOpen(false)
+        });
     };
 
     const openResultModal = (game: Game) => {
@@ -204,18 +218,34 @@ export default function Show({ tournament, teamStats, isGroupStageCompleted, sta
     };
 
     const handleAdvance = (current: string, next: string) => {
-        if (confirm(`${current.toUpperCase()} turunu tamamlayıp ${next.toUpperCase()} turunu oluşturmak istediğinize emin misiniz?`)) {
-            router.post(route('tournaments.advance-round', tournament.id), {
-                current_round: current,
-                next_round: next
-            });
-        }
+        advanceForm.setData({ current_round: current, next_round: next });
+        setIsAdvanceConfirmModalOpen(true);
+    };
+
+    const handleAdvanceSubmit = () => {
+        advanceForm.post(route('tournaments.advance-round', tournament.id), {
+            onSuccess: () => setIsAdvanceConfirmModalOpen(false)
+        });
     };
 
     const handleThirdPlace = () => {
-        if (confirm('Yarı final mağluplarını eşleştirip 3.lük maçını oluşturmak istediğinize emin misiniz?')) {
-            postThirdPlace(route('tournaments.third-place', tournament.id));
-        }
+        setIsThirdPlaceConfirmModalOpen(true);
+    };
+
+    const handleThirdPlaceSubmit = () => {
+        thirdPlaceForm.post(route('tournaments.third-place', tournament.id), {
+             onSuccess: () => setIsThirdPlaceConfirmModalOpen(false)
+        });
+    };
+
+    const handleReset = (e: React.FormEvent) => {
+        e.preventDefault();
+        resetForm.post(route('tournaments.reset', tournament.id), {
+            onSuccess: () => {
+                setIsResetModalOpen(false);
+                resetForm.reset();
+            },
+        });
     };
 
     // Knockout progression helpers
@@ -297,77 +327,103 @@ export default function Show({ tournament, teamStats, isGroupStageCompleted, sta
                                         <Button
                                             variant="ghost"
                                             size="sm"
-                                            onClick={handleComplete}
+                                            onClick={() => setIsCompleteConfirmModalOpen(true)}
                                             className="h-7 px-3 text-[9px] font-black text-rose-600 hover:bg-rose-50 rounded-lg border border-rose-100 uppercase tracking-widest"
                                         >
                                             <Trophy className="mr-1.5 h-3 w-3" /> Turnuvayı Tamamla
                                         </Button>
                                     )}
                                 </div>
-                                <p className="text-[10px] font-medium text-slate-500 mb-2">Grup maçları bittiyse veya manuel kura çekmek istiyorsanız aşağıdaki ayarları kullanın.</p>
 
-                                <div className="grid grid-cols-2 gap-4">
-                                    <div className="space-y-2">
-                                        <Label className="text-[10px] font-black uppercase tracking-widest text-slate-400">Grup Sayısı</Label>
-                                        <Input
-                                            type="number"
-                                            className="h-12 bg-white dark:bg-black/20 border-slate-200 dark:border-white/10 rounded-2xl font-bold"
-                                            value={drawData.group_count}
-                                            onChange={e => setDrawData('group_count', parseInt(e.target.value))}
-                                        />
-                                    </div>
-                                    <div className="space-y-2">
-                                        <Label className="text-[10px] font-black uppercase tracking-widest text-slate-400">Başlangıç Tarihi</Label>
-                                        <Input
-                                            type="date"
-                                            className="h-12 bg-white dark:bg-black/20 border-slate-200 dark:border-white/10 rounded-2xl font-bold"
-                                            value={drawData.start_date}
-                                            onChange={e => setDrawData('start_date', e.target.value)}
-                                        />
-                                    </div>
-                                </div>
+                                {tournament.groups.length === 0 ? (
+                                    <>
+                                        <p className="text-[10px] font-medium text-slate-500 mb-2">Grup maçları bittiyse veya manuel kura çekmek istiyorsanız aşağıdaki ayarları kullanın.</p>
 
-                                <div className="grid grid-cols-3 gap-4">
-                                    <div className="space-y-2">
-                                        <Label className="text-[10px] font-black uppercase tracking-widest text-slate-400">Maç Saati</Label>
-                                        <Input
-                                            type="time"
-                                            className="h-12 bg-white dark:bg-black/20 border-slate-200 dark:border-white/10 rounded-2xl font-bold"
-                                            value={drawData.start_time}
-                                            onChange={e => setDrawData('start_time', e.target.value)}
-                                        />
-                                    </div>
-                                    <div className="space-y-2">
-                                        <Label className="text-[10px] font-black uppercase tracking-widest text-slate-400">Süre (Dk)</Label>
-                                        <Input
-                                            type="number"
-                                            className="h-12 bg-white dark:bg-black/20 border-slate-200 dark:border-white/10 rounded-2xl font-bold"
-                                            value={drawData.match_duration}
-                                            onChange={e => setDrawData('match_duration', parseInt(e.target.value))}
-                                        />
-                                    </div>
-                                    <div className="space-y-2">
-                                        <Label className="text-[10px] font-black uppercase tracking-widest text-slate-400">Ara (Dk)</Label>
-                                        <Input
-                                            type="number"
-                                            className="h-12 bg-white dark:bg-black/20 border-slate-200 dark:border-white/10 rounded-2xl font-bold"
-                                            value={drawData.buffer_time}
-                                            onChange={e => setDrawData('buffer_time', parseInt(e.target.value))}
-                                        />
-                                    </div>
-                                </div>
+                                        <div className="grid grid-cols-2 gap-4">
+                                            <div className="space-y-2">
+                                                <Label className="text-[10px] font-black uppercase tracking-widest text-slate-400">Grup Sayısı</Label>
+                                                <Input
+                                                    type="number"
+                                                    className="h-12 bg-white dark:bg-black/20 border-slate-200 dark:border-white/10 rounded-2xl font-bold"
+                                                    value={drawData.group_count}
+                                                    onChange={e => setDrawData('group_count', parseInt(e.target.value))}
+                                                />
+                                            </div>
+                                            <div className="space-y-2">
+                                                <Label className="text-[10px] font-black uppercase tracking-widest text-slate-400">Başlangıç Tarihi</Label>
+                                                <Input
+                                                    type="date"
+                                                    className="h-12 bg-white dark:bg-black/20 border-slate-200 dark:border-white/10 rounded-2xl font-bold"
+                                                    value={drawData.start_date}
+                                                    onChange={e => setDrawData('start_date', e.target.value)}
+                                                />
+                                            </div>
+                                        </div>
 
-                                <Button
-                                    onClick={handleDraw}
-                                    disabled={drawProcessing || tournament.teams.length === 0}
-                                    className="h-14 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white font-black uppercase tracking-widest text-xs rounded-3xl shadow-[0_10px_30px_-10px_rgba(37,99,235,0.5)] transition-all hover:scale-[1.02] active:scale-[0.98] disabled:opacity-50 disabled:grayscale"
-                                >
-                                    {tournament.teams.length === 0 ? 'TAKIM BEKLENİYOR...' : 'KURA ÇEK VE BAŞLAT'}
-                                </Button>
-                                {tournament.teams.length === 0 && (
-                                    <p className="text-[9px] text-center text-rose-500 font-bold uppercase tracking-tighter">
-                                        Kura çekebilmek için en az bir takım onaylanmış olmalıdır.
-                                    </p>
+                                        <div className="grid grid-cols-3 gap-4">
+                                            <div className="space-y-2">
+                                                <Label className="text-[10px] font-black uppercase tracking-widest text-slate-400">Maç Saati</Label>
+                                                <Input
+                                                    type="time"
+                                                    className="h-12 bg-white dark:bg-black/20 border-slate-200 dark:border-white/10 rounded-2xl font-bold"
+                                                    value={drawData.start_time}
+                                                    onChange={e => setDrawData('start_time', e.target.value)}
+                                                />
+                                            </div>
+                                            <div className="space-y-2">
+                                                <Label className="text-[10px] font-black uppercase tracking-widest text-slate-400">Süre (Dk)</Label>
+                                                <Input
+                                                    type="number"
+                                                    className="h-12 bg-white dark:bg-black/20 border-slate-200 dark:border-white/10 rounded-2xl font-bold"
+                                                    value={drawData.match_duration}
+                                                    onChange={e => setDrawData('match_duration', parseInt(e.target.value))}
+                                                />
+                                            </div>
+                                            <div className="space-y-2">
+                                                <Label className="text-[10px] font-black uppercase tracking-widest text-slate-400">Ara (Dk)</Label>
+                                                <Input
+                                                    type="number"
+                                                    className="h-12 bg-white dark:bg-black/20 border-slate-200 dark:border-white/10 rounded-2xl font-bold"
+                                                    value={drawData.buffer_time}
+                                                    onChange={e => setDrawData('buffer_time', parseInt(e.target.value))}
+                                                />
+                                            </div>
+                                        </div>
+
+                                        <Button
+                                            onClick={handleDrawClick}
+                                            disabled={drawProcessing || tournament.teams.length === 0}
+                                            className="h-14 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white font-black uppercase tracking-widest text-xs rounded-3xl shadow-[0_10px_30px_-10px_rgba(37,99,235,0.5)] transition-all hover:scale-[1.02] active:scale-[0.98] disabled:opacity-50 disabled:grayscale"
+                                        >
+                                            {tournament.teams.length === 0 ? 'TAKIM BEKLENİYOR...' : 'KURA ÇEK VE BAŞLAT'}
+                                        </Button>
+                                        {tournament.teams.length === 0 && (
+                                            <div className="p-4 bg-rose-50 dark:bg-rose-500/5 border border-rose-100 dark:border-rose-500/20 rounded-2xl flex items-center gap-3 animate-in fade-in zoom-in duration-300">
+                                                <div className="h-8 w-8 bg-rose-100 dark:bg-rose-500/20 rounded-xl flex items-center justify-center shrink-0">
+                                                    <AlertCircle className="h-4 w-4 text-rose-600" />
+                                                </div>
+                                                <p className="text-[10px] text-rose-700 dark:text-rose-400 font-bold uppercase tracking-tight leading-tight">
+                                                    Kura çekebilmek için en az bir takım onaylanmış olmalıdır.
+                                                </p>
+                                            </div>
+                                        )}
+                                    </>
+                                ) : (
+                                    <div className="space-y-4">
+                                        <p className="text-[10px] font-black text-blue-600 uppercase tracking-widest flex items-center gap-2">
+                                            <CheckCircle2 className="h-3 w-3" /> FİKSTÜR OLUŞTURULDU
+                                        </p>
+                                        <Button
+                                            onClick={() => setIsResetModalOpen(true)}
+                                            variant="outline"
+                                            className="w-full h-12 border-rose-200 text-rose-600 hover:bg-rose-50 rounded-2xl font-black uppercase tracking-widest text-[10px]"
+                                        >
+                                            <X className="mr-2 h-4 w-4" /> TURNUVAYI SIFIRLA
+                                        </Button>
+                                        <p className="text-[9px] text-muted-foreground font-medium leading-relaxed italic border-l-2 border-blue-500/30 pl-3 py-1">
+                                            Turnuva başladıktan sonra kura çekme ekranı kilitlenir. Fikstürü değiştirmek veya yeniden kura çekmek istiyorsanız turnuvayı sıfırlayabilirsiniz.
+                                        </p>
+                                    </div>
                                 )}
 
                                 {tournament.groups.length > 0 && knockoutGames.length === 0 && (
@@ -446,7 +502,7 @@ export default function Show({ tournament, teamStats, isGroupStageCompleted, sta
                                             <div className="animate-in zoom-in duration-500">
                                                 <Button
                                                     onClick={() => handleAdvance(latestRound, nextRoundName)}
-                                                    disabled={advanceProcessing}
+                                                    disabled={advanceForm.processing}
                                                     className="w-full h-14 bg-emerald-600 hover:bg-emerald-700 text-white font-black uppercase tracking-widest text-xs rounded-2xl shadow-lg shadow-emerald-500/20 flex items-center justify-center gap-3"
                                                 >
                                                     <ChevronRight className="h-4 w-4" />
@@ -461,7 +517,7 @@ export default function Show({ tournament, teamStats, isGroupStageCompleted, sta
                                             <div className="animate-in slide-in-from-right duration-500">
                                                 <Button
                                                     onClick={handleThirdPlace}
-                                                    disabled={thirdPlaceProcessing}
+                                                    disabled={thirdPlaceForm.processing}
                                                     className="w-full h-12 bg-amber-500 hover:bg-amber-600 text-white font-black uppercase tracking-widest text-[10px] rounded-2xl shadow-lg shadow-amber-500/20 flex items-center justify-center gap-2 border border-amber-400/50 outline outline-offset-2 outline-amber-500/20"
                                                 >
                                                     <Medal className="h-4 w-4" />
@@ -542,48 +598,48 @@ export default function Show({ tournament, teamStats, isGroupStageCompleted, sta
                                     <CardContent className="p-0">
                                         <div className="overflow-x-auto">
                                             <Table>
-                                            <TableHeader className="bg-neutral-50/50 dark:bg-black/10">
-                                                <TableRow className="hover:bg-transparent border-none">
-                                                    <TableHead className="w-16 font-black text-[10px] uppercase tracking-widest text-center">#</TableHead>
-                                                    <TableHead className="font-black text-[10px] uppercase tracking-widest">Takım</TableHead>
-                                                    <TableHead className="w-16 font-black text-[10px] uppercase tracking-widest text-center">OM</TableHead>
-                                                    <TableHead className="w-16 font-black text-[10px] uppercase tracking-widest text-center">G</TableHead>
-                                                    <TableHead className="w-16 font-black text-[10px] uppercase tracking-widest text-center">B</TableHead>
-                                                    <TableHead className="w-16 font-black text-[10px] uppercase tracking-widest text-center">M</TableHead>
-                                                    <TableHead className="w-16 font-black text-[10px] uppercase tracking-widest text-center">AV</TableHead>
-                                                    <TableHead className="w-20 font-black text-blue-600 text-[10px] uppercase tracking-widest text-center">Puan</TableHead>
-                                                </TableRow>
-                                            </TableHeader>
-                                            <TableBody>
-                                                {group.standings?.sort((a, b) => (b.points - a.points) || ((b.goals_for - b.goals_against) - (a.goals_for - a.goals_against))).map((s, idx) => (
-                                                    <TableRow key={idx} className="border-b border-slate-50 dark:border-white/5 hover:bg-slate-50/50 dark:hover:bg-white/[0.02] transition-colors group">
-                                                        <TableCell className="text-center">
-                                                            <span className={`w-7 h-7 flex items-center justify-center rounded-full text-xs font-black ${idx < 2 ? 'bg-emerald-50 text-emerald-600 dark:bg-emerald-500/10 dark:text-emerald-500' : 'text-slate-400'}`}>
-                                                                {idx + 1}
-                                                            </span>
-                                                        </TableCell>
-                                                        <TableCell className="py-5">
-                                                            <Link href={route('teams.show', s.team.id)} className="flex items-center gap-4 hover:translate-x-1 transition-transform">
-                                                                <div className="w-10 h-10 rounded-2xl bg-accent flex items-center justify-center font-black text-xs text-accent-foreground shadow-sm">
-                                                                    {s.team.name.substring(0, 2).toUpperCase()}
-                                                                </div>
-                                                                <div className="flex flex-col">
-                                                                    <span className="font-black text-sm text-slate-900 dark:text-white leading-none mb-1">{s.team.name}</span>
-                                                                    <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">{s.team.unit?.name}</span>
-                                                                </div>
-                                                            </Link>
-                                                        </TableCell>
-                                                        <TableCell className="text-center font-bold text-slate-500">{s.played}</TableCell>
-                                                        <TableCell className="text-center font-bold text-emerald-600">{s.won}</TableCell>
-                                                        <TableCell className="text-center font-bold text-slate-500">{s.drawn}</TableCell>
-                                                        <TableCell className="text-center font-bold text-rose-600">{s.lost}</TableCell>
-                                                        <TableCell className="text-center font-bold text-slate-500">{s.goals_for - s.goals_against}</TableCell>
-                                                        <TableCell className="text-center">
-                                                            <span className="bg-blue-600 text-white px-3 py-1.5 rounded-xl font-black text-xs shadow-lg shadow-blue-500/30">{s.points}</span>
-                                                        </TableCell>
+                                                <TableHeader className="bg-neutral-50/50 dark:bg-black/10">
+                                                    <TableRow className="hover:bg-transparent border-none">
+                                                        <TableHead className="w-16 font-black text-[10px] uppercase tracking-widest text-center">#</TableHead>
+                                                        <TableHead className="font-black text-[10px] uppercase tracking-widest">Takım</TableHead>
+                                                        <TableHead className="w-16 font-black text-[10px] uppercase tracking-widest text-center">OM</TableHead>
+                                                        <TableHead className="w-16 font-black text-[10px] uppercase tracking-widest text-center">G</TableHead>
+                                                        <TableHead className="w-16 font-black text-[10px] uppercase tracking-widest text-center">B</TableHead>
+                                                        <TableHead className="w-16 font-black text-[10px] uppercase tracking-widest text-center">M</TableHead>
+                                                        <TableHead className="w-16 font-black text-[10px] uppercase tracking-widest text-center">AV</TableHead>
+                                                        <TableHead className="w-20 font-black text-blue-600 text-[10px] uppercase tracking-widest text-center">Puan</TableHead>
                                                     </TableRow>
-                                                ))}
-                                            </TableBody>
+                                                </TableHeader>
+                                                <TableBody>
+                                                    {group.standings?.sort((a, b) => (b.points - a.points) || ((b.goals_for - b.goals_against) - (a.goals_for - a.goals_against))).map((s, idx) => (
+                                                        <TableRow key={idx} className="border-b border-slate-50 dark:border-white/5 hover:bg-slate-50/50 dark:hover:bg-white/[0.02] transition-colors group">
+                                                            <TableCell className="text-center">
+                                                                <span className={`w-7 h-7 flex items-center justify-center rounded-full text-xs font-black ${idx < 2 ? 'bg-emerald-50 text-emerald-600 dark:bg-emerald-500/10 dark:text-emerald-500' : 'text-slate-400'}`}>
+                                                                    {idx + 1}
+                                                                </span>
+                                                            </TableCell>
+                                                            <TableCell className="py-5">
+                                                                <Link href={route('teams.show', s.team.id)} className="flex items-center gap-4 hover:translate-x-1 transition-transform">
+                                                                    <div className="w-10 h-10 rounded-2xl bg-accent flex items-center justify-center font-black text-xs text-accent-foreground shadow-sm">
+                                                                        {s.team.name.substring(0, 2).toUpperCase()}
+                                                                    </div>
+                                                                    <div className="flex flex-col">
+                                                                        <span className="font-black text-sm text-slate-900 dark:text-white leading-none mb-1">{s.team.name}</span>
+                                                                        <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">{s.team.unit?.name}</span>
+                                                                    </div>
+                                                                </Link>
+                                                            </TableCell>
+                                                            <TableCell className="text-center font-bold text-slate-500">{s.played}</TableCell>
+                                                            <TableCell className="text-center font-bold text-emerald-600">{s.won}</TableCell>
+                                                            <TableCell className="text-center font-bold text-slate-500">{s.drawn}</TableCell>
+                                                            <TableCell className="text-center font-bold text-rose-600">{s.lost}</TableCell>
+                                                            <TableCell className="text-center font-bold text-slate-500">{s.goals_for - s.goals_against}</TableCell>
+                                                            <TableCell className="text-center">
+                                                                <span className="bg-blue-600 text-white px-3 py-1.5 rounded-xl font-black text-xs shadow-lg shadow-blue-500/30">{s.points}</span>
+                                                            </TableCell>
+                                                        </TableRow>
+                                                    ))}
+                                                </TableBody>
                                             </Table>
                                         </div>
                                     </CardContent>
@@ -598,84 +654,166 @@ export default function Show({ tournament, teamStats, isGroupStageCompleted, sta
                     </TabsContent>
 
                     <TabsContent value="fixtures" className="space-y-8 mt-0 border-none outline-none">
-                        {tournament.groups.length > 0 ? (
-                            tournament.groups.map(group => (
-                                <div key={group.id} className="space-y-6">
-                                    <div className="flex items-center gap-4 px-4">
-                                        <div className="h-10 w-10 bg-blue-50 dark:bg-blue-600/10 rounded-xl flex items-center justify-center border border-blue-100 dark:border-blue-500/20">
-                                            <Calendar className="h-5 w-5 text-blue-600" />
+                        {tournament.groups.length > 0 || knockoutGames.length > 0 ? (
+                            <div className="space-y-12 pb-20">
+                                {tournament.groups.map(group => (
+                                    <div key={group.id} className="space-y-6">
+                                        <div className="flex items-center gap-4 px-4">
+                                            <div className="h-10 w-10 bg-blue-50 dark:bg-blue-600/10 rounded-xl flex items-center justify-center border border-blue-100 dark:border-blue-500/20">
+                                                <Calendar className="h-5 w-5 text-blue-600" />
+                                            </div>
+                                            <h3 className="text-xl font-black uppercase tracking-tighter">{group.name} FİKSTÜRÜ</h3>
                                         </div>
-                                        <h3 className="text-xl font-black uppercase tracking-tighter">{group.name} FİKSTÜRÜ</h3>
-                                    </div>
 
-                                    <div className="grid gap-4">
-                                        {group.games.sort((a, b) => new Date(a.scheduled_at).getTime() - new Date(b.scheduled_at).getTime()).map(game => (
-                                            <Card key={game.id} className="bg-card border-border rounded-[2rem] hover:bg-muted/50 transition-all group overflow-hidden shadow-sm relative">
-                                                <CardContent className="p-6">
-                                                    {isCommittee && (
-                                                        <Button
-                                                            size="icon"
-                                                            variant="ghost"
-                                                            onClick={() => openResultModal(game)}
-                                                            className="absolute top-4 right-4 h-8 w-8 rounded-full bg-muted/50 hover:bg-blue-600 hover:text-white transition-all"
-                                                        >
-                                                            <Edit3 className="h-3.5 w-3.5" />
-                                                        </Button>
-                                                    )}
-                                                    <div className="grid grid-cols-1 md:grid-cols-3 items-center gap-8">
-                                                        <div className="flex items-center gap-6 justify-end">
-                                                            <div className="text-right">
-                                                                <p className="font-black uppercase text-sm tracking-tight group-hover:text-blue-500 transition-colors line-clamp-1">{game.home_team?.name || 'BELİRLENMEDİ'}</p>
-                                                                <p className="text-[9px] font-black text-muted-foreground uppercase tracking-widest mt-1">{game.home_team?.unit?.name || '---'}</p>
-                                                            </div>
-                                                            <div className="h-12 w-12 rounded-2xl bg-muted flex items-center justify-center font-black text-xs text-muted-foreground group-hover:bg-blue-600 group-hover:text-white transition-all shadow-inner shrink-0">
-                                                                {(game.home_team?.name || '??').substring(0, 2).toUpperCase()}
-                                                            </div>
-                                                        </div>
-
-                                                        <div className="flex flex-col items-center gap-3">
-                                                            <Link href={route('games.show', game.id)} className="w-full">
-                                                                <div className="flex items-center justify-center gap-4 px-8 py-3 bg-background rounded-2xl border border-border shadow-sm hover:border-blue-300 dark:hover:border-blue-500 transition-all active:scale-95 group/score relative mx-auto w-fit">
-                                                                    {game.status === 'scheduled' ? (
-                                                                        <span className="text-lg font-black">{format(new Date(game.scheduled_at), 'HH:mm')}</span>
-                                                                    ) : (
-                                                                        <div className="flex flex-col items-center gap-1">
-                                                                            {game.status === 'playing' && (
-                                                                                <span className="text-[8px] font-black text-emerald-500 animate-pulse tracking-[0.2em] absolute -top-4 left-1/2 -translate-x-1/2 whitespace-nowrap">
-                                                                                    ● {getMatchMinute(game)}' CANLI
-                                                                                </span>
-                                                                            )}
-                                                                            <div className="flex items-center justify-center gap-4">
-                                                                                <span className="text-3xl font-black tabular-nums">{game.home_score ?? 0}</span>
-                                                                                <span className="text-muted-foreground text-sm font-black">-</span>
-                                                                                <span className="text-3xl font-black tabular-nums">{game.away_score ?? 0}</span>
-                                                                            </div>
-                                                                        </div>
-                                                                    )}
+                                        <div className="grid gap-4">
+                                            {group.games.sort((a, b) => new Date(a.scheduled_at).getTime() - new Date(b.scheduled_at).getTime()).map(game => (
+                                                <Card key={game.id} className="bg-card border-border rounded-[2rem] hover:bg-muted/50 transition-all group overflow-hidden shadow-sm relative">
+                                                    <CardContent className="p-6">
+                                                        {isCommittee && (
+                                                            <Button
+                                                                size="icon"
+                                                                variant="ghost"
+                                                                onClick={() => openResultModal(game)}
+                                                                className="absolute top-4 right-4 h-8 w-8 rounded-full bg-muted/50 hover:bg-blue-600 hover:text-white transition-all"
+                                                            >
+                                                                <Edit3 className="h-3.5 w-3.5" />
+                                                            </Button>
+                                                        )}
+                                                        <div className="grid grid-cols-1 md:grid-cols-3 items-center gap-8">
+                                                            <div className="flex items-center gap-6 justify-end">
+                                                                <div className="text-right">
+                                                                    <p className="font-black uppercase text-sm tracking-tight group-hover:text-blue-500 transition-colors line-clamp-1">{game.home_team?.name || 'BELİRLENMEDİ'}</p>
+                                                                    <p className="text-[9px] font-black text-muted-foreground uppercase tracking-widest mt-1">{game.home_team?.unit?.name || '---'}</p>
                                                                 </div>
-                                                            </Link>
-                                                            <div className="flex items-center gap-2 text-[10px] font-black text-muted-foreground uppercase tracking-widest">
-                                                                <Clock className="h-3 w-3 text-blue-600" />
-                                                                {format(new Date(game.scheduled_at), 'd MMMM yyyy', { locale: tr })}
+                                                                <div className="h-12 w-12 rounded-2xl bg-muted flex items-center justify-center font-black text-xs text-muted-foreground group-hover:bg-blue-600 group-hover:text-white transition-all shadow-inner shrink-0">
+                                                                    {(game.home_team?.name || '??').substring(0, 2).toUpperCase()}
+                                                                </div>
                                                             </div>
-                                                        </div>
 
-                                                        <div className="flex items-center gap-6 justify-start">
-                                                            <div className="h-12 w-12 rounded-2xl bg-muted flex items-center justify-center font-black text-xs text-muted-foreground group-hover:bg-rose-600 group-hover:text-white transition-all shadow-inner shrink-0">
-                                                                {(game.away_team?.name || '??').substring(0, 2).toUpperCase()}
+                                                            <div className="flex flex-col items-center gap-3">
+                                                                <Link href={route('games.show', game.id)} className="w-full">
+                                                                    <div className="flex items-center justify-center gap-4 px-8 py-3 bg-background rounded-2xl border border-border shadow-sm hover:border-blue-300 dark:hover:border-blue-500 transition-all active:scale-95 group/score relative mx-auto w-fit">
+                                                                        {game.status === 'scheduled' ? (
+                                                                            <span className="text-lg font-black">{format(new Date(game.scheduled_at), 'HH:mm')}</span>
+                                                                        ) : (
+                                                                            <div className="flex flex-col items-center gap-1">
+                                                                                {game.status === 'playing' && (
+                                                                                    <span className="text-[8px] font-black text-emerald-500 animate-pulse tracking-[0.2em] absolute -top-4 left-1/2 -translate-x-1/2 whitespace-nowrap">
+                                                                                        ● {getMatchMinute(game)}' CANLI
+                                                                                    </span>
+                                                                                )}
+                                                                                <div className="flex items-center justify-center gap-4">
+                                                                                    <span className="text-3xl font-black tabular-nums">{game.home_score ?? 0}</span>
+                                                                                    <span className="text-muted-foreground text-sm font-black">-</span>
+                                                                                    <span className="text-3xl font-black tabular-nums">{game.away_score ?? 0}</span>
+                                                                                </div>
+                                                                            </div>
+                                                                        )}
+                                                                    </div>
+                                                                </Link>
+                                                                <div className="flex items-center gap-2 text-[10px] font-black text-muted-foreground uppercase tracking-widest">
+                                                                    <Clock className="h-3 w-3 text-blue-600" />
+                                                                    {format(new Date(game.scheduled_at), 'd MMMM yyyy', { locale: tr })}
+                                                                </div>
                                                             </div>
-                                                            <div className="text-left">
-                                                                <p className="font-black uppercase text-sm tracking-tight group-hover:text-rose-500 transition-colors line-clamp-1">{game.away_team?.name || 'BELİRLENMEDİ'}</p>
-                                                                <p className="text-[9px] font-black text-muted-foreground uppercase tracking-widest mt-1">{game.away_team?.unit?.name || '---'}</p>
+
+                                                            <div className="flex items-center gap-6 justify-start">
+                                                                <div className="h-12 w-12 rounded-2xl bg-muted flex items-center justify-center font-black text-xs text-muted-foreground group-hover:bg-rose-600 group-hover:text-white transition-all shadow-inner shrink-0">
+                                                                    {(game.away_team?.name || '??').substring(0, 2).toUpperCase()}
+                                                                </div>
+                                                                <div className="text-left">
+                                                                    <p className="font-black uppercase text-sm tracking-tight group-hover:text-rose-500 transition-colors line-clamp-1">{game.away_team?.name || 'BELİRLENMEDİ'}</p>
+                                                                    <p className="text-[9px] font-black text-muted-foreground uppercase tracking-widest mt-1">{game.away_team?.unit?.name || '---'}</p>
+                                                                </div>
                                                             </div>
                                                         </div>
-                                                    </div>
-                                                </CardContent>
-                                            </Card>
-                                        ))}
+                                                    </CardContent>
+                                                </Card>
+                                            ))}
+                                        </div>
                                     </div>
-                                </div>
-                            ))
+                                ))}
+
+                                {knockoutGames.length > 0 && (
+                                    <div className="space-y-6 pt-12 border-t border-slate-100 dark:border-white/5">
+                                        <div className="flex items-center gap-4 px-4">
+                                            <div className="h-10 w-10 bg-rose-50 dark:bg-rose-600/10 rounded-xl flex items-center justify-center border border-rose-100 dark:border-rose-500/20">
+                                                <Trophy className="h-5 w-5 text-rose-600" />
+                                            </div>
+                                            <h3 className="text-xl font-black uppercase tracking-tighter">ELEME TURU MAÇLARI</h3>
+                                        </div>
+                                        <div className="grid gap-4">
+                                            {knockoutGames.sort((a, b) => new Date(a.scheduled_at).getTime() - new Date(b.scheduled_at).getTime()).map(game => (
+                                                <Card key={game.id} className="bg-card border-border rounded-[2rem] hover:bg-muted/50 transition-all group overflow-hidden shadow-sm relative">
+                                                    <CardContent className="p-6">
+                                                        <Badge className="absolute top-4 left-4 bg-rose-100 text-rose-600 dark:bg-rose-500/10 dark:text-rose-500 border-none font-black text-[8px] uppercase tracking-widest">
+                                                            {game.round === 'quarter' ? 'ÇEYREK FİNAL' : game.round === 'semi' ? 'YARI FİNAL' : game.round === 'third_place' ? '3.LÜK MAÇI' : 'FİNAL'}
+                                                        </Badge>
+                                                        {isCommittee && (
+                                                            <Button
+                                                                size="icon"
+                                                                variant="ghost"
+                                                                onClick={() => openResultModal(game)}
+                                                                className="absolute top-4 right-4 h-8 w-8 rounded-full bg-muted/50 hover:bg-blue-600 hover:text-white transition-all"
+                                                            >
+                                                                <Edit3 className="h-3.5 w-3.5" />
+                                                            </Button>
+                                                        )}
+                                                        <div className="grid grid-cols-1 md:grid-cols-3 items-center gap-8">
+                                                            <div className="flex items-center gap-6 justify-end">
+                                                                <div className="text-right">
+                                                                    <p className="font-black uppercase text-sm tracking-tight group-hover:text-blue-500 transition-colors line-clamp-1">{game.home_team?.name || 'BELİRLENMEDİ'}</p>
+                                                                    <p className="text-[9px] font-black text-muted-foreground uppercase tracking-widest mt-1">{game.home_team?.unit?.name || '---'}</p>
+                                                                </div>
+                                                                <div className="h-12 w-12 rounded-2xl bg-muted flex items-center justify-center font-black text-xs text-muted-foreground group-hover:bg-blue-600 group-hover:text-white transition-all shadow-inner shrink-0">
+                                                                    {(game.home_team?.name || '??').substring(0, 2).toUpperCase()}
+                                                                </div>
+                                                            </div>
+
+                                                            <div className="flex flex-col items-center gap-3">
+                                                                <Link href={route('games.show', game.id)} className="w-full">
+                                                                    <div className="flex items-center justify-center gap-4 px-8 py-3 bg-background rounded-2xl border border-border shadow-sm hover:border-blue-300 dark:hover:border-blue-500 transition-all active:scale-95 group/score relative mx-auto w-fit">
+                                                                        {game.status === 'scheduled' ? (
+                                                                            <span className="text-lg font-black">{format(new Date(game.scheduled_at), 'HH:mm')}</span>
+                                                                        ) : (
+                                                                            <div className="flex flex-col items-center gap-1">
+                                                                                <div className="flex items-center justify-center gap-4">
+                                                                                    <span className="text-3xl font-black tabular-nums">{game.home_score ?? 0}</span>
+                                                                                    <span className="text-muted-foreground text-sm font-black">-</span>
+                                                                                    <span className="text-3xl font-black tabular-nums">{game.away_score ?? 0}</span>
+                                                                                </div>
+                                                                                {game.has_penalties && (
+                                                                                    <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest">
+                                                                                        P: {game.home_penalty_score} - {game.away_penalty_score}
+                                                                                    </span>
+                                                                                )}
+                                                                            </div>
+                                                                        )}
+                                                                    </div>
+                                                                </Link>
+                                                                <div className="flex items-center gap-2 text-[10px] font-black text-muted-foreground uppercase tracking-widest">
+                                                                    <Clock className="h-3 w-3 text-rose-600" />
+                                                                    {format(new Date(game.scheduled_at), 'd MMMM yyyy', { locale: tr })}
+                                                                </div>
+                                                            </div>
+
+                                                            <div className="flex items-center gap-6 justify-start">
+                                                                <div className="h-12 w-12 rounded-2xl bg-muted flex items-center justify-center font-black text-xs text-muted-foreground group-hover:bg-rose-600 group-hover:text-white transition-all shadow-inner shrink-0">
+                                                                    {(game.away_team?.name || '??').substring(0, 2).toUpperCase()}
+                                                                </div>
+                                                                <div className="text-left">
+                                                                    <p className="font-black uppercase text-sm tracking-tight group-hover:text-rose-500 transition-colors line-clamp-1">{game.away_team?.name || 'BELİRLENMEDİ'}</p>
+                                                                    <p className="text-[9px] font-black text-muted-foreground uppercase tracking-widest mt-1">{game.away_team?.unit?.name || '---'}</p>
+                                                                </div>
+                                                            </div>
+                                                        </div>
+                                                    </CardContent>
+                                                </Card>
+                                            ))}
+                                        </div>
+                                    </div>
+                                )}
+                            </div>
                         ) : (
                             <div className="py-32 rounded-[3rem] border border-dashed border-border bg-card flex flex-col items-center justify-center text-center">
                                 <h3 className="text-2xl font-black uppercase tracking-tighter text-muted-foreground/30 mb-2">FİKSTÜR ANALİZ EDİLİYOR</h3>
@@ -694,42 +832,63 @@ export default function Show({ tournament, teamStats, isGroupStageCompleted, sta
                                 </div>
 
                                 <div className="flex flex-nowrap overflow-x-auto pb-12 gap-12 md:gap-24 justify-start md:justify-center min-h-[500px] items-center -mx-6 px-6">
-                                    {['quarter', 'semi', 'final'].map((round) => {
+                                    {['round_16', 'quarter', 'semi', 'final', 'third_place'].map((round) => {
                                         const matches = (tournament.games || []).filter(g => g.round === round);
                                         if (matches.length === 0) return null;
 
                                         return (
                                             <div key={round} className="flex flex-col gap-12 relative">
                                                 <div className="text-center mb-4">
-                                                    <span className="text-[10px] font-black uppercase tracking-[0.2em] text-blue-600 bg-blue-50 dark:bg-blue-500/10 px-4 py-2 rounded-full">
-                                                        {round === 'quarter' ? 'ÇEYREK FİNAL' : round === 'semi' ? 'YARI FİNAL' : 'FİNAL'}
+                                                    <span className={`text-[10px] font-black uppercase tracking-[0.2em] px-4 py-2 rounded-full ${round === 'third_place' ? 'bg-amber-50 text-amber-600 dark:bg-amber-500/10' : 'bg-blue-50 text-blue-600 dark:bg-blue-500/10'}`}>
+                                                        {round === 'round_16' ? 'SON 16' : round === 'quarter' ? 'ÇEYREK FİNAL' : round === 'semi' ? 'YARI FİNAL' : round === 'third_place' ? '3.LÜK MAÇI' : 'FİNAL'}
                                                     </span>
                                                 </div>
                                                 <div className="flex flex-col gap-12">
                                                     {matches.map((m) => (
-                                                        <Link key={m.id} href={route('games.show', m.id)} className="relative group">
-                                                            <div className="w-[260px] md:w-[280px] bg-white dark:bg-neutral-800 rounded-2xl md:rounded-3xl shadow-xl border-2 border-slate-100 dark:border-white/5 group-hover:border-blue-500 transition-all p-3 md:p-4 z-10 relative">
-                                                                <div className="space-y-4">
-                                                                    <div className="flex items-center justify-between">
-                                                                        <div className="flex items-center gap-3">
-                                                                            <div className="w-8 h-8 rounded-xl bg-slate-50 dark:bg-black/20 flex items-center justify-center text-[10px] font-black">{(m.home_team?.name || '??').substring(0, 2).toUpperCase()}</div>
-                                                                            <span className="font-bold text-sm truncate w-32">{m.home_team?.name || 'BELİRLENMEDİ'}</span>
+                                                        <div key={m.id} className="relative group">
+                                                            {isCommittee && (
+                                                                <Button
+                                                                    size="icon"
+                                                                    variant="ghost"
+                                                                    onClick={(e) => {
+                                                                        e.preventDefault();
+                                                                        e.stopPropagation();
+                                                                        openResultModal(m);
+                                                                    }}
+                                                                    className="absolute -top-3 -right-3 h-8 w-8 rounded-full bg-white dark:bg-neutral-800 shadow-xl border border-border hover:bg-blue-600 hover:text-white transition-all z-20"
+                                                                >
+                                                                    <Edit3 className="h-3.5 w-3.5" />
+                                                                </Button>
+                                                            )}
+                                                            <Link href={route('games.show', m.id)}>
+                                                                <div className="w-[260px] md:w-[280px] bg-white dark:bg-neutral-800 rounded-2xl md:rounded-3xl shadow-xl border-2 border-slate-100 dark:border-white/5 group-hover:border-blue-500 transition-all p-3 md:p-4 z-10 relative">
+                                                                    <div className="space-y-4">
+                                                                        <div className="flex items-center justify-between">
+                                                                            <div className="flex items-center gap-3">
+                                                                                <div className="w-8 h-8 rounded-xl bg-slate-50 dark:bg-black/20 flex items-center justify-center text-[10px] font-black">{(m.home_team?.name || '??').substring(0, 2).toUpperCase()}</div>
+                                                                                <span className="font-bold text-sm truncate w-32">{m.home_team?.name || 'BELİRLENMEDİ'}</span>
+                                                                            </div>
+                                                                            <span className={`text-xl font-black tabular-nums ${m.status === 'completed' && (m.home_score ?? 0) > (m.away_score ?? 0) ? 'text-blue-600' : 'text-slate-400'}`}>{m.home_score ?? 0}</span>
                                                                         </div>
-                                                                        <span className={`text-xl font-black tabular-nums ${m.status === 'completed' && (m.home_score ?? 0) > (m.away_score ?? 0) ? 'text-blue-600' : 'text-slate-400'}`}>{m.home_score ?? 0}</span>
-                                                                    </div>
-                                                                    <div className="flex items-center justify-between">
-                                                                        <div className="flex items-center gap-3">
-                                                                            <div className="w-8 h-8 rounded-xl bg-slate-50 dark:bg-black/20 flex items-center justify-center text-[10px] font-black">{(m.away_team?.name || '??').substring(0, 2).toUpperCase()}</div>
-                                                                            <span className="font-bold text-sm truncate w-32">{m.away_team?.name || 'BELİRLENMEDİ'}</span>
+                                                                        <div className="flex items-center justify-between">
+                                                                            <div className="flex items-center gap-3">
+                                                                                <div className="w-8 h-8 rounded-xl bg-slate-50 dark:bg-black/20 flex items-center justify-center text-[10px] font-black">{(m.away_team?.name || '??').substring(0, 2).toUpperCase()}</div>
+                                                                                <span className="font-bold text-sm truncate w-32">{m.away_team?.name || 'BELİRLENMEDİ'}</span>
+                                                                            </div>
+                                                                            <span className={`text-xl font-black tabular-nums ${m.status === 'completed' && (m.away_score ?? 0) > (m.home_score ?? 0) ? 'text-blue-600' : 'text-slate-400'}`}>{m.away_score ?? 0}</span>
                                                                         </div>
-                                                                        <span className={`text-xl font-black tabular-nums ${m.status === 'completed' && (m.away_score ?? 0) > (m.home_score ?? 0) ? 'text-blue-600' : 'text-slate-400'}`}>{m.away_score ?? 0}</span>
+                                                                        {m.has_penalties && (
+                                                                            <div className="pt-2 border-t border-slate-50 dark:border-white/5 text-center">
+                                                                                <span className="text-[10px] font-black text-rose-500 uppercase tracking-widest">PENALTILAR: {m.home_penalty_score} - {m.away_penalty_score}</span>
+                                                                            </div>
+                                                                        )}
                                                                     </div>
                                                                 </div>
-                                                            </div>
-                                                            {round !== 'final' && (
+                                                            </Link>
+                                                            {round !== 'final' && round !== 'third_place' && (
                                                                 <div className="absolute top-1/2 -right-24 w-24 h-px border-t-2 border-dashed border-slate-200 dark:border-white/10 -z-10 group-hover:border-blue-400" />
                                                             )}
-                                                        </Link>
+                                                        </div>
                                                     ))}
                                                 </div>
                                             </div>
@@ -975,6 +1134,189 @@ export default function Show({ tournament, teamStats, isGroupStageCompleted, sta
                             </Button>
                         </DialogFooter>
                     </form>
+                </DialogContent>
+            </Dialog>
+
+            {/* Reset Tournament Modal */}
+            <Dialog open={isResetModalOpen} onOpenChange={setIsResetModalOpen}>
+                <DialogContent className="max-w-md rounded-[2.5rem] p-0 overflow-hidden border-border bg-background">
+                    <form onSubmit={handleReset}>
+                        <DialogHeader className="p-8 pb-0">
+                            <div className="w-16 h-16 bg-rose-50 dark:bg-rose-500/10 rounded-2xl flex items-center justify-center mb-6">
+                                <AlertCircle className="h-8 w-8 text-rose-600" />
+                            </div>
+                            <DialogTitle className="text-2xl font-black uppercase tracking-tighter text-foreground">TURNUVAYI SIFIRLA</DialogTitle>
+                            <DialogDescription className="text-xs font-medium text-muted-foreground mt-4 leading-relaxed">
+                                Bu işlem tüm fikstürü, grupları, maç sonuçlarını ve istatistikleri <strong>kalıcı olarak silecektir</strong>. Sadece onaylı takımlar korunacaktır.
+                            </DialogDescription>
+                        </DialogHeader>
+
+                        <div className="p-8 space-y-6">
+                            <div className="p-6 bg-amber-50 dark:bg-amber-500/5 border border-amber-100 dark:border-amber-500/20 rounded-2xl space-y-2">
+                                <p className="text-[10px] font-black text-amber-700 uppercase tracking-widest flex items-center gap-2">
+                                    <Info className="h-3 w-3" /> GÜVENLİK ONAYI
+                                </p>
+                                <p className="text-[10px] text-amber-600 font-bold leading-tight uppercase">Tüm veriler silinecektir!</p>
+                            </div>
+
+                            <div className="space-y-3">
+                                <Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-2">Sıfırlama Şifresi Giriniz!</Label>
+                                <Input
+                                    type="text"
+                                    placeholder=""
+                                    className="h-14 text-center text-xl font-black bg-muted/50 border-border focus:border-rose-500 rounded-2xl tracking-[0.5em]"
+                                    value={resetForm.data.password}
+                                    onChange={e => resetForm.setData('password', e.target.value)}
+                                    maxLength={8}
+                                />
+                            </div>
+                        </div>
+
+                        <DialogFooter className="p-8 bg-muted/20 border-t border-border">
+                            <Button
+                                type="button"
+                                variant="ghost"
+                                onClick={() => setIsResetModalOpen(false)}
+                                className="h-14 rounded-2xl font-black uppercase tracking-widest text-[10px]"
+                            >
+                                VAZGEÇ
+                            </Button>
+                            <Button
+                                type="submit"
+                                disabled={resetForm.processing || resetForm.data.password.length < 8}
+                                className="h-14 px-12 bg-rose-600 hover:bg-rose-700 text-white rounded-2xl font-black uppercase tracking-widest text-[10px] shadow-lg shadow-rose-500/20"
+                            >
+                                HER ŞEYİ SIFIRLA
+                            </Button>
+                        </DialogFooter>
+                    </form>
+                </DialogContent>
+            </Dialog>
+
+            {/* Draw Confirmation Modal */}
+            <Dialog open={isDrawConfirmModalOpen} onOpenChange={setIsDrawConfirmModalOpen}>
+                <DialogContent className="max-w-md rounded-[2rem] p-0 overflow-hidden border-border bg-background">
+                    <div className="p-8 pb-0">
+                        <div className="w-16 h-16 bg-blue-50 dark:bg-blue-500/10 rounded-2xl flex items-center justify-center mb-6">
+                            <Dices className="h-8 w-8 text-blue-600" />
+                        </div>
+                        <DialogTitle className="text-2xl font-black uppercase tracking-tighter text-foreground">KURA ÇEKİMİNİ BAŞLAT</DialogTitle>
+                        <DialogDescription className="text-xs font-medium text-muted-foreground mt-4 leading-relaxed">
+                            Kura çekimi mevcut tüm grupları, maç sonuçlarını ve fikstürü <strong>sıfırlayacaktır</strong>. Bu işlemi onaylıyor musunuz?
+                        </DialogDescription>
+                    </div>
+
+                    <DialogFooter className="p-8 bg-muted/20 border-t border-border mt-8">
+                        <Button
+                            variant="ghost"
+                            onClick={() => setIsDrawConfirmModalOpen(false)}
+                            className="h-12 rounded-xl font-black uppercase tracking-widest text-[10px]"
+                        >
+                            İPTAL
+                        </Button>
+                        <Button
+                            onClick={handleDrawSubmit}
+                            disabled={drawProcessing}
+                            className="h-12 px-8 bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-black uppercase tracking-widest text-[10px] shadow-lg shadow-blue-500/20"
+                        >
+                            EVET, KURAYI ÇEK
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
+
+            {/* Advance Round Confirmation Modal */}
+            <Dialog open={isAdvanceConfirmModalOpen} onOpenChange={setIsAdvanceConfirmModalOpen}>
+                <DialogContent className="max-w-md rounded-[2rem] p-0 overflow-hidden border-border bg-background">
+                    <div className="p-8 pb-0">
+                        <div className="w-16 h-16 bg-emerald-50 dark:bg-emerald-500/10 rounded-2xl flex items-center justify-center mb-6">
+                            <ArrowRight className="h-8 w-8 text-emerald-600" />
+                        </div>
+                        <DialogTitle className="text-2xl font-black uppercase tracking-tighter text-foreground">TUR ATLAT</DialogTitle>
+                        <DialogDescription className="text-xs font-medium text-muted-foreground mt-4 leading-relaxed">
+                            {advanceForm.data.current_round?.toUpperCase()} turunu tamamlayıp {advanceForm.data.next_round?.toUpperCase()} turunu oluşturmak istediğinize emin misiniz?
+                        </DialogDescription>
+                    </div>
+
+                    <DialogFooter className="p-8 bg-muted/20 border-t border-border mt-8">
+                        <Button
+                            variant="ghost"
+                            onClick={() => setIsAdvanceConfirmModalOpen(false)}
+                            className="h-12 rounded-xl font-black uppercase tracking-widest text-[10px]"
+                        >
+                            İPTAL
+                        </Button>
+                        <Button
+                            onClick={handleAdvanceSubmit}
+                            disabled={advanceForm.processing}
+                            className="h-12 px-8 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl font-black uppercase tracking-widest text-[10px] shadow-lg shadow-emerald-500/20"
+                        >
+                            TURU OLUŞTUR
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
+
+            {/* Third Place Match Confirmation Modal */}
+            <Dialog open={isThirdPlaceConfirmModalOpen} onOpenChange={setIsThirdPlaceConfirmModalOpen}>
+                <DialogContent className="max-w-md rounded-[2rem] p-0 overflow-hidden border-border bg-background">
+                    <div className="p-8 pb-0">
+                        <div className="w-16 h-16 bg-amber-50 dark:bg-amber-500/10 rounded-2xl flex items-center justify-center mb-6">
+                            <Medal className="h-8 w-8 text-amber-600" />
+                        </div>
+                        <DialogTitle className="text-2xl font-black uppercase tracking-tighter text-foreground">3.LÜK MAÇI OLUŞTUR</DialogTitle>
+                        <DialogDescription className="text-xs font-medium text-muted-foreground mt-4 leading-relaxed">
+                            Yarı final mağluplarını eşleştirip 3.lük maçını oluşturmak istediğinize emin misiniz?
+                        </DialogDescription>
+                    </div>
+
+                    <DialogFooter className="p-8 bg-muted/20 border-t border-border mt-8">
+                        <Button
+                            variant="ghost"
+                            onClick={() => setIsThirdPlaceConfirmModalOpen(false)}
+                            className="h-12 rounded-xl font-black uppercase tracking-widest text-[10px]"
+                        >
+                            İPTAL
+                        </Button>
+                        <Button
+                            onClick={handleThirdPlaceSubmit}
+                            disabled={thirdPlaceForm.processing}
+                            className="h-12 px-8 bg-amber-500 hover:bg-amber-600 text-white rounded-xl font-black uppercase tracking-widest text-[10px] shadow-lg shadow-amber-500/20"
+                        >
+                            MAÇI OLUŞTUR
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
+
+            {/* Complete Tournament Confirmation Modal */}
+            <Dialog open={isCompleteConfirmModalOpen} onOpenChange={setIsCompleteConfirmModalOpen}>
+                <DialogContent className="max-w-md rounded-[2rem] p-0 overflow-hidden border-border bg-background">
+                    <div className="p-8 pb-0">
+                        <div className="w-16 h-16 bg-blue-600 rounded-2xl flex items-center justify-center mb-6">
+                            <Trophy className="h-8 w-8 text-white" />
+                        </div>
+                        <DialogTitle className="text-2xl font-black uppercase tracking-tighter text-foreground">TURNUVAYI TAMAMLA</DialogTitle>
+                        <DialogDescription className="text-xs font-medium text-muted-foreground mt-4 leading-relaxed">
+                            Turnuvayı tamamlandı olarak işaretlemek istiyor musunuz? Bu işlemden sonra sistem yeni turnuvalara odaklanacaktır.
+                        </DialogDescription>
+                    </div>
+
+                    <DialogFooter className="p-8 bg-muted/20 border-t border-border mt-8">
+                        <Button
+                            variant="ghost"
+                            onClick={() => setIsCompleteConfirmModalOpen(false)}
+                            className="h-12 rounded-xl font-black uppercase tracking-widest text-[10px]"
+                        >
+                            VAZGEÇ
+                        </Button>
+                        <Button
+                            onClick={handleCompleteSubmit}
+                            className="h-12 px-8 bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-black uppercase tracking-widest text-[10px] shadow-lg shadow-blue-500/20"
+                        >
+                            TURNUVAYI BİTİR
+                        </Button>
+                    </DialogFooter>
                 </DialogContent>
             </Dialog>
         </AppLayout>

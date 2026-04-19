@@ -114,7 +114,7 @@ export default function Dashboard({ stats, recent_games, upcoming_games, live_ga
         <AppLayout breadcrumbs={breadcrumbs}>
             <Head title="Kontrol Merkezi" />
             
-            <div className="min-h-screen bg-slate-50/50 dark:bg-black p-4 md:p-8 space-y-8 font-sans">
+            <div className="p-4 md:p-8 space-y-8 font-sans animate-in fade-in duration-500">
                 
                 {/* Global Search & Notifications Bar */}
                 <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 mb-8">
@@ -221,13 +221,16 @@ export default function Dashboard({ stats, recent_games, upcoming_games, live_ga
                         
                         <div className={`grid grid-cols-1 ${live_games.length > 1 ? 'lg:grid-cols-2' : ''} gap-8`}>
                             {live_games.map((game) => (
-                                <Card key={game.id} className="border-none bg-slate-900 text-white rounded-[3rem] overflow-hidden shadow-2xl shadow-rose-900/10 group">
-                                    <div className="absolute inset-0 opacity-10 bg-[url('https://www.transparenttextures.com/patterns/carbon-fibre.png')]"></div>
-                                    <CardContent className="p-10 relative z-10">
+                                <Card key={game.id} className="border-none bg-slate-900 text-white rounded-[3rem] overflow-hidden shadow-2xl shadow-rose-600/20 group relative">
+                                    <div className="absolute inset-0 opacity-20 bg-[url('https://www.transparenttextures.com/patterns/carbon-fibre.png')]"></div>
+                                    <div className="absolute -top-32 -left-32 w-64 h-64 bg-rose-600/20 blur-[120px] rounded-full pointer-events-none" />
+                                    <div className="absolute -bottom-32 -right-32 w-64 h-64 bg-blue-600/10 blur-[120px] rounded-full pointer-events-none" />
+                                    
+                                    <CardContent className="p-10 relative z-10 backdrop-blur-sm border border-white/5 rounded-[3rem]">
                                         <div className="flex items-center justify-between gap-8">
                                             {/* Home Team */}
                                             <div className="flex-1 flex flex-col items-center gap-4 text-center">
-                                                <div className="w-16 h-16 md:w-20 md:h-20 rounded-3xl bg-white/5 border border-white/10 flex items-center justify-center text-2xl font-black text-blue-400">
+                                                <div className="w-16 h-16 md:w-20 md:h-20 rounded-3xl bg-white/5 border border-white/10 flex items-center justify-center text-2xl font-black text-blue-400 shadow-inner">
                                                     {(game.home_team?.name || '?').charAt(0)}
                                                 </div>
                                                 <span className="font-black uppercase tracking-tight text-sm md:text-lg line-clamp-1">{game.home_team?.name || 'BELİRLENMEDİ'}</span>
@@ -236,11 +239,11 @@ export default function Dashboard({ stats, recent_games, upcoming_games, live_ga
                                             {/* Live Score */}
                                             <div className="flex flex-col items-center gap-4">
                                                 <div className="flex items-center gap-6">
-                                                    <span className="text-5xl md:text-7xl font-black tabular-nums">{game.home_score}</span>
-                                                    <span className="text-2xl font-black text-slate-700 animate-pulse">:</span>
-                                                    <span className="text-5xl md:text-7xl font-black tabular-nums">{game.away_score}</span>
+                                                    <span className="text-5xl md:text-7xl font-black tabular-nums drop-shadow-2xl">{game.home_score}</span>
+                                                    <span className="text-2xl font-black text-rose-500 animate-pulse">:</span>
+                                                    <span className="text-5xl md:text-7xl font-black tabular-nums drop-shadow-2xl">{game.away_score}</span>
                                                 </div>
-                                                <div className="bg-rose-600/20 border border-rose-500/30 px-6 py-1.5 rounded-full flex items-center gap-3">
+                                                <div className="bg-rose-600/20 border border-rose-500/30 px-6 py-1.5 rounded-full flex items-center gap-3 backdrop-blur-md">
                                                     <TimerIcon className="h-4 w-4 text-rose-500 animate-spin-slow" />
                                                     <span className="font-black text-rose-500 text-xs tabular-nums tracking-widest">{getMatchMinute(game)}' DAKİKA</span>
                                                 </div>
@@ -248,7 +251,7 @@ export default function Dashboard({ stats, recent_games, upcoming_games, live_ga
 
                                             {/* Away Team */}
                                             <div className="flex-1 flex flex-col items-center gap-4 text-center">
-                                                <div className="w-16 h-16 md:w-20 md:h-20 rounded-3xl bg-white/5 border border-white/10 flex items-center justify-center text-2xl font-black text-slate-400">
+                                                <div className="w-16 h-16 md:w-20 md:h-20 rounded-3xl bg-white/5 border border-white/10 flex items-center justify-center text-2xl font-black text-slate-400 shadow-inner">
                                                     {(game.away_team?.name || '?').charAt(0)}
                                                 </div>
                                                 <span className="font-black uppercase tracking-tight text-sm md:text-lg line-clamp-1">{game.away_team?.name || 'BELİRLENMEDİ'}</span>
@@ -256,7 +259,7 @@ export default function Dashboard({ stats, recent_games, upcoming_games, live_ga
                                         </div>
 
                                         <Link href={route('games.show', game.id)} className="mt-8 block">
-                                            <Button className="w-full bg-white text-slate-900 hover:bg-slate-100 dark:bg-white/10 dark:text-white dark:hover:bg-white/20 rounded-2xl h-14 font-black uppercase tracking-widest text-xs">
+                                            <Button className="w-full bg-white text-slate-900 hover:bg-slate-100 dark:bg-white/10 dark:text-white dark:hover:bg-white/20 rounded-2xl h-14 font-black uppercase tracking-widest text-[10px] transition-all hover:scale-[1.01]">
                                                 MAÇI CANLI TAKİP ET
                                                 <Activity className="ml-3 h-4 w-4 text-rose-600" />
                                             </Button>
