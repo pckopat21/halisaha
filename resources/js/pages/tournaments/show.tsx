@@ -26,6 +26,10 @@ import {
     Timer,
     Settings,
     MapPin,
+    Plus,
+    Trash2,
+    Users2,
+    ArrowUpDown,
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Table, TableHeader, TableBody, TableHead, TableRow, TableCell } from '@/components/ui/table';
@@ -91,6 +95,7 @@ interface Group {
     name: string;
     games: Game[];
     standings: Standing[];
+    advance_count?: number;
 }
 
 interface Tournament {
@@ -132,7 +137,14 @@ interface Props {
     };
     fields: Field[];
 }
-
+ 
+interface ManualGroup {
+    [key: string]: any;
+    name: string;
+    advance_count: number;
+    teams: number[]; // team IDs
+}
+ 
 export default function Show({ tournament, teamStats, isGroupStageCompleted, stats, fields }: Props) {
     const { auth } = usePage<SharedData>().props;
     const [selectedGame, setSelectedGame] = useState<Game | null>(null);
@@ -167,12 +179,14 @@ export default function Show({ tournament, teamStats, isGroupStageCompleted, sta
         start_time: '18:00',
         match_duration: 50,
         buffer_time: 10,
+        manual_groups: null as any
     });
 
     const { data: knockoutData, setData: setKnockoutData, post: startKnockout, processing: knockoutProcessing } = useForm({
         round_name: tournament.groups.length * 2 > 4 ? 'quarter' : 'semi',
         advance_count: 2,
         pairing_type: 'cross',
+        wildcard_count: 0
     });
 
     const settingsForm = useForm({
@@ -205,6 +219,12 @@ export default function Show({ tournament, teamStats, isGroupStageCompleted, sta
     const [isAdvanceConfirmModalOpen, setIsAdvanceConfirmModalOpen] = useState(false);
     const [isThirdPlaceConfirmModalOpen, setIsThirdPlaceConfirmModalOpen] = useState(false);
     const [isCompleteConfirmModalOpen, setIsCompleteConfirmModalOpen] = useState(false);
+    const [isManualDrawModalOpen, setIsManualDrawModalOpen] = useState(false);
+    
+    const [manualGroups, setManualGroups] = useState<ManualGroup[]>([
+        { name: 'Grup A', advance_count: 2, teams: [] },
+        { name: 'Grup B', advance_count: 2, teams: [] },
+    ]);
 
     const advanceForm = useForm({
         current_round: '',
@@ -227,6 +247,60 @@ export default function Show({ tournament, teamStats, isGroupStageCompleted, sta
     const handleCompleteSubmit = () => {
         router.post(route('tournaments.complete', tournament.id), {}, {
             onSuccess: () => setIsCompleteConfirmModalOpen(false)
+        });
+    };
+
+    const addManualGroup = () => {
+        const nextLetter = String.fromCharCode(65 + manualGroups.length);
+        setManualGroups([...manualGroups, { name: `Grup ${nextLetter}`, advance_count: 2, teams: [] }]);
+    };
+
+    const removeManualGroup = (index: number) => {
+        setManualGroups(manualGroups.filter((_, i) => i !== index));
+    };
+
+    const updateManualGroup = (index: number, field: keyof ManualGroup, value: any) => {
+        const newGroups = [...manualGroups];
+        newGroups[index] = { ...newGroups[index], [field]: value };
+        setManualGroups(newGroups);
+    };
+
+    const toggleTeamInGroup = (groupIndex: number, teamId: number) => {
+        const newGroups = [...manualGroups];
+        const teamInGroupIndex = newGroups[groupIndex].teams.indexOf(teamId);
+        
+        if (teamInGroupIndex > -1) {
+            newGroups[groupIndex].teams = newGroups[groupIndex].teams.filter(id => id !== teamId);
+        } else {
+            // Remove from other groups
+            newGroups.forEach((g, i) => {
+                newGroups[i].teams = g.teams.filter(id => id !== teamId);
+            });
+            newGroups[groupIndex].teams.push(teamId);
+        }
+        setManualGroups(newGroups);
+    };
+
+    const isTeamAssigned = (teamId: number) => {
+        return manualGroups.some((g: ManualGroup) => g.teams.includes(teamId));
+    };
+
+    const submitManualDraw = () => {
+        // Validation: All teams must be assigned? Or just proceed?
+        // User said "13 teams", so they probably want all 13.
+        const totalAssigned = manualGroups.reduce((acc: number, g: ManualGroup) => acc + g.teams.length, 0);
+        if (totalAssigned < tournament.teams.length) {
+            if (!confirm(`Tüm takımlar (${tournament.teams.length}) atanmadı. Sadece ${totalAssigned} takım atandı. Devam etmek istediğinize emin misiniz?`)) {
+                return;
+            }
+        }
+
+        router.post(route('tournaments.draw', tournament.id), {
+            ...drawData,
+            group_count: manualGroups.length,
+            manual_groups: manualGroups
+        }, {
+            onSuccess: () => setIsManualDrawModalOpen(false)
         });
     };
 
@@ -319,14 +393,13 @@ export default function Show({ tournament, teamStats, isGroupStageCompleted, sta
     };
 
     // Knockout progression helpers
-    const knockoutGames = tournament.games.filter(g => g.round && g.round !== 'group');
+    const knockoutGames = tournament.games.filter((g: Game) => g.round && g.round !== 'group');
     const roundsInOrder = ['round_16', 'quarter', 'semi', 'final'];
-
-    const latestRound = roundsInOrder.reverse().find(r => knockoutGames.some(g => g.round === r)) || 'none';
-    roundsInOrder.reverse(); // reset order
-
+ 
+    const latestRound = [...roundsInOrder].reverse().find((r: string) => knockoutGames.some((g: Game) => g.round === r)) || 'none';
+ 
     const isLatestRoundCompleted = latestRound !== 'none' &&
-        knockoutGames.filter(g => g.round === latestRound).every(g => g.status === 'completed');
+        knockoutGames.filter((g: Game) => g.round === latestRound).every((g: Game) => g.status === 'completed');
 
     const nextRoundMap: Record<string, string> = {
         'round_16': 'quarter',
@@ -460,13 +533,24 @@ export default function Show({ tournament, teamStats, isGroupStageCompleted, sta
                                             </div>
                                         </div>
 
-                                        <Button
-                                            onClick={handleDrawClick}
-                                            disabled={drawProcessing || tournament.teams.length === 0}
-                                            className="h-14 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white font-black uppercase tracking-widest text-xs rounded-3xl shadow-[0_10px_30px_-10px_rgba(37,99,235,0.5)] transition-all hover:scale-[1.02] active:scale-[0.98] disabled:opacity-50 disabled:grayscale"
-                                        >
-                                            {tournament.teams.length === 0 ? 'TAKIM BEKLENİYOR...' : 'KURA ÇEK VE BAŞLAT'}
-                                        </Button>
+                                        <div className="flex flex-col gap-3">
+                                            <Button
+                                                onClick={handleDrawClick}
+                                                disabled={drawProcessing || tournament.teams.length === 0}
+                                                className="h-14 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white font-black uppercase tracking-widest text-xs rounded-3xl shadow-[0_10px_30px_-10px_rgba(37,99,235,0.5)] transition-all hover:scale-[1.02] active:scale-[0.98] disabled:opacity-50 disabled:grayscale"
+                                            >
+                                                {tournament.teams.length === 0 ? 'TAKIM BEKLENİYOR...' : 'OTOMATİK KURA ÇEK'}
+                                            </Button>
+
+                                            <Button
+                                                onClick={() => setIsManualDrawModalOpen(true)}
+                                                disabled={drawProcessing || tournament.teams.length === 0}
+                                                variant="outline"
+                                                className="h-14 border-2 border-dashed border-slate-300 dark:border-white/10 text-slate-600 dark:text-slate-300 font-black uppercase tracking-widest text-xs rounded-3xl hover:bg-slate-100 dark:hover:bg-white/5 transition-all"
+                                            >
+                                                {tournament.teams.length === 0 ? 'TAKIM BEKLENİYOR...' : 'ELLE GRUPLARI AYARLA'}
+                                            </Button>
+                                        </div>
                                         {tournament.teams.length === 0 && (
                                             <div className="p-4 bg-rose-50 dark:bg-rose-500/5 border border-rose-100 dark:border-rose-500/20 rounded-2xl flex items-center gap-3 animate-in fade-in zoom-in duration-300">
                                                 <div className="h-8 w-8 bg-rose-100 dark:bg-rose-500/20 rounded-xl flex items-center justify-center shrink-0">
@@ -541,15 +625,28 @@ export default function Show({ tournament, teamStats, isGroupStageCompleted, sta
                                                             <option value={4}>İlk 4 Takım</option>
                                                         </select>
                                                     </div>
-                                                    <div className="space-y-2 col-span-2">
+                                                    <div className="space-y-2">
                                                         <Label className="text-[10px] font-black uppercase tracking-widest text-slate-400">Eşleşme Mantığı</Label>
                                                         <select
                                                             className="w-full h-12 px-4 bg-white dark:bg-black/20 border-slate-200 dark:border-white/10 rounded-2xl font-bold text-sm outline-none"
                                                             value={knockoutData.pairing_type}
                                                             onChange={e => setKnockoutData('pairing_type', e.target.value)}
                                                         >
-                                                            <option value="cross">Çapraz Eşleşme (1. vs 2.)</option>
-                                                            <option value="random">Rastgele Eşleşme</option>
+                                                            <option value="cross">Çapraz (1. vs 2.)</option>
+                                                            <option value="random">Rastgele</option>
+                                                        </select>
+                                                    </div>
+                                                    <div className="space-y-2">
+                                                        <Label className="text-[10px] font-black uppercase tracking-widest text-slate-400">Ekstra Kontenjan</Label>
+                                                        <select
+                                                            className="w-full h-12 px-4 bg-white dark:bg-black/20 border-slate-200 dark:border-white/10 rounded-2xl font-bold text-sm outline-none"
+                                                            value={knockoutData.wildcard_count}
+                                                            onChange={e => setKnockoutData('wildcard_count', parseInt(e.target.value))}
+                                                        >
+                                                            <option value={0}>Yok</option>
+                                                            <option value={1}>+1 En İyi Takım</option>
+                                                            <option value={2}>+2 En İyi Takım</option>
+                                                            <option value={4}>+4 En İyi Takım</option>
                                                         </select>
                                                     </div>
                                                 </div>
@@ -687,7 +784,7 @@ export default function Show({ tournament, teamStats, isGroupStageCompleted, sta
                                                     {group.standings?.sort((a, b) => (b.points - a.points) || ((b.goals_for - b.goals_against) - (a.goals_for - a.goals_against))).map((s, idx) => (
                                                         <TableRow key={idx} className="border-b border-slate-50 dark:border-white/5 hover:bg-slate-50/50 dark:hover:bg-white/[0.02] transition-colors group">
                                                             <TableCell className="text-center">
-                                                                <span className={`w-7 h-7 flex items-center justify-center rounded-full text-xs font-black ${idx < 2 ? 'bg-emerald-50 text-emerald-600 dark:bg-emerald-500/10 dark:text-emerald-500' : 'text-slate-400'}`}>
+                                                                <span className={`w-7 h-7 flex items-center justify-center rounded-full text-xs font-black ${idx < (group.advance_count ?? 2) ? 'bg-emerald-50 text-emerald-600 dark:bg-emerald-500/10 dark:text-emerald-500' : 'text-slate-400'}`}>
                                                                     {idx + 1}
                                                                 </span>
                                                             </TableCell>
@@ -1612,36 +1709,187 @@ export default function Show({ tournament, teamStats, isGroupStageCompleted, sta
                 </DialogContent>
             </Dialog>
 
-            {/* Complete Tournament Confirmation Modal */}
-            <Dialog open={isCompleteConfirmModalOpen} onOpenChange={setIsCompleteConfirmModalOpen}>
-                <DialogContent className="max-w-md rounded-[2rem] p-0 overflow-hidden border-border bg-background">
-                    <div className="p-8 pb-0">
-                        <div className="w-16 h-16 bg-blue-600 rounded-2xl flex items-center justify-center mb-6">
-                            <Trophy className="h-8 w-8 text-white" />
+            {/* Manual Draw Modal */}
+            <Dialog open={isManualDrawModalOpen} onOpenChange={setIsManualDrawModalOpen}>
+                <DialogContent className="max-w-6xl w-[95vw] h-[90vh] rounded-[2.5rem] p-0 overflow-hidden border-border bg-background flex flex-col">
+                    <DialogHeader className="p-8 border-b border-border shrink-0">
+                        <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-4">
+                                <div className="h-12 w-12 bg-indigo-50 dark:bg-indigo-500/10 rounded-2xl flex items-center justify-center">
+                                    <Users2 className="h-6 w-6 text-indigo-600" />
+                                </div>
+                                <div>
+                                    <DialogTitle className="text-2xl font-black uppercase tracking-tighter">ELLE GRUP DÜZENLEME</DialogTitle>
+                                    <DialogDescription className="text-xs font-bold text-muted-foreground uppercase tracking-widest mt-1">
+                                        Takımları istediğiniz gruplara yerleştirin ve tur atlama kriterlerini belirleyin.
+                                    </DialogDescription>
+                                </div>
+                            </div>
+                            <div className="flex items-center gap-3">
+                                <Button onClick={addManualGroup} variant="outline" className="h-10 rounded-xl font-black uppercase tracking-widest text-[10px] gap-2">
+                                    <Plus className="h-4 w-4" /> GRUP EKLE
+                                </Button>
+                            </div>
                         </div>
-                        <DialogTitle className="text-2xl font-black uppercase tracking-tighter text-foreground">TURNUVAYI TAMAMLA</DialogTitle>
-                        <DialogDescription className="text-xs font-medium text-muted-foreground mt-4 leading-relaxed">
-                            Turnuvayı tamamlandı olarak işaretlemek istiyor musunuz? Bu işlemden sonra sistem yeni turnuvalara odaklanacaktır.
-                        </DialogDescription>
+                    </DialogHeader>
+
+                    <div className="flex-1 overflow-hidden flex flex-col md:flex-row">
+                        {/* Teams Pool */}
+                        <div className="w-full md:w-80 border-r border-border bg-muted/20 overflow-y-auto p-6 space-y-4">
+                            <div className="flex items-center justify-between mb-2">
+                                <h3 className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">TAKIM HAVUZU ({tournament.teams.length})</h3>
+                                <Badge variant="secondary" className="text-[9px] font-black">{tournament.teams.length - manualGroups.reduce((a, g) => a + g.teams.length, 0)} BOŞTA</Badge>
+                            </div>
+                            
+                            <div className="grid grid-cols-1 gap-2">
+                                {tournament.teams.map(team => {
+                                    const assigned = isTeamAssigned(team.id);
+                                    return (
+                                        <div 
+                                            key={team.id}
+                                            className={`p-3 rounded-xl border text-left transition-all flex items-center justify-between group ${assigned 
+                                                ? 'bg-slate-50 dark:bg-slate-900 border-slate-200 dark:border-white/5 opacity-40' 
+                                                : 'bg-white dark:bg-white/5 border-border shadow-sm'}`}
+                                        >
+                                            <div className="flex items-center gap-3">
+                                                <div className="h-8 w-8 rounded-lg bg-muted flex items-center justify-center font-black text-[10px]">
+                                                    {team.name.substring(0, 2).toUpperCase()}
+                                                </div>
+                                                <div className="flex flex-col">
+                                                    <span className="text-[11px] font-black uppercase leading-tight">{team.name}</span>
+                                                    <span className="text-[9px] text-muted-foreground font-medium uppercase">{team.unit?.name}</span>
+                                                </div>
+                                            </div>
+                                            {assigned && (
+                                                <Badge className="bg-indigo-100 text-indigo-600 dark:bg-indigo-500/10 dark:text-indigo-500 border-none text-[8px] font-black">
+                                                    {manualGroups.find(g => g.teams.includes(team.id))?.name}
+                                                </Badge>
+                                            )}
+                                        </div>
+                                    );
+                                })}
+                            </div>
+                        </div>
+
+                        {/* Groups Area */}
+                        <div className="flex-1 overflow-y-auto p-8 bg-slate-50/30 dark:bg-black/20">
+                            <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6">
+                                {manualGroups.map((group, gIdx) => (
+                                    <Card key={gIdx} className="border-border shadow-md rounded-[2rem] overflow-hidden bg-background flex flex-col">
+                                        <CardHeader className="p-6 border-b border-border bg-muted/10">
+                                            <div className="flex items-center justify-between gap-4">
+                                                <div className="flex flex-col gap-1 w-full">
+                                                    <Input 
+                                                        value={group.name} 
+                                                        onChange={e => updateManualGroup(gIdx, 'name', e.target.value)}
+                                                        className="h-8 py-0 px-2 font-black uppercase tracking-tight text-sm bg-transparent border-none focus-visible:ring-0 w-full"
+                                                    />
+                                                    <div className="flex items-center gap-3 mt-1 px-2">
+                                                        <Label className="text-[8px] font-black uppercase tracking-widest text-muted-foreground shrink-0 italic">ÜST TURA ÇIKAN:</Label>
+                                                        <div className="flex items-center gap-2">
+                                                            <button 
+                                                                onClick={() => updateManualGroup(gIdx, 'advance_count', Math.max(1, group.advance_count - 1))}
+                                                                className="h-4 w-4 rounded bg-muted hover:bg-slate-200 dark:hover:bg-white/10 flex items-center justify-center text-[10px] font-black"
+                                                            >-</button>
+                                                            <span className="text-[10px] font-black tabular-nums">{group.advance_count}</span>
+                                                            <button 
+                                                                onClick={() => updateManualGroup(gIdx, 'advance_count', group.advance_count + 1)}
+                                                                className="h-4 w-4 rounded bg-muted hover:bg-slate-200 dark:hover:bg-white/10 flex items-center justify-center text-[10px] font-black"
+                                                            >+</button>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                                <Button 
+                                                    variant="ghost" 
+                                                    size="icon" 
+                                                    onClick={() => removeManualGroup(gIdx)}
+                                                    className="h-8 w-8 text-rose-500 hover:bg-rose-50 rounded-lg shrink-0"
+                                                >
+                                                    <Trash2 className="h-4 w-4" />
+                                                </Button>
+                                            </div>
+                                        </CardHeader>
+                                        <CardContent className="p-6 flex-1 flex flex-col">
+                                            <div className="space-y-2 flex-1 scrollbar-hide">
+                                                {group.teams.length === 0 ? (
+                                                    <div className="h-24 border-2 border-dashed border-muted rounded-2xl flex flex-col items-center justify-center text-center p-4">
+                                                        <p className="text-[9px] font-black text-muted-foreground uppercase leading-tight">TAKIM YOK</p>
+                                                    </div>
+                                                ) : (
+                                                    group.teams.map(tId => {
+                                                        const team = tournament.teams.find(t => t.id === tId);
+                                                        return (
+                                                            <div key={tId} className="flex items-center justify-between p-2.5 bg-indigo-50/50 dark:bg-indigo-500/5 rounded-xl border border-indigo-100 dark:border-indigo-500/10 group animate-in fade-in zoom-in duration-200">
+                                                                <div className="flex items-center gap-2 overflow-hidden">
+                                                                    <div className="h-6 w-6 rounded bg-indigo-100 dark:bg-indigo-500/20 flex items-center justify-center font-black text-[8px] text-indigo-600 shrink-0">
+                                                                        {team?.name.substring(0, 2).toUpperCase()}
+                                                                    </div>
+                                                                    <span className="text-[10px] font-black uppercase truncate">{team?.name}</span>
+                                                                </div>
+                                                                <Button 
+                                                                    variant="ghost" 
+                                                                    size="icon" 
+                                                                    onClick={() => toggleTeamInGroup(gIdx, tId)}
+                                                                    className="h-6 w-6 rounded-md text-slate-400 hover:text-rose-500 transition-colors"
+                                                                >
+                                                                    <X className="h-3 w-3" />
+                                                                </Button>
+                                                            </div>
+                                                        );
+                                                    })
+                                                )}
+                                                
+                                                <div className="pt-4 border-t border-dashed border-border mt-4">
+                                                    <Select onValueChange={(val) => toggleTeamInGroup(gIdx, parseInt(val))}>
+                                                        <SelectTrigger className="h-10 rounded-xl border-dashed bg-muted/20 text-[10px] font-black uppercase tracking-widest focus:ring-0">
+                                                            <div className="flex items-center gap-2">
+                                                                <Plus className="h-3 w-3" /> TAKIM EKLE
+                                                            </div>
+                                                        </SelectTrigger>
+                                                        <SelectContent>
+                                                            {tournament.teams.filter(t => !isTeamAssigned(t.id)).map(t => (
+                                                                <SelectItem key={t.id} value={t.id.toString()} className="text-[10px] font-black uppercase">{t.name}</SelectItem>
+                                                            ))}
+                                                        </SelectContent>
+                                                    </Select>
+                                                </div>
+                                            </div>
+                                        </CardContent>
+                                    </Card>
+                                ))}
+                                
+                                <button 
+                                    onClick={addManualGroup}
+                                    className="border-2 border-dashed border-muted rounded-[2rem] h-auto min-h-[300px] flex flex-col items-center justify-center text-muted-foreground hover:border-indigo-400 hover:text-indigo-500 transition-all group p-8 bg-white/10"
+                                >
+                                    <div className="h-16 w-16 rounded-full bg-muted/50 group-hover:bg-indigo-50 dark:group-hover:bg-indigo-500/10 flex items-center justify-center mb-4 transition-all">
+                                        <Plus className="h-8 w-8" />
+                                    </div>
+                                    <span className="text-xs font-black uppercase tracking-widest text-center">YENİ GRUP EKLE</span>
+                                </button>
+                            </div>
+                        </div>
                     </div>
 
-                    <DialogFooter className="p-8 bg-muted/20 border-t border-border mt-8">
+                    <DialogFooter className="p-8 bg-muted/20 border-t border-border shrink-0">
                         <Button
                             variant="ghost"
-                            onClick={() => setIsCompleteConfirmModalOpen(false)}
-                            className="h-12 rounded-xl font-black uppercase tracking-widest text-[10px]"
+                            onClick={() => setIsManualDrawModalOpen(false)}
+                            className="h-14 px-8 rounded-2xl font-black uppercase tracking-widest text-[10px]"
                         >
-                            VAZGEÇ
+                            İPTAL
                         </Button>
                         <Button
-                            onClick={handleCompleteSubmit}
-                            className="h-12 px-8 bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-black uppercase tracking-widest text-[10px] shadow-lg shadow-blue-500/20"
+                            onClick={submitManualDraw}
+                            disabled={drawProcessing || manualGroups.length === 0}
+                            className="h-14 px-12 bg-indigo-600 hover:bg-indigo-700 text-white rounded-2xl font-black uppercase tracking-widest text-[10px] shadow-lg shadow-indigo-500/30 flex items-center gap-3"
                         >
-                            TURNUVAYI BİTİR
+                            <Dices className="h-4 w-4" /> KURAYI TAMAMLA VE BAŞLAT
                         </Button>
                     </DialogFooter>
                 </DialogContent>
             </Dialog>
+
         </div>
     </AppLayout>
     );

@@ -133,6 +133,11 @@ class TournamentController extends Controller
             'start_time' => 'required|string',
             'match_duration' => 'required|integer|min:1',
             'buffer_time' => 'required|integer|min:0',
+            'manual_groups' => 'nullable|array',
+            'manual_groups.*.name' => 'required|string',
+            'manual_groups.*.advance_count' => 'required|integer|min:1',
+            'manual_groups.*.teams' => 'required|array|min:1',
+            'manual_groups.*.teams.*' => 'required|integer|exists:teams,id',
         ]);
 
         $this->tournamentService->generateDrawAndSchedule(
@@ -141,7 +146,8 @@ class TournamentController extends Controller
             \Carbon\Carbon::parse($validated['start_date']),
             $validated['start_time'],
             $validated['match_duration'],
-            $validated['buffer_time']
+            $validated['buffer_time'],
+            $validated['manual_groups'] ?? null
         );
 
         $tournament->update(['status' => 'active']);

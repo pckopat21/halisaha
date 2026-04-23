@@ -6,6 +6,7 @@ use App\Models\Tournament;
 use App\Models\Game;
 use App\Models\Group;
 use App\Models\Standing;
+use App\Models\Team;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\DB;
 
@@ -19,12 +20,14 @@ class KnockoutService
         return DB::transaction(function () use ($tournament, $options) {
             $advanceCount = $options['advance_count'] ?? 2; // Default top 2
             $pairingType = $options['pairing_type'] ?? 'cross'; // 'cross' or 'random'
-            
             $groups = $tournament->groups;
+            
+            // 1. Get group-based advancing teams
             $advancingTeams = collect();
+            $assignedTeamIds = [];
 
-            // 1. Get top teams from each group
             foreach ($groups as $group) {
+                $groupAdvanceCount = $group->advance_count ?? ($options['advance_count'] ?? 2);
                 $topTeams = Standing::where('group_id', $group->id)
                     ->with('team')
                     ->get()
@@ -33,12 +36,47 @@ class KnockoutService
                             ?: (($b->goals_for - $b->goals_against) <=> ($a->goals_for - $a->goals_against))
                             ?: ($b->goals_for <=> $a->goals_for);
                     })
-                    ->take($advanceCount);
+                    ->take($groupAdvanceCount);
                 
-                $advancingTeams->put($group->name, $topTeams->pluck('team'));
+                $teams = $topTeams->pluck('team');
+                $advancingTeams->put($group->name, $teams);
+                $assignedTeamIds = array_merge($assignedTeamIds, $teams->pluck('id')->toArray());
             }
 
-            // 2. Pair them
+            // 2. Handle Wildcards (En İyi Dereceliler)
+            $wildcardCount = $options['wildcard_count'] ?? 0;
+            if ($wildcardCount > 0) {
+                $potentialWildcards = Standing::whereIn('group_id', $groups->pluck('id'))
+                    ->whereNotIn('team_id', $assignedTeamIds)
+                    ->with('team')
+                    ->get()
+                    ->sort(function($a, $b) {
+                        // Rank by: 
+                        // 1. Points per match (to handle unequal group sizes)
+                        // 2. Goal difference per match
+                        // 3. Total goals
+                        $aPlayed = $a->played ?: 1;
+                        $bPlayed = $b->played ?: 1;
+                        
+                        $aPPG = $a->points / $aPlayed;
+                        $bPPG = $b->points / $bPlayed;
+                        
+                        $aGDG = ($a->goals_for - $a->goals_against) / $aPlayed;
+                        $bGDG = ($b->goals_for - $b->goals_against) / $bPlayed;
+
+                        return ($bPPG <=> $aPPG) 
+                            ?: ($bGDG <=> $aGDG)
+                            ?: ($b->goals_for <=> $a->goals_for);
+                    })
+                    ->take($wildcardCount);
+
+                if ($potentialWildcards->isNotEmpty()) {
+                    $wildcardTeams = $potentialWildcards->pluck('team');
+                    $advancingTeams->put('WILD-CARD', $wildcardTeams);
+                }
+            }
+
+            // 3. Pair them
             if ($pairingType === 'cross') {
                 $matches = $this->createCrossPairings($advancingTeams);
             } else {
@@ -98,8 +136,17 @@ class KnockoutService
         });
     }
 
-    private function getWinner(Game $match)
+    /**
+     * @param mixed $match
+     * @return Team
+     */
+    private function getWinner($match)
     {
+        // 0. Check for Bye (Bay)
+        if (!$match->away_team_id) {
+            return Team::find($match->home_team_id);
+        }
+
         // 1. Check for forfeit (hükmen)
         // (Assuming forfeit is handled by score being set to 3-0)
         
@@ -118,22 +165,45 @@ class KnockoutService
     {
         $groupNames = $groupsData->keys()->toArray();
         $pairings = [];
+        $leftoverTeams = collect();
 
-        // Simple Cross: Group A1 vs B2, B1 vs A2, C1 vs D2, D1 vs C2
+        // Simple Cross: Group A1 vs B2, B1 vs A2
         for ($i = 0; $i < count($groupNames); $i += 2) {
-            if (!isset($groupNames[$i+1])) break;
+            if (!isset($groupNames[$i+1])) {
+                // Odd group, keep all its teams for random pairing at the end
+                foreach ($groupsData[$groupNames[$i]] as $team) {
+                    $leftoverTeams->push($team);
+                }
+                break;
+            }
 
             $groupA = $groupsData[$groupNames[$i]];
             $groupB = $groupsData[$groupNames[$i+1]];
 
-            // A1 vs B2
+            // A1 vs B2, B1 vs A2
             if (isset($groupA[0]) && isset($groupB[1])) {
                 $pairings[] = [$groupA[0], $groupB[1]];
+            } else if (isset($groupA[0])) {
+                $leftoverTeams->push($groupA[0]);
             }
-            // B1 vs A2
+
             if (isset($groupB[0]) && isset($groupA[1])) {
                 $pairings[] = [$groupB[0], $groupA[1]];
+            } else if (isset($groupB[0])) {
+                $leftoverTeams->push($groupB[0]);
             }
+
+            // Collect any other teams from these groups that were not in top 2
+            for ($j = 2; $j < max(count($groupA), count($groupB)); $j++) {
+                if (isset($groupA[$j])) $leftoverTeams->push($groupA[$j]);
+                if (isset($groupB[$j])) $leftoverTeams->push($groupB[$j]);
+            }
+        }
+
+        // Handle leftovers by pairing them randomly or giving Byes
+        if ($leftoverTeams->isNotEmpty()) {
+            $randomPairs = $this->createRandomPairings($leftoverTeams);
+            $pairings = array_merge($pairings, $randomPairs);
         }
 
         return $pairings;
@@ -146,6 +216,9 @@ class KnockoutService
         for ($i = 0; $i < count($shuffled); $i += 2) {
             if (isset($shuffled[$i+1])) {
                 $pairings[] = [$shuffled[$i], $shuffled[$i+1]];
+            } else {
+                // Team gets a Bye (Bay)
+                $pairings[] = [$shuffled[$i], null];
             }
         }
         return $pairings;
@@ -158,15 +231,19 @@ class KnockoutService
         $startTime = $lastMatch ? Carbon::parse($lastMatch->scheduled_at)->addDays(2)->setTime(18, 0) : Carbon::now()->addDays(2)->setTime(18, 0);
         
         foreach ($pairings as $idx => $pair) {
+            $isBye = !isset($pair[1]) || $pair[1] === null;
+            
             Game::create([
                 'tournament_id' => $tournament->id,
                 'home_team_id' => $pair[0]->id,
-                'away_team_id' => $pair[1]->id,
+                'away_team_id' => $isBye ? null : $pair[1]->id,
                 'round' => $roundName,
                 'bracket_position' => $idx + 1,
-                'status' => 'scheduled',
+                'status' => $isBye ? 'completed' : 'scheduled',
                 'scheduled_at' => $startTime->copy()->addHours($idx),
-                'pitch_id' => 1
+                'pitch_id' => 1,
+                'home_score' => $isBye ? 3 : 0,
+                'away_score' => $isBye ? 0 : 0,
             ]);
         }
     }
@@ -205,8 +282,15 @@ class KnockoutService
         });
     }
 
-    private function getLoser(Game $match)
+    /**
+     * @param mixed $match
+     * @return Team|null
+     */
+    private function getLoser($match)
     {
+        if (!$match->away_team_id) {
+            return null;
+        }
         $winner = $this->getWinner($match);
         return $match->home_team_id === $winner->id ? $match->awayTeam : $match->homeTeam;
     }

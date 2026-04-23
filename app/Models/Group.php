@@ -6,7 +6,7 @@ use Illuminate\Database\Eloquent\Model;
 
 class Group extends Model
 {
-    protected $fillable = ['tournament_id', 'name'];
+    protected $fillable = ['tournament_id', 'name', 'advance_count'];
 
     public function tournament()
     {

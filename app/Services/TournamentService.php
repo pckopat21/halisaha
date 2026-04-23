@@ -30,40 +30,56 @@ class TournamentService
         Carbon $startDate = null,
         string $matchStartTime = '18:00',
         int $matchDurationMinutes = 50,
-        int $bufferMinutes = 10
+        int $bufferMinutes = 10,
+        array $manualGroups = null
     ): void {
-        DB::transaction(function () use ($tournament, $groupCount, $startDate, $matchStartTime, $matchDurationMinutes, $bufferMinutes) {
+        DB::transaction(function () use ($tournament, $groupCount, $startDate, $matchStartTime, $matchDurationMinutes, $bufferMinutes, $manualGroups) {
             $startDate = $startDate ?? Carbon::tomorrow();
             
-            // 1. Get all approved teams (case-insensitive check)
-            $teams = $tournament->teams()
-                ->whereIn('status', ['approved', 'Approved'])
-                ->get();
-            
-            // 2. Separate seeded teams (Rule 22 & 23)
-            $seeds = $teams->where('seed_level', '>', 0)->sortBy('seed_level');
-            $unseeded = $teams->where('seed_level', 0)->shuffle();
+            if ($manualGroups) {
+                foreach ($manualGroups as $groupData) {
+                    $group = $tournament->groups()->create([
+                        'name' => $groupData['name'],
+                        'advance_count' => $groupData['advance_count']
+                    ]);
+                    
+                    foreach ($groupData['teams'] as $teamId) {
+                        $team = Team::findOrFail($teamId);
+                        $this->assignToGroup($group, $team);
+                    }
+                }
+            } else {
+                // 1. Get all approved teams (case-insensitive check)
+                $teams = $tournament->teams()
+                    ->whereIn('status', ['approved', 'Approved'])
+                    ->get();
+                
+                // 2. Separate seeded teams (Rule 22 & 23)
+                $seeds = $teams->where('seed_level', '>', 0)->sortBy('seed_level');
+                $unseeded = $teams->where('seed_level', 0)->shuffle();
 
-            // 3. Create groups
-            $groups = collect();
-            for ($i = 0; $i < $groupCount; $i++) {
-                $group = $tournament->groups()->create([
-                    'name' => 'Grup ' . chr(65 + $i) // Grup A, Grup B...
-                ]);
-                $groups->push($group);
-            }
+                // 3. Create groups
+                $groups = collect();
+                for ($i = 0; $i < $groupCount; $i++) {
+                    $group = $tournament->groups()->create([
+                        'name' => 'Grup ' . chr(65 + $i), // Grup A, Grup B...
+                        'advance_count' => 2 // Default
+                    ]);
+                    $groups->push($group);
+                }
 
-            // 4. Distribute seeds first
-            $groupIndex = 0;
-            foreach ($seeds as $team) {
-                $this->assignToGroup($groups[$groupIndex % $groupCount], $team);
-                $groupIndex++;
-            }
+                // 4. Distribute seeds first
+                $groupIndex = 0;
+                foreach ($seeds as $team) {
+                    $this->assignToGroup($groups[$groupIndex % $groupCount], $team);
+                    $groupIndex++;
+                }
 
-            // 5. Distribute remaining teams
-            foreach ($unseeded as $team) {
-                $this->assignToGroup($groups[$groupIndex % $groupCount], $team);
-                $groupIndex++;
+                // 5. Distribute remaining teams
+                foreach ($unseeded as $team) {
+                    $this->assignToGroup($groups[$groupIndex % $groupCount], $team);
+                    $groupIndex++;
+                }
             }
 
             // 6. Generate fixtures (Rule 15 & 24)
@@ -135,7 +151,7 @@ class TournamentService
     {
         if (count($teamIds) < 2) return [];
         
-        $teams = $teamIds;
+        $teams = array_values($teamIds);
         if (count($teams) % 2 != 0) {
             $teams[] = null; // Bye
         }
@@ -153,7 +169,8 @@ class TournamentService
                 }
             }
             // Rotate (keep index 0 static)
-            array_splice($teams, 1, 0, array_pop($teams));
+            $last = array_pop($teams);
+            array_splice($teams, 1, 0, [$last]);
         }
         return $matches;
     }
