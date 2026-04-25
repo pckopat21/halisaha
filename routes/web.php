@@ -13,7 +13,7 @@ use App\Http\Controllers\PlayerSearchController;
 use App\Http\Controllers\StatisticsController;
 use App\Http\Controllers\FieldController;
 
-Route::get('/', function () {
+Route::get('/', function (\App\Services\StatsService $statsService) {
     $activeTournament = \App\Models\Tournament::whereIn('status', ['active', 'registration'])
         ->with(['champion.unit'])
         ->latest()
@@ -25,9 +25,83 @@ Route::get('/', function () {
         ->latest()
         ->get();
 
+    $groupStandings = [];
+    $groupFixtures = [];
+    $homepageStats = null;
+
+    if ($activeTournament) {
+        $groupStandings = $activeTournament->groups()->with(['standings.team'])->get()->map(function($group) {
+            return [
+                'name' => $group->name,
+                'advance_count' => $group->advance_count,
+                'rows' => $group->standings->sortByDesc('points')->values()->map(function($standing) {
+                    return [
+                        'team' => ['name' => $standing->team->name],
+                        'played' => $standing->played,
+                        'won' => $standing->won,
+                        'drawn' => $standing->drawn,
+                        'lost' => $standing->lost,
+                        'goals_for' => $standing->goals_for,
+                        'goals_against' => $standing->goals_against,
+                        'goal_difference' => $standing->goal_difference,
+                        'points' => $standing->points,
+                    ];
+                })
+            ];
+        });
+
+        $groupFixtures = \App\Models\Game::where('tournament_id', $activeTournament->id)
+            ->with(['homeTeam', 'awayTeam', 'field', 'group'])
+            ->orderBy('scheduled_at', 'desc')
+            ->limit(12)
+            ->get()
+            ->map(function($game) {
+                return [
+                    'group' => $game->group?->name ?? 'Eleme',
+                    'home_team' => $game->homeTeam->name,
+                    'away_team' => $game->awayTeam->name,
+                    'scheduled_at' => $game->scheduled_at ? $game->scheduled_at->toDateTimeString() : null,
+                    'status' => $game->status,
+                    'home_score' => $game->home_score,
+                    'away_score' => $game->away_score,
+                    'field' => $game->field?->name,
+                ];
+            });
+
+        $nextMatch = \App\Models\Game::where('status', 'planned')
+            ->where('scheduled_at', '>=', now())
+            ->with(['homeTeam', 'awayTeam', 'field'])
+            ->orderBy('scheduled_at', 'asc')
+            ->first();
+
+        $homepageStats = [
+            'summary' => $statsService->getTournamentSummary($activeTournament),
+            'topScorers' => $statsService->getTopScorers($activeTournament, 5)->map(function($p) {
+                return ['name' => $p->first_name . ' ' . $p->last_name, 'goals' => $p->goals_count];
+            }),
+            'topAssists' => $statsService->getTopAssists($activeTournament, 5)->map(function($p) {
+                return ['name' => $p->first_name . ' ' . $p->last_name, 'assists' => $p->assists_count];
+            })
+        ];
+    }
+
     return Inertia::render('welcome', [
         'activeTournament' => $activeTournament,
         'approvedTeams' => $approvedTeams,
+        'groupStandings' => $groupStandings,
+        'groupFixtures' => $groupFixtures,
+        'homepageStats' => $homepageStats,
+        'totalStats' => [
+            'approvedTeams' => \App\Models\Team::where('status', 'approved')->count(),
+            'activePlayers' => \App\Models\Player::whereHas('teams', function($q) { $q->where('status', 'approved'); })->count(),
+            'totalMatches' => $activeTournament ? \App\Models\Game::where('tournament_id', $activeTournament->id)->count() : 0,
+        ],
+        'nextMatch' => $nextMatch ? [
+            'home_team' => $nextMatch->homeTeam->name,
+            'away_team' => $nextMatch->awayTeam->name,
+            'scheduled_at' => $nextMatch->scheduled_at->toDateTimeString(),
+            'field' => $nextMatch->field?->name,
+        ] : null,
         'canLogin' => Route::has('login'),
         'canRegister' => Route::has('register'),
     ]);
