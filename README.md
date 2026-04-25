@@ -82,7 +82,30 @@ Güvenlik için dosyaları şu şekilde ayırın:
 -   **Public Path:** `bootstrap/app.php` içinde `usePublicPath` ayarı yapılmıştır. Bu ayar hem yerelde hem sunucuda otomatik olarak çalışır.
 -   **SQL Strict Mode:** Bazı sunucularda `GROUP BY` hatalarını önlemek için `config/database.php` içinde `strict => false` olarak ayarlanmıştır.
 
-### 3. Veritabanı Kurulumu (Canlıda)
+### 3. Paylaşımlı Hosting index.php Yapılandırması
+Sunucuda `public_html/index.php` dosyanızın içeriği şu şekilde olmalıdır (Eğer ana dosyalar `lara_app` içindeyse):
+
+```php
+<?php
+
+use Illuminate\Http\Request;
+
+define('LARAVEL_START', microtime(true));
+
+// 1. Bakım modu yolu (lara_app içine bakmalı)
+if (file_exists($maintenance = __DIR__.'/../lara_app/storage/framework/maintenance.php')) {
+    require $maintenance;
+}
+
+// 2. Autoloader yolu
+require __DIR__.'/../lara_app/vendor/autoload.php';
+
+// 3. Uygulamayı başlat ve isteği işle
+(require_once __DIR__.'/../lara_app/bootstrap/app.php')
+    ->handleRequest(Request::capture());
+```
+
+### 4. Veritabanı Kurulumu (Canlıda)
 Sunucuya yükleme yaptıktan sonra tabloları oluşturmak için şu adresi ziyaret edin:
 `https://siteniz.com.tr/install-db`
 
