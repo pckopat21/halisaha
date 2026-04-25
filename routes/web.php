@@ -50,10 +50,28 @@ Route::get('/', function (\App\Services\StatsService $statsService) {
             ];
         });
 
-        $groupFixtures = \App\Models\Game::where('tournament_id', $activeTournament->id)
+        $liveMatches = \App\Models\Game::where('tournament_id', $activeTournament->id)
+            ->where('status', 'playing')
+            ->with(['homeTeam', 'awayTeam', 'field', 'group'])
+            ->get()
+            ->map(function($game) {
+                return [
+                    'id' => $game->id,
+                    'group' => $game->group?->name ?? 'Canlı Maç',
+                    'home_team' => $game->homeTeam->name,
+                    'away_team' => $game->awayTeam->name,
+                    'home_score' => $game->home_score ?? 0,
+                    'away_score' => $game->away_score ?? 0,
+                    'minute' => $game->started_at ? (int) floor(min(5400, abs(now()->timestamp - $game->started_at->timestamp)) / 60) : 0,
+                    'field' => $game->field?->name,
+                ];
+            });
+
+        $lastResults = \App\Models\Game::where('tournament_id', $activeTournament->id)
+            ->where('status', 'completed')
             ->with(['homeTeam', 'awayTeam', 'field', 'group'])
             ->orderBy('scheduled_at', 'desc')
-            ->limit(12)
+            ->limit(8)
             ->get()
             ->map(function($game) {
                 return [
@@ -68,7 +86,24 @@ Route::get('/', function (\App\Services\StatsService $statsService) {
                 ];
             });
 
-        $nextMatch = \App\Models\Game::where('status', 'planned')
+        $upcomingFixtures = \App\Models\Game::where('tournament_id', $activeTournament->id)
+            ->where('status', 'scheduled')
+            ->with(['homeTeam', 'awayTeam', 'field', 'group'])
+            ->orderBy('scheduled_at', 'asc')
+            ->limit(8)
+            ->get()
+            ->map(function($game) {
+                return [
+                    'group' => $game->group?->name ?? 'Grup',
+                    'home_team' => $game->homeTeam->name,
+                    'away_team' => $game->awayTeam->name,
+                    'scheduled_at' => $game->scheduled_at ? $game->scheduled_at->toDateTimeString() : null,
+                    'status' => $game->status,
+                    'field' => $game->field?->name,
+                ];
+            });
+
+        $nextMatch = \App\Models\Game::where('status', 'scheduled')
             ->where('scheduled_at', '>=', now())
             ->with(['homeTeam', 'awayTeam', 'field'])
             ->orderBy('scheduled_at', 'asc')
@@ -89,7 +124,9 @@ Route::get('/', function (\App\Services\StatsService $statsService) {
         'activeTournament' => $activeTournament,
         'approvedTeams' => $approvedTeams,
         'groupStandings' => $groupStandings,
-        'groupFixtures' => $groupFixtures,
+        'liveMatches' => $liveMatches,
+        'lastResults' => $lastResults,
+        'upcomingFixtures' => $upcomingFixtures,
         'homepageStats' => $homepageStats,
         'totalStats' => [
             'approvedTeams' => \App\Models\Team::where('status', 'approved')->count(),

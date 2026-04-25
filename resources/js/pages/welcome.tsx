@@ -10,6 +10,8 @@ import {
     Zap,
     Shield,
     Star,
+    Calendar,
+    MapPin,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -65,7 +67,17 @@ interface PageProps {
             points: number;
         }>;
     }>;
-    groupFixtures: Array<{
+    liveMatches: Array<{
+        id: number;
+        group: string;
+        home_team: string;
+        away_team: string;
+        home_score: number;
+        away_score: number;
+        minute: number;
+        field?: string;
+    }>;
+    lastResults: Array<{
         group: string;
         home_team: string;
         away_team: string;
@@ -73,6 +85,14 @@ interface PageProps {
         status: string;
         home_score: number | null;
         away_score: number | null;
+        field?: string | null;
+    }>;
+    upcomingFixtures: Array<{
+        group: string;
+        home_team: string;
+        away_team: string;
+        scheduled_at: string | null;
+        status: string;
         field?: string | null;
     }>;
     homepageStats: {
@@ -104,7 +124,9 @@ export default function Welcome({
     activeTournament, 
     approvedTeams = [], 
     groupStandings = [], 
-    groupFixtures = [], 
+    liveMatches = [],
+    lastResults = [], 
+    upcomingFixtures = [],
     homepageStats = null, 
     totalStats,
     nextMatch = null,
@@ -236,80 +258,201 @@ export default function Welcome({
                     </div>
                 </section>
 
-                {/* Next Match Ribbon (Integrated) */}
-                {nextMatch && (
-                    <div className="container max-w-5xl px-6 -mt-10 mb-20">
-                        <div className="bg-orange-600 rounded-[2.5rem] p-8 text-white shadow-2xl shadow-orange-600/20 flex flex-col md:flex-row items-center justify-between gap-8 relative overflow-hidden group">
-                            <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:scale-110 transition-transform">
-                                <Trophy className="h-32 w-32 -mr-10 -mt-10" />
-                            </div>
-                            <div className="relative z-10 flex-1 text-center md:text-left">
-                                <span className="text-[10px] font-black uppercase tracking-[0.3em] opacity-80 mb-2 block">SIRADAKİ HEYECAN</span>
-                                <h3 className="text-2xl md:text-3xl font-black uppercase tracking-tight">{nextMatch.home_team} <span className="text-orange-200">vs</span> {nextMatch.away_team}</h3>
-                            </div>
-                            <div className="relative z-10 flex items-center gap-4 bg-white/10 backdrop-blur-md px-6 py-4 rounded-3xl border border-white/20">
-                                <div className="text-center">
-                                    <span className="text-[10px] font-black uppercase tracking-widest block opacity-70 mb-1">{getMatchDateMeta(nextMatch.scheduled_at).dayLabel}</span>
-                                    <span className="text-xl font-black">{getMatchDateMeta(nextMatch.scheduled_at).time}</span>
-                                </div>
-                                <div className="w-px h-8 bg-white/20" />
-                                <div className="text-sm font-bold opacity-90">{nextMatch.field || 'Merkez Saha'}</div>
-                            </div>
+                {/* Live Matches Section (Symmetrical Karayolları Style) */}
+                {liveMatches.length > 0 && (
+                    <section className="container mx-auto px-6 mb-24 max-w-7xl relative z-30">
+                        <div className="flex items-center gap-3 mb-10 border-l-4 border-orange-600 pl-4">
+                            <span className="relative flex h-3 w-3">
+                                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-orange-400 opacity-75"></span>
+                                <span className="relative inline-flex rounded-full h-3 w-3 bg-orange-600"></span>
+                            </span>
+                            <h2 className="text-2xl font-black uppercase tracking-tighter">CANLI MAÇ MERKEZİ</h2>
                         </div>
-                    </div>
-                )}
-
-                {/* Data Sections Grid */}
-                <section className="container mx-auto px-6 mb-32 max-w-7xl">
-                    <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-                        {/* Column 1: Standings */}
-                        <div className="lg:col-span-2 space-y-8">
-                            <div className="flex items-center justify-between border-l-4 border-orange-600 pl-4">
-                                <h2 className="text-2xl font-black uppercase tracking-tighter">GRUP PUAN DURUMLARI</h2>
-                            </div>
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                                {groupStandings?.map((group) => (
-                                    <Card key={group.name} className="border-orange-100 bg-white rounded-[2rem] p-6 shadow-sm flex flex-col h-full">
-                                        <div className="flex items-center justify-between mb-6">
-                                            <h3 className="font-black text-orange-600 uppercase tracking-widest text-xs">{group.name}</h3>
-                                            <Badge variant="secondary" className="bg-orange-50 text-orange-700 font-bold text-[9px] border-none">{group.rows.length} TAKIM</Badge>
-                                        </div>
-                                        <div className="flex-1 space-y-2">
-                                            <div className="grid grid-cols-[25px_1fr_30px_30px_30px] text-[9px] font-black text-slate-400 uppercase px-2 mb-2">
-                                                <span>#</span><span>TAKIM</span><span className="text-center">O</span><span className="text-center">A</span><span className="text-center text-orange-600">P</span>
+                        
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                            {liveMatches.map((match) => (
+                                <Link key={match.id} href={`/games/${match.id}`} className="group">
+                                    <Card className="border-orange-200 bg-white/80 backdrop-blur-md rounded-[2.5rem] p-8 shadow-xl shadow-orange-600/5 hover:border-orange-600 transition-all duration-500 overflow-hidden relative border-2">
+                                        {/* Decorative Pulse Background */}
+                                        <div className="absolute inset-0 bg-gradient-to-br from-orange-50/50 to-transparent pointer-events-none" />
+                                        
+                                        <div className="relative z-10 flex flex-col gap-6">
+                                            {/* Top Metadata */}
+                                            <div className="flex items-center justify-between pb-4 border-b border-orange-100">
+                                                <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">{match.group}</span>
+                                                <div className="flex items-center gap-2 bg-orange-600 text-white px-3 py-1 rounded-full shadow-md shadow-orange-600/20">
+                                                    <span className="text-[11px] font-black tabular-nums">{match.minute}'</span>
+                                                </div>
                                             </div>
-                                            {group.rows.map((row, idx) => {
-                                                const isAdvancing = idx < group.advance_count;
-                                                return (
-                                                    <div key={idx} className={`grid grid-cols-[25px_1fr_30px_30px_30px] items-center text-xs border rounded-xl px-2 py-2 transition-colors ${isAdvancing ? 'bg-orange-50/50 border-orange-200' : 'bg-slate-50/30 border-slate-50'}`}>
-                                                        <span className={`h-5 w-5 flex items-center justify-center rounded-full text-[9px] font-black ${isAdvancing ? 'bg-orange-600 text-white' : 'bg-slate-200 text-slate-500'}`}>{idx + 1}</span>
-                                                        <span className={`font-bold truncate pr-2 ${isAdvancing ? 'text-slate-900' : 'text-slate-700'}`}>{row.team.name}</span>
-                                                        <span className="text-center text-slate-500 font-semibold">{row.played}</span>
-                                                        <span className="text-center text-slate-500 font-semibold">{row.goal_difference}</span>
-                                                        <span className="text-center font-black text-orange-600">{row.points}</span>
+
+                                            {/* Symmetrical Match UI */}
+                                            <div className="flex items-center justify-between gap-4">
+                                                {/* Home Team */}
+                                                <div className="flex-1 flex flex-col items-center gap-3">
+                                                    <div className="w-16 h-16 bg-orange-50 rounded-2xl flex items-center justify-center border border-orange-100 group-hover:bg-orange-600 group-hover:text-white transition-all duration-500">
+                                                        <span className="text-2xl font-black">{match.home_team.charAt(0)}</span>
                                                     </div>
-                                                );
-                                            })}
-                                        </div>
-                                        {group.advance_count > 0 && (
-                                            <div className="mt-4 pt-4 border-t border-slate-50">
-                                                <p className="text-[8px] font-black text-orange-600 uppercase tracking-widest flex items-center gap-1">
-                                                    <Zap className="h-3 w-3" /> İLK {group.advance_count} TAKIM ÜST TURA ÇIKAR
+                                                    <span className="text-sm font-black text-slate-900 uppercase tracking-tighter text-center">{match.home_team}</span>
+                                                </div>
+
+                                                {/* Score Central */}
+                                                <div className="flex flex-col items-center gap-2">
+                                                    <div className="bg-slate-900 text-white px-6 py-4 rounded-[1.5rem] flex items-center gap-4 shadow-xl">
+                                                        <span className="text-4xl font-black tabular-nums">{match.home_score}</span>
+                                                        <span className="text-2xl font-black text-orange-500">:</span>
+                                                        <span className="text-4xl font-black tabular-nums">{match.away_score}</span>
+                                                    </div>
+                                                    <div className="flex items-center gap-1.5">
+                                                        <div className="w-1.5 h-1.5 rounded-full bg-orange-600 animate-pulse" />
+                                                        <span className="text-[9px] font-black text-orange-600 uppercase tracking-widest">CANLI</span>
+                                                    </div>
+                                                </div>
+
+                                                {/* Away Team */}
+                                                <div className="flex-1 flex flex-col items-center gap-3">
+                                                    <div className="w-16 h-16 bg-orange-50 rounded-2xl flex items-center justify-center border border-orange-100 group-hover:bg-orange-600 group-hover:text-white transition-all duration-500">
+                                                        <span className="text-2xl font-black">{match.away_team.charAt(0)}</span>
+                                                    </div>
+                                                    <span className="text-sm font-black text-slate-900 uppercase tracking-tighter text-center">{match.away_team}</span>
+                                                </div>
+                                            </div>
+
+                                            {/* Footer Info */}
+                                            <div className="flex items-center justify-center pt-4 border-t border-orange-100">
+                                                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest flex items-center gap-2">
+                                                    <Zap className="h-3 w-3 text-orange-600" /> {match.field || 'Merkez Saha'}
                                                 </p>
                                             </div>
-                                        )}
+                                        </div>
                                     </Card>
-                                ))}
+                                </Link>
+                            ))}
+                        </div>
+                    </section>
+                )}
+
+                {/* Next Match Section (Card Compatible Style) - Only if no live matches */}
+                {nextMatch && liveMatches.length === 0 && (
+                    <section className="container mx-auto px-6 mb-24 max-w-7xl relative z-30">
+                        <div className="flex items-center justify-center md:justify-start gap-3 mb-10 border-l-0 md:border-l-4 border-orange-600 pl-0 md:pl-4 text-center md:text-left">
+                            <h2 className="text-2xl font-black uppercase tracking-tighter">SIRADAKİ HEYECAN</h2>
+                        </div>
+                        
+                        <div className="flex justify-center w-full">
+                            <div className="w-full max-w-2xl lg:max-w-3xl">
+                                <Card className="border-orange-200 bg-white/80 backdrop-blur-md rounded-[2.5rem] p-6 md:p-10 shadow-xl shadow-orange-600/5 border-2 relative overflow-hidden group">
+                                    {/* Decorative Background Icon */}
+                                    <div className="absolute top-0 right-0 p-8 opacity-[0.03] pointer-events-none group-hover:scale-110 transition-transform">
+                                        <Trophy className="h-48 w-48 -mr-12 -mt-12" />
+                                    </div>
+                                    
+                                    <div className="relative z-10 flex flex-col gap-6 md:gap-8">
+                                        {/* Top Info */}
+                                        <div className="flex flex-col md:flex-row items-center justify-between gap-4 pb-4 border-b border-orange-100">
+                                            <div className="flex items-center gap-2">
+                                                <Calendar className="h-4 w-4 text-orange-600" />
+                                                <span className="text-[10px] md:text-[11px] font-black text-slate-500 uppercase tracking-widest text-center">
+                                                    {getMatchDateMeta(nextMatch.scheduled_at).dayLabel} • {getMatchDateMeta(nextMatch.scheduled_at).time}
+                                                </span>
+                                            </div>
+                                            <Badge variant="outline" className="border-orange-600/20 text-orange-600 font-black text-[8px] md:text-[9px] uppercase tracking-widest bg-orange-600/5 px-3 py-1">
+                                                YAKLAŞAN MAÇ
+                                            </Badge>
+                                        </div>
+
+                                        {/* Symmetrical Teams UI - Responsive Stack */}
+                                        <div className="flex flex-col md:flex-row items-center justify-between gap-8 md:gap-12">
+                                            {/* Home Team */}
+                                            <div className="flex-1 flex flex-col items-center gap-3 md:gap-4 w-full">
+                                                <div className="w-16 h-16 md:w-20 md:h-20 bg-orange-50 rounded-2xl md:rounded-3xl flex items-center justify-center border border-orange-100 group-hover:bg-orange-600 group-hover:text-white transition-all duration-500 shadow-sm">
+                                                    <span className="text-2xl md:text-3xl font-black">{nextMatch.home_team.charAt(0)}</span>
+                                                </div>
+                                                <span className="text-base md:text-xl font-black text-slate-900 uppercase tracking-tighter text-center">{nextMatch.home_team}</span>
+                                            </div>
+
+                                            {/* VS Central */}
+                                            <div className="flex flex-row md:flex-col items-center gap-4 md:gap-3">
+                                                <div className="hidden md:block h-1 w-12 bg-gradient-to-r from-transparent via-orange-200 to-transparent" />
+                                                <div className="w-12 h-12 md:w-16 md:h-16 bg-slate-900 text-white rounded-full flex items-center justify-center text-lg md:text-2xl font-black shadow-xl ring-4 ring-orange-50 shrink-0">
+                                                    VS
+                                                </div>
+                                                <div className="hidden md:block h-1 w-12 bg-gradient-to-r from-transparent via-orange-200 to-transparent" />
+                                            </div>
+
+                                            {/* Away Team */}
+                                            <div className="flex-1 flex flex-col items-center gap-3 md:gap-4 w-full">
+                                                <div className="w-16 h-16 md:w-20 md:h-20 bg-orange-50 rounded-2xl md:rounded-3xl flex items-center justify-center border border-orange-100 group-hover:bg-orange-600 group-hover:text-white transition-all duration-500 shadow-sm">
+                                                    <span className="text-2xl md:text-3xl font-black">{nextMatch.away_team.charAt(0)}</span>
+                                                </div>
+                                                <span className="text-base md:text-xl font-black text-slate-900 uppercase tracking-tighter text-center">{nextMatch.away_team}</span>
+                                            </div>
+                                        </div>
+
+                                        {/* Footer Info */}
+                                        <div className="flex items-center justify-center pt-6 border-t border-orange-100">
+                                            <p className="text-[10px] md:text-[11px] font-bold text-slate-400 uppercase tracking-widest flex items-center gap-2">
+                                                <MapPin className="h-4 w-4 text-orange-600" /> {nextMatch.field || 'Merkez Saha'}
+                                            </p>
+                                        </div>
+                                    </div>
+                                </Card>
                             </div>
                         </div>
+                    </section>
+                )}
 
-                        {/* Column 2: Last Matches (Fixtures) */}
+                {/* Standings Grid Section */}
+                <section className="container mx-auto px-6 mb-32 max-w-7xl relative z-10">
+                    <div className="flex items-center justify-between border-l-4 border-orange-600 pl-4 mb-12">
+                        <h2 className="text-3xl font-black uppercase tracking-tighter">GRUP PUAN DURUMLARI</h2>
+                    </div>
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+                        {groupStandings?.map((group) => (
+                            <Card key={group.name} className="border-orange-100 bg-white rounded-[2.5rem] p-8 shadow-sm flex flex-col h-full hover:shadow-xl transition-all duration-500">
+                                <div className="flex items-center justify-between mb-8">
+                                    <h3 className="font-black text-orange-600 uppercase tracking-widest text-xs">{group.name}</h3>
+                                    <Badge variant="secondary" className="bg-orange-50 text-orange-700 font-bold text-[9px] border-none">{group.rows.length} TAKIM</Badge>
+                                </div>
+                                <div className="flex-1 space-y-3">
+                                    <div className="grid grid-cols-[25px_1fr_30px_30px_30px] text-[9px] font-black text-slate-400 uppercase px-2 mb-2">
+                                        <span>#</span><span>TAKIM</span><span className="text-center">O</span><span className="text-center">A</span><span className="text-center text-orange-600">P</span>
+                                    </div>
+                                    {group.rows.map((row, idx) => {
+                                        const isAdvancing = idx < group.advance_count;
+                                        return (
+                                            <div key={idx} className={`grid grid-cols-[25px_1fr_30px_30px_30px] items-center text-xs border rounded-xl px-2 py-2.5 transition-colors ${isAdvancing ? 'bg-orange-50/50 border-orange-100' : 'bg-slate-50/30 border-slate-50'}`}>
+                                                <span className={`h-5 w-5 flex items-center justify-center rounded-full text-[9px] font-black ${isAdvancing ? 'bg-orange-600 text-white' : 'bg-slate-200 text-slate-500'}`}>{idx + 1}</span>
+                                                <span className={`font-bold truncate pr-2 ${isAdvancing ? 'text-slate-900' : 'text-slate-700'}`}>{row.team.name}</span>
+                                                <span className="text-center text-slate-500 font-semibold">{row.played}</span>
+                                                <span className="text-center text-slate-500 font-semibold">{row.goal_difference}</span>
+                                                <span className="text-center font-black text-orange-600">{row.points}</span>
+                                            </div>
+                                        );
+                                    })}
+                                </div>
+                                {group.advance_count > 0 && (
+                                    <div className="mt-6 pt-6 border-t border-slate-50">
+                                        <p className="text-[9px] font-black text-orange-600 uppercase tracking-widest flex items-center gap-2">
+                                            <Zap className="h-4 w-4" /> İLK {group.advance_count} TAKIM ÜST TURA ÇIKAR
+                                        </p>
+                                    </div>
+                                )}
+                            </Card>
+                        ))}
+                    </div>
+                </section>
+
+                {/* Symmetrical Results & Upcoming Section */}
+                <section className="container mx-auto px-6 mb-32 max-w-7xl relative z-10">
+                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-12">
+                        {/* Column 1: Last Results */}
                         <div className="space-y-8">
                             <div className="flex items-center justify-between border-l-4 border-slate-900 pl-4">
                                 <h2 className="text-2xl font-black uppercase tracking-tighter">SON SONUÇLAR</h2>
+                                <Link href="/games" className="text-[10px] font-black text-orange-600 uppercase tracking-widest hover:underline">TÜMÜ</Link>
                             </div>
-                            <div className="bg-white border border-orange-100 rounded-[2rem] p-6 shadow-sm space-y-4">
-                                {(groupFixtures || []).slice(0, 8).map((game, idx) => {
+                            <div className="bg-white border border-orange-100 rounded-[2.5rem] p-8 shadow-sm space-y-4">
+                                {lastResults.length > 0 ? lastResults.map((game, idx) => {
                                     const dateMeta = getMatchDateMeta(game.scheduled_at);
                                     return (
                                         <div key={idx} className="border-b border-slate-50 last:border-none pb-4 last:pb-0">
@@ -317,26 +460,55 @@ export default function Welcome({
                                                 <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest">{game.group}</span>
                                                 <span className="text-[9px] font-bold text-orange-600 uppercase">{dateMeta.fullDate}</span>
                                             </div>
-                                            <div className="flex items-center justify-between gap-4">
-                                                <span className="flex-1 text-xs font-bold text-slate-800 text-right truncate">{game.home_team}</span>
-                                                <div className="bg-slate-900 text-white text-[10px] font-black px-2.5 py-1 rounded-lg min-w-[45px] text-center">
-                                                    {game.status === 'completed' ? `${game.home_score}-${game.away_score}` : dateMeta.time}
+                                            <div className="grid grid-cols-[1fr_50px_1fr] items-center gap-4">
+                                                <span className="text-xs font-bold text-slate-800 text-right truncate">{game.home_team}</span>
+                                                <div className="bg-slate-900 text-white text-[10px] font-black px-2 py-1 rounded-lg text-center">
+                                                    {game.home_score}-{game.away_score}
                                                 </div>
-                                                <span className="flex-1 text-xs font-bold text-slate-800 text-left truncate">{game.away_team}</span>
+                                                <span className="text-xs font-bold text-slate-800 text-left truncate">{game.away_team}</span>
                                             </div>
                                         </div>
-                                    );
-                                })}
-                                <Link href="/games">
-                                    <Button variant="ghost" className="w-full text-slate-400 font-black text-[10px] tracking-widest hover:text-orange-600 mt-4">TÜM FİKSTÜR</Button>
-                                </Link>
+                                    )
+                                }) : (
+                                    <p className="text-center text-slate-400 py-12 text-sm font-medium italic">Henüz tamamlanan maç yok.</p>
+                                )}
+                            </div>
+                        </div>
+
+                        {/* Column 2: Upcoming Matches */}
+                        <div className="space-y-8">
+                            <div className="flex items-center justify-between border-l-4 border-orange-600 pl-4">
+                                <h2 className="text-2xl font-black uppercase tracking-tighter">GELECEK MAÇLAR</h2>
+                                <Link href="/games" className="text-[10px] font-black text-orange-600 uppercase tracking-widest hover:underline">FİKSTÜR</Link>
+                            </div>
+                            <div className="bg-white border border-orange-100 rounded-[2.5rem] p-8 shadow-sm space-y-4">
+                                {upcomingFixtures.length > 0 ? upcomingFixtures.map((game, idx) => {
+                                    const dateMeta = getMatchDateMeta(game.scheduled_at);
+                                    return (
+                                        <div key={idx} className="border-b border-slate-50 last:border-none pb-4 last:pb-0">
+                                            <div className="flex items-center justify-between mb-2">
+                                                <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest">{game.group}</span>
+                                                <span className="text-[9px] font-bold text-orange-600 uppercase">{dateMeta.dayLabel === 'Bugun' ? 'BUGÜN' : dateMeta.fullDate}</span>
+                                            </div>
+                                            <div className="grid grid-cols-[1fr_60px_1fr] items-center gap-4">
+                                                <span className="text-xs font-bold text-slate-800 text-right truncate">{game.home_team}</span>
+                                                <div className="bg-orange-50 text-orange-600 text-[10px] font-black px-2 py-1 rounded-lg text-center border border-orange-100">
+                                                    {dateMeta.time}
+                                                </div>
+                                                <span className="text-xs font-bold text-slate-800 text-left truncate">{game.away_team}</span>
+                                            </div>
+                                        </div>
+                                    )
+                                }) : (
+                                    <p className="text-center text-slate-400 py-12 text-sm font-medium italic">Planlanmış maç bulunmuyor.</p>
+                                )}
                             </div>
                         </div>
                     </div>
                 </section>
 
                 {/* Statistics Symmetry (3 Columns - Light Theme) */}
-                <section className="bg-orange-50/50 border-y border-orange-100 py-24 px-6">
+                <section className="bg-orange-50/50 border-y border-orange-100 py-24 px-6 relative z-10">
                     <div className="container mx-auto max-w-7xl">
                         <div className="text-center mb-16">
                             <Badge className="bg-orange-600 text-white border-none mb-4 px-4 py-1">PREMİUM STATS</Badge>
@@ -404,7 +576,7 @@ export default function Welcome({
                 </section>
 
                 {/* Big Stats Ribbon */}
-                <section className="py-32 px-6">
+                <section className="py-32 px-6 relative z-10">
                     <div className="container mx-auto max-w-5xl">
                         <div className="grid grid-cols-1 md:grid-cols-3 gap-12">
                             {stats.map((stat, idx) => (
@@ -424,7 +596,7 @@ export default function Welcome({
             </main>
 
             {/* Footer */}
-            <footer className="bg-slate-50 border-t border-slate-200 py-20 px-6">
+            <footer className="bg-slate-50 border-t border-slate-200 py-20 px-6 relative z-10">
                 <div className="container mx-auto max-w-7xl">
                     <div className="flex flex-col md:flex-row items-center justify-between gap-12">
                         <div className="flex flex-col items-center md:items-start gap-4">
