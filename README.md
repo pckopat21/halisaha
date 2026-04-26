@@ -135,5 +135,3 @@ Kodda yaptığınız frontend (React/CSS) değişikliklerinin canlıda görünme
 > Sistem yerel saat olarak `Europe/Istanbul` (UTC+3) kullanmaktadır. Tüm işlem zamanları bu dile göre kaydedilir.
 
 ---
-
-Geliştiren: Antigravity AI
