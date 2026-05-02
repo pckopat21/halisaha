@@ -1,7 +1,7 @@
 import AppLayout from '@/layouts/app-layout';
 import { type BreadcrumbItem } from '@/types';
 import { Head, usePage, router, Link } from '@inertiajs/react';
-import { Trophy, Clock, User, AlertTriangle, Goal, Ban, Repeat, X, Shield, Play, CheckCircle2, Timer as TimerIcon, ArrowLeft, Activity, Target, Undo2, AlertCircle, Info, Users, MapPin } from 'lucide-react';
+import { Trophy, Clock, User, AlertTriangle, Goal, Ban, Repeat, X, Shield, Play, CheckCircle2, Timer as TimerIcon, ArrowLeft, Activity, Target, Undo2, AlertCircle, Info, Users, MapPin, Tv } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -50,9 +50,9 @@ interface Game {
     rosters: any[];
     scheduled_at: string;
     started_at: string | null;
-    home_penalty_score?: number;
     away_penalty_score?: number;
     field?: Field | null;
+    live_stream_url?: string | null;
 }
 
 interface Props {
@@ -284,6 +284,24 @@ export default function Show({ game }: Props) {
                                                  game.status === 'playing' ? `${matchMinute}. DAKİKA` : 'MÜSABAKA BİTTİ'}
                                             </span>
                                         </div>
+                                        {game.live_stream_url && (
+                                            <a 
+                                                href={game.live_stream_url} 
+                                                target="_blank" 
+                                                rel="noopener noreferrer"
+                                                className="border-l border-white/10 pl-6 flex items-center gap-2 group/stream"
+                                            >
+                                                <div className="relative">
+                                                    <Tv className="h-4 w-4 text-rose-500 animate-pulse" />
+                                                    {game.status === 'playing' && (
+                                                        <span className="absolute -top-1 -right-1 w-2 h-2 bg-rose-600 rounded-full animate-ping" />
+                                                    )}
+                                                </div>
+                                                <span className="font-black uppercase tracking-widest text-[10px] text-rose-500 group-hover/stream:underline decoration-2 underline-offset-4">
+                                                    {game.status === 'playing' ? 'CANLI İZLE' : 'YAYIN LİNKİ'}
+                                                </span>
+                                            </a>
+                                        )}
                                         {game.field && (
                                             <div className="flex items-center gap-2 border-l border-white/10 pl-6">
                                                 <MapPin className="h-4 w-4 text-rose-500" />
@@ -376,24 +394,58 @@ export default function Show({ game }: Props) {
                         
                         {canManageEvents && game.status !== 'completed' && (
                             <Card className="border-none shadow-2xl bg-blue-600 text-white rounded-[3rem] overflow-hidden">
-                                <CardHeader className="p-8 pb-4">
-                                    <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-                                        <div>
-                                            <CardTitle className="text-xl font-black uppercase tracking-tighter">HAKEM HİZLI PANELİ</CardTitle>
-                                            <CardDescription className="text-[10px] font-black uppercase tracking-widest text-blue-100 opacity-80 mt-1">ANLIK OLAY GİRİŞİ VE MAÇ YÖNETİMİ</CardDescription>
+                                <CardContent className="p-8 space-y-8">
+                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                                        <div className="space-y-4">
+                                            <div className="flex items-center gap-2 mb-2">
+                                                <Tv className="h-4 w-4 text-white" />
+                                                <span className="text-[10px] font-black uppercase tracking-widest">CANLI YAYIN AYARLARI</span>
+                                            </div>
+                                            <div className="flex gap-2">
+                                                <input 
+                                                    type="url" 
+                                                    id="live_stream_input"
+                                                    placeholder="YouTube / Twitch Yayın Linki"
+                                                    defaultValue={game.live_stream_url || ''}
+                                                    className="flex-1 h-12 bg-white/10 rounded-xl border border-white/20 px-4 font-bold text-xs focus:outline-none focus:ring-2 focus:ring-white/50 placeholder:text-white/20"
+                                                />
+                                                <Button 
+                                                    onClick={() => {
+                                                        const val = (document.getElementById('live_stream_input') as HTMLInputElement).value;
+                                                        router.post(route('games.quick-result', game.id), { 
+                                                            live_stream_url: val,
+                                                            status: game.status,
+                                                            home_score: game.home_score,
+                                                            away_score: game.away_score,
+                                                            scheduled_at: game.scheduled_at
+                                                        }, { preserveScroll: true });
+                                                    }}
+                                                    className="h-12 px-6 bg-white text-blue-600 hover:bg-blue-50 font-black uppercase tracking-widest text-[10px] rounded-xl"
+                                                >
+                                                    KAYDET
+                                                </Button>
+                                            </div>
+                                            <p className="text-[9px] font-medium text-blue-100 opacity-60 italic">Yayın linkini buraya yapıştırıp enter tuşuna basabilirsiniz.</p>
                                         </div>
-                                        <div className="flex items-center gap-4 bg-white/10 p-2 rounded-2xl border border-white/10">
-                                            <span className="text-[10px] font-black uppercase tracking-widest ml-4">DAKİKA:</span>
-                                            <input 
-                                                type="number" 
-                                                value={selectedMinute}
-                                                onChange={(e) => setSelectedMinute(e.target.value)}
-                                                className="w-16 h-10 bg-white/10 rounded-xl border border-white/20 text-center font-black text-lg focus:outline-none focus:ring-2 focus:ring-white/50"
-                                            />
+
+                                        <div className="space-y-4">
+                                            <div className="flex items-center gap-2 mb-2">
+                                                <Clock className="h-4 w-4 text-white" />
+                                                <span className="text-[10px] font-black uppercase tracking-widest">MAÇ DAKİKASI</span>
+                                            </div>
+                                            <div className="flex items-center gap-4 bg-white/10 p-2 rounded-2xl border border-white/10 w-fit">
+                                                <span className="text-[10px] font-black uppercase tracking-widest ml-4">DAKİKA:</span>
+                                                <input 
+                                                    type="number" 
+                                                    value={selectedMinute}
+                                                    onChange={(e) => setSelectedMinute(e.target.value)}
+                                                    className="w-16 h-10 bg-white/10 rounded-xl border border-white/20 text-center font-black text-lg focus:outline-none focus:ring-2 focus:ring-white/50"
+                                                />
+                                            </div>
                                         </div>
                                     </div>
-                                </CardHeader>
-                                <CardContent className="p-8 grid grid-cols-1 md:grid-cols-2 gap-8">
+
+                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-8 pt-8 border-t border-white/10">
                                     {[game.home_team, game.away_team].map((team) => (
                                         <div key={team.id} className="space-y-6">
                                             <div className="flex items-center justify-between gap-4">
@@ -468,6 +520,7 @@ export default function Show({ game }: Props) {
                                             </div>
                                         </div>
                                     ))}
+                                    </div>
                                 </CardContent>
                             </Card>
                         )}

@@ -22,7 +22,8 @@ class Game extends Model
         'home_penalty_score',
         'away_penalty_score',
         'round',
-        'started_at'
+        'started_at',
+        'live_stream_url'
     ];
 
     protected $casts = [

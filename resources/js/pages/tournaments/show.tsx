@@ -30,6 +30,7 @@ import {
     Trash2,
     Users2,
     ArrowUpDown,
+    Tv,
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Table, TableHeader, TableBody, TableHead, TableRow, TableCell } from '@/components/ui/table';
@@ -75,6 +76,7 @@ interface Game {
     home_penalty_score?: number;
     away_penalty_score?: number;
     field?: Field | null;
+    live_stream_url?: string | null;
 }
 
 interface Standing {
@@ -238,6 +240,7 @@ export default function Show({ tournament, teamStats, isGroupStageCompleted, sta
         away_score: 0,
         status: 'scheduled',
         scheduled_at: '',
+        live_stream_url: '',
     });
 
     const resetForm = useForm({
@@ -327,6 +330,7 @@ export default function Show({ tournament, teamStats, isGroupStageCompleted, sta
             away_score: game.away_score || 0,
             status: game.status,
             scheduled_at: format(new Date(game.scheduled_at), "yyyy-MM-dd'T'HH:mm"),
+            live_stream_url: game.live_stream_url || '',
         });
         setIsResultModalOpen(true);
     };
@@ -1519,7 +1523,7 @@ export default function Show({ tournament, teamStats, isGroupStageCompleted, sta
                                         </SelectTrigger>
                                         <SelectContent>
                                             <SelectItem value="scheduled">Planlandı</SelectItem>
-                                            <SelectItem value="live">Devam Ediyor</SelectItem>
+                                            <SelectItem value="playing">Devam Ediyor</SelectItem>
                                             <SelectItem value="completed">Tamamlandı</SelectItem>
                                         </SelectContent>
                                     </Select>
@@ -1530,9 +1534,22 @@ export default function Show({ tournament, teamStats, isGroupStageCompleted, sta
                                         type="datetime-local"
                                         value={resultForm.data.scheduled_at}
                                         onChange={e => resultForm.setData('scheduled_at', e.target.value)}
-                                        className="h-12 rounded-xl bg-muted/50 border-transparent font-bold"
                                     />
                                 </div>
+                            </div>
+
+                            <div className="space-y-2">
+                                <Label className="text-[10px] font-black text-muted-foreground uppercase tracking-widest flex items-center gap-2">
+                                    <Tv className="h-3 w-3 text-rose-500" /> CANLI YAYIN URL (YOUTUBE, TWITCH VB.)
+                                </Label>
+                                <Input
+                                    type="url"
+                                    placeholder="https://www.youtube.com/watch?v=..."
+                                    value={resultForm.data.live_stream_url}
+                                    onChange={e => resultForm.setData('live_stream_url', e.target.value)}
+                                    className="h-12 rounded-xl bg-muted/50 border-transparent font-bold"
+                                />
+                                <p className="text-[9px] text-muted-foreground font-medium italic">Buraya girilen link ana sayfadaki canlı maç merkezinde "CANLI İZLE" butonu olarak görünecektir.</p>
                             </div>
                         </div>
 

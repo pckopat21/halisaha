@@ -12,6 +12,7 @@ import {
     Star,
     Calendar,
     MapPin,
+    Tv,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -76,8 +77,10 @@ interface PageProps {
         away_score: number;
         minute: number;
         field?: string;
+        live_stream_url?: string | null;
     }>;
     lastResults: Array<{
+        id: number;
         group: string;
         home_team: string;
         away_team: string;
@@ -86,6 +89,7 @@ interface PageProps {
         home_score: number | null;
         away_score: number | null;
         field?: string | null;
+        live_stream_url?: string | null;
     }>;
     upcomingFixtures: Array<{
         group: string;
@@ -318,10 +322,24 @@ export default function Welcome({
                                             </div>
 
                                             {/* Footer Info */}
-                                            <div className="flex items-center justify-center pt-4 border-t border-orange-100">
+                                            <div className="flex flex-col items-center justify-center pt-4 border-t border-orange-100 gap-3">
                                                 <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest flex items-center gap-2">
                                                     <Zap className="h-3 w-3 text-orange-600" /> {match.field || 'Merkez Saha'}
                                                 </p>
+                                                
+                                                {match.live_stream_url && (
+                                                    <a 
+                                                        href={match.live_stream_url} 
+                                                        target="_blank" 
+                                                        rel="noopener noreferrer"
+                                                        onClick={(e) => e.stopPropagation()}
+                                                        className="w-full relative z-20"
+                                                    >
+                                                        <Button className="w-full bg-rose-600 hover:bg-rose-700 text-white font-black uppercase tracking-widest text-[10px] rounded-xl h-10 shadow-lg shadow-rose-600/20 gap-2 animate-pulse">
+                                                            <Tv className="h-4 w-4" /> CANLI İZLE
+                                                        </Button>
+                                                    </a>
+                                                )}
                                             </div>
                                         </div>
                                     </Card>
@@ -460,12 +478,28 @@ export default function Welcome({
                                                 <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest">{game.group}</span>
                                                 <span className="text-[9px] font-bold text-orange-600 uppercase">{dateMeta.fullDate}</span>
                                             </div>
-                                            <div className="grid grid-cols-[1fr_50px_1fr] items-center gap-4">
-                                                <span className="text-xs font-bold text-slate-800 text-right truncate">{game.home_team}</span>
-                                                <div className="bg-slate-900 text-white text-[10px] font-black px-2 py-1 rounded-lg text-center">
-                                                    {game.home_score}-{game.away_score}
+                                            <div className="flex items-center justify-between mb-2">
+                                                <div className="grid grid-cols-[1fr_50px_1fr] items-center gap-4 flex-1">
+                                                    <span className="text-xs font-bold text-slate-800 text-right truncate">{game.home_team}</span>
+                                                    <div className="bg-slate-900 text-white text-[10px] font-black px-2 py-1 rounded-lg text-center">
+                                                        {game.home_score}-{game.away_score}
+                                                    </div>
+                                                    <span className="text-xs font-bold text-slate-800 text-left truncate">{game.away_team}</span>
                                                 </div>
-                                                <span className="text-xs font-bold text-slate-800 text-left truncate">{game.away_team}</span>
+                                                {game.live_stream_url && (
+                                                    <a 
+                                                        href={game.live_stream_url} 
+                                                        target="_blank" 
+                                                        rel="noopener noreferrer"
+                                                        className="ml-4 shrink-0"
+                                                        title="Maç Yayını"
+                                                    >
+                                                        <div className="h-8 px-3 bg-rose-50 text-rose-600 rounded-lg flex items-center gap-2 border border-rose-100 hover:bg-rose-600 hover:text-white transition-all duration-300">
+                                                            <Tv className="h-3.5 w-3.5" />
+                                                            <span className="text-[9px] font-black uppercase tracking-widest">YAYIN</span>
+                                                        </div>
+                                                    </a>
+                                                )}
                                             </div>
                                         </div>
                                     )

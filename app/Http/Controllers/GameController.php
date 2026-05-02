@@ -117,9 +117,10 @@ class GameController extends Controller
             'away_score' => 'nullable|integer|min:0',
             'status' => 'required|string|in:scheduled,playing,completed',
             'scheduled_at' => 'nullable|date',
+            'live_stream_url' => 'nullable|string|max:255',
         ]);
 
-        $game->update(array_filter($validated, fn($val) => $val !== null));
+        $game->update($validated);
 
         if ($validated['status'] === 'playing' && !$game->started_at) {
             $game->update(['started_at' => now()]);
@@ -163,6 +164,7 @@ class GameController extends Controller
 
         // 2. Check for suspensions
         foreach ($players as $player) {
+            /** @var \App\Models\Player $player */
             $status = $this->disciplineService->isPlayerSuspended($player, $game);
             if ($status['is_suspended']) {
                 return redirect()->back()->withErrors(['error' => "{$player->first_name} cezalı olduğu için kadroya alınamaz: " . $status['reason']]);

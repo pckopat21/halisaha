@@ -18,6 +18,7 @@ import {
     UserPlus,
     Timer as TimerIcon,
     MapPin,
+    Tv,
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -52,6 +53,7 @@ interface Game {
     scheduled_at: string;
     started_at: string | null;
     field?: { id: number; name: string; location: string | null };
+    live_stream_url?: string | null;
 }
 
 interface Props {
@@ -220,12 +222,22 @@ export default function ManagerDashboard({ stats, team, standing, tournaments, u
                                             </div>
                                         </div>
 
-                                        <Link href={route('games.show', game.id)} className="mt-8 block">
-                                            <Button className="w-full bg-white text-slate-900 hover:bg-slate-100 dark:bg-white/10 dark:text-white dark:hover:bg-white/20 rounded-2xl h-14 font-black uppercase tracking-widest text-[10px] transition-all hover:scale-[1.01]">
-                                                MAÇI CANLI TAKİP ET
-                                                <Activity className="ml-3 h-4 w-4 text-rose-600" />
-                                            </Button>
-                                        </Link>
+                                        <div className="mt-8 flex flex-col md:flex-row gap-4">
+                                            <Link href={route('games.show', game.id)} className="flex-1">
+                                                <Button className="w-full bg-white/10 text-white hover:bg-white/20 border-none rounded-2xl h-14 font-black uppercase tracking-widest text-[10px] transition-all hover:scale-[1.01]">
+                                                    MAÇ DETAYLARI
+                                                    <Activity className="ml-3 h-4 w-4 text-blue-400" />
+                                                </Button>
+                                            </Link>
+                                            {game.live_stream_url && (
+                                                <a href={game.live_stream_url} target="_blank" rel="noopener noreferrer" className="flex-1">
+                                                    <Button className="w-full bg-rose-600 hover:bg-rose-700 text-white border-none rounded-2xl h-14 font-black uppercase tracking-widest text-[10px] transition-all hover:scale-[1.01] shadow-lg shadow-rose-600/30 animate-pulse">
+                                                        CANLI YAYIN
+                                                        <Tv className="ml-3 h-4 w-4" />
+                                                    </Button>
+                                                </a>
+                                            )}
+                                        </div>
                                     </CardContent>
                                 </Card>
                             ))}

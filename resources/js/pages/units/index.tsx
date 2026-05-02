@@ -64,7 +64,7 @@ export default function Index({ units }: Props) {
 
     // Filtered and Sorted list
     const filteredAndSortedUnits = useMemo(() => {
-        let result = units.filter(unit => 
+        const result = units.filter(unit => 
             unit.name.toLowerCase().includes(searchQuery.toLowerCase())
         );
 
