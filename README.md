@@ -134,4 +134,10 @@ Kodda yaptığınız frontend (React/CSS) değişikliklerinin canlıda görünme
 > [!IMPORTANT]
 > Sistem yerel saat olarak `Europe/Istanbul` (UTC+3) kullanmaktadır. Tüm işlem zamanları bu dile göre kaydedilir.
 
+
+Galeri resim ekleme işlemlerinde;
+Dosyaları Yükleyin: Değiştirdiğimiz Controller, Model ve web.php dosyalarını sunucuya yükleyin.
+JS Derleme: GalleryIndex.tsx dosyasında da değişiklik yaptığımız için, yerelde npm run build komutunu çalıştırın ve oluşan public/build klasörünü de sunucuya yükleyin.
+Fiziksel Klasörü Silin (Kritik): Eğer FTP'de public/storage isminde gerçek bir klasör varsa, onu mutlaka silin. Silmezseniz sembolik link oluşturulamaz.
+Kurtarma Sayfasını Ziyaret Edin: Dosyaları yükledikten sonra tarayıcıdan siteniz.com/fix-storage adresine bir kez girin. "Storage link created successfully!" mesajını görmelisiniz.
 ---

@@ -22,7 +22,19 @@ class GalleryController extends Controller
         return Inertia::render('gallery/index', [
             'tournaments' => $tournaments,
             'selectedTournament' => $selectedTournament,
-            'galleries' => $selectedTournament ? $selectedTournament->galleries()->orderBy('sort_order', 'asc')->get() : []
+            'galleries' => $selectedTournament 
+                ? $selectedTournament->galleries()
+                    ->orderBy('sort_order', 'asc')
+                    ->get()
+                    ->map(fn($g) => [
+                        'id' => $g->id,
+                        'image_path' => $g->image_path,
+                        'image_url' => asset('storage/' . $g->image_path),
+                        'title' => $g->title,
+                        'is_active' => $g->is_active,
+                        'sort_order' => $g->sort_order
+                    ]) 
+                : []
         ]);
     }
 

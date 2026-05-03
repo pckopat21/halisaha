@@ -6,6 +6,8 @@ use App\Models\Tournament;
 use App\Models\Team;
 use App\Models\Game;
 use App\Models\Player;
+use App\Models\Announcement;
+use App\Models\Prediction;
 use App\Services\StatsService;
 use App\Services\PredictionService;
 use Inertia\Inertia;
@@ -34,16 +36,30 @@ class HomeController extends Controller
             'activeTournament' => $activeTournament,
             'approvedTeams' => Team::where('status', 'approved')->with(['unit', 'players', 'captain'])->latest()->limit(8)->get(),
             'totalStats' => $this->getTotalStats($activeTournament),
-            'announcements' => \App\Models\Announcement::where('is_active', true)
+            'announcements' => Announcement::where('is_active', true)
                 ->orderBy('sort_order', 'asc')
                 ->orderBy('created_at', 'desc')
                 ->take(5)
                 ->get(),
             'predictionLeaderboard' => $this->predictionService->getLeaderboard($activeTournament?->id, 5),
-            'userPredictions' => auth()->check() && $activeTournament
-                ? \App\Models\Prediction::where('user_id', auth()->id())
-                    ->whereIn('game_id', Game::where('tournament_id', $activeTournament->id)->pluck('id'))
-                    ->get()
+            'playerOfTheWeek' => ($activeTournament ? $this->statsService->getTopScorers($activeTournament, 1)->first() : null)
+                ?? Player::select('players.*', \Illuminate\Support\Facades\DB::raw('count(match_events.id) as goals_count'))
+                    ->join('match_events', 'players.id', '=', 'match_events.player_id')
+                    ->where('match_events.event_type', 'goal')
+                    ->groupBy('players.id')
+                    ->orderByDesc('goals_count')
+                    ->with(['unit', 'teams'])
+                    ->first(),
+            'userPredictions' => $activeTournament
+                ? Prediction::where(function($q) {
+                    if (auth()->check()) {
+                        $q->where('user_id', auth()->id());
+                    } else {
+                        $q->where('ip_address', request()->ip());
+                    }
+                })
+                ->whereIn('game_id', Game::where('tournament_id', $activeTournament->id)->pluck('id'))
+                ->get()
                 : [],
             'canLogin' => Route::has('login'),
             'canRegister' => Route::has('register'),
@@ -65,14 +81,18 @@ class HomeController extends Controller
             'upcomingFixtures' => $this->getUpcomingFixtures($activeTournament),
             'nextMatch' => $this->getNextMatch($activeTournament),
             'homepageStats' => $this->getHomepageStats($activeTournament),
+            'allUpcomingGames' => $this->getAllUpcomingGames($activeTournament),
             'galleries' => $activeTournament->galleries()
                 ->where('is_active', true)
                 ->orderBy('sort_order', 'asc')
                 ->get()
                 ->map(fn($g) => [
                     'id' => $g->id,
+                    'image_path' => $g->image_path,
                     'image_url' => asset('storage/' . $g->image_path),
-                    'title' => $g->title
+                    'title' => $g->title,
+                    'is_active' => $g->is_active,
+                    'sort_order' => $g->sort_order
                 ]),
         ];
     }
@@ -114,7 +134,7 @@ class HomeController extends Controller
             ->where('status', 'completed')
             ->with(['homeTeam', 'awayTeam', 'field', 'group'])
             ->orderBy('scheduled_at', 'desc')
-            ->limit(4)
+            ->limit(8)
             ->get();
     }
 
@@ -124,7 +144,7 @@ class HomeController extends Controller
             ->where('status', 'scheduled')
             ->with(['homeTeam', 'awayTeam', 'field', 'group'])
             ->orderBy('scheduled_at', 'asc')
-            ->limit(4)
+            ->limit(8)
             ->get();
     }
 
@@ -160,6 +180,15 @@ class HomeController extends Controller
                 'team_name' => $p->teams->first()?->name ?? 'Takımsız'
             ])
         ];
+    }
+
+    private function getAllUpcomingGames($tournament)
+    {
+        return Game::where('tournament_id', $tournament->id)
+            ->where('status', 'scheduled')
+            ->with(['homeTeam', 'awayTeam', 'group', 'field'])
+            ->orderBy('scheduled_at', 'asc')
+            ->get();
     }
 
     private function getTotalStats($tournament)

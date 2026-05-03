@@ -32,13 +32,17 @@ class PredictionService
             if ($actualHome == $predHome && $actualAway == $predAway) {
                 $points = 10;
             } 
-            // 2. Correct Outcome (Win/Draw/Loss) (5 Points)
+            // 2. Correct Goal Difference (5 Points)
+            else if (($actualHome - $actualAway) === ($predHome - $predAway)) {
+                $points = 5;
+            }
+            // 3. Correct Outcome (Win/Draw/Loss) (3 Points)
             else {
                 $actualOutcome = $this->getOutcome($actualHome, $actualAway);
                 $predOutcome = $this->getOutcome($predHome, $predAway);
 
                 if ($actualOutcome === $predOutcome) {
-                    $points = 5;
+                    $points = 3;
                 }
             }
 
@@ -61,15 +65,28 @@ class PredictionService
             return [
                 'total' => 0,
                 'distribution' => ['home' => 0, 'draw' => 0, 'away' => 0],
+                'counts' => ['home' => 0, 'draw' => 0, 'away' => 0],
                 'common_scores' => []
             ];
         }
 
-        $homeWins = $predictions->filter(fn($p) => $p->home_score > $p->away_score)->count();
-        $draws = $predictions->filter(fn($p) => $p->home_score == $p->away_score)->count();
-        $awayWins = $predictions->filter(fn($p) => $p->home_score < $p->away_score)->count();
+        $homeWins = $predictions->filter(function($p) {
+            if ($p->prediction_type === 'outcome') return $p->outcome === 'home';
+            return $p->home_score > $p->away_score;
+        })->count();
 
-        $commonScores = $predictions->groupBy(fn($p) => "{$p->home_score}-{$p->away_score}")
+        $draws = $predictions->filter(function($p) {
+            if ($p->prediction_type === 'outcome') return $p->outcome === 'draw';
+            return $p->home_score == $p->away_score;
+        })->count();
+
+        $awayWins = $predictions->filter(function($p) {
+            if ($p->prediction_type === 'outcome') return $p->outcome === 'away';
+            return $p->home_score < $p->away_score;
+        })->count();
+
+        $commonScores = $predictions->where('prediction_type', 'exact')
+            ->groupBy(fn($p) => "{$p->home_score}-{$p->away_score}")
             ->map(fn($group) => $group->count())
             ->sortDesc()
             ->take(3);
@@ -77,11 +94,20 @@ class PredictionService
         return [
             'total' => $total,
             'distribution' => [
-                'home' => round(($homeWins / $total) * 100),
-                'draw' => round(($draws / $total) * 100),
-                'away' => round(($awayWins / $total) * 100),
+                'home' => $total > 0 ? round(($homeWins / $total) * 100) : 0,
+                'draw' => $total > 0 ? round(($draws / $total) * 100) : 0,
+                'away' => $total > 0 ? round(($awayWins / $total) * 100) : 0,
             ],
-            'common_scores' => $commonScores
+            'counts' => [
+                'home' => $homeWins,
+                'draw' => $draws,
+                'away' => $awayWins
+            ],
+            'common_scores' => $commonScores->map(fn($count, $score) => [
+                'score' => $score,
+                'count' => $count,
+                'percentage' => round(($count / $total) * 100)
+            ])->values()->toArray()
         ];
     }
 

@@ -4,6 +4,14 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
 
+/**
+ * @property int $id
+ * @property string $name
+ * @property int $year
+ * @property string $status
+ * @property int|null $champion_id
+ * @property array $settings
+ */
 class Tournament extends Model
 {
     protected $fillable = ['name', 'year', 'status', 'champion_id', 'settings'];

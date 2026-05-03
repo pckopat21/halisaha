@@ -23,6 +23,7 @@ import { useState } from 'react';
 interface Gallery {
     id: number;
     image_path: string;
+    image_url: string;
     title: string | null;
     description: string | null;
     is_active: boolean;
@@ -175,7 +176,7 @@ export default function GalleryIndex({ tournaments, selectedTournament, gallerie
                                 {galleries.length > 0 ? galleries.map((item) => (
                                     <div key={item.id} className="relative group aspect-square rounded-[2rem] overflow-hidden border border-border bg-muted/20">
                                         <img 
-                                            src={`/storage/${item.image_path}`} 
+                                            src={item.image_url} 
                                             alt={item.title || ''} 
                                             className={`w-full h-full object-cover transition-all duration-500 ${!item.is_active ? 'grayscale opacity-40' : 'group-hover:scale-110'}`}
                                         />

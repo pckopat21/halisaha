@@ -55,6 +55,11 @@ Route::get('games/{game}', [GameController::class, 'show'])->name('games.show');
 Route::get('api/players/search', [PlayerSearchController::class, 'search'])->name('api.players.search');
 Route::get('statistics', [StatisticsController::class, 'index'])->name('statistics.index');
 
+// Predictions (Accessible by guests for voting)
+Route::post('predictions', [PredictionController::class, 'store'])->name('predictions.store');
+Route::get('predictions/{game}/analyze', [PredictionController::class, 'analyze'])->name('predictions.analyze');
+Route::get('predictions/user/{user}', [PredictionController::class, 'userPredictions'])->name('predictions.user');
+
 // Protected Routes
 Route::middleware(['auth'])->group(function () {
     Route::get('dashboard', [DashboardController::class, 'index'])->name('dashboard');
@@ -105,11 +110,6 @@ Route::middleware(['auth'])->group(function () {
     Route::resource('fields', FieldController::class);
     Route::post('games/{game}/assign-field', [GameController::class, 'assignField'])->name('games.assign-field');
 
-    // Predictions
-    Route::post('predictions', [PredictionController::class, 'store'])->name('predictions.store');
-    Route::get('predictions/{game}/analyze', [PredictionController::class, 'analyze'])->name('predictions.analyze');
-    Route::get('predictions/user/{user}', [PredictionController::class, 'userPredictions'])->name('predictions.user');
-
     // Tournament Reports (PDF)
     Route::get('/reports/standings/{tournament}', [App\Http\Controllers\ReportController::class, 'standings'])->name('reports.standings');
     Route::get('/reports/fixture/{tournament}', [App\Http\Controllers\ReportController::class, 'fixture'])->name('reports.fixture');
@@ -126,6 +126,25 @@ Route::middleware(['auth'])->group(function () {
     Route::patch('announcements/{announcement}', [App\Http\Controllers\AnnouncementController::class, 'update'])->name('announcements.update');
     Route::delete('announcements/{announcement}', [App\Http\Controllers\AnnouncementController::class, 'destroy'])->name('announcements.destroy');
     Route::patch('announcements/{announcement}/toggle', [App\Http\Controllers\AnnouncementController::class, 'toggle'])->name('announcements.toggle');
+
+    // Storage Link Fix (Temporary Utility)
+    Route::get('fix-storage', function() {
+        if (file_exists(public_path('storage'))) {
+            // Check if it's a link or a directory
+            if (is_link(public_path('storage'))) {
+                return "Storage link already exists and is a symlink.";
+            }
+            // If it's a directory, we need to remove it (BE CAREFUL - this is why we ask)
+            return "A physical 'storage' folder exists in public/. Please delete it via FTP first, then visit this page again to create the symlink.";
+        }
+        
+        try {
+            \Illuminate\Support\Facades\Artisan::call('storage:link');
+            return "Storage link created successfully!";
+        } catch (\Exception $e) {
+            return "Error creating storage link: " + $e->getMessage();
+        }
+    });
 });
 
 require __DIR__ . '/settings.php';
