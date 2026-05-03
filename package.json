@@ -18,7 +18,8 @@
         "prettier": "^3.4.2",
         "prettier-plugin-organize-imports": "^4.1.0",
         "prettier-plugin-tailwindcss": "^0.6.11",
-        "typescript-eslint": "^8.23.0"
+        "typescript-eslint": "^8.23.0",
+        "ziggy-js": "^2.6.2"
     },
     "dependencies": {
         "@headlessui/react": "^2.2.0",
@@ -46,6 +47,7 @@
         "clsx": "^2.1.1",
         "concurrently": "^9.0.1",
         "date-fns": "^4.1.0",
+        "framer-motion": "^12.38.0",
         "globals": "^15.14.0",
         "laravel-vite-plugin": "^1.0",
         "lucide-react": "^0.475.0",

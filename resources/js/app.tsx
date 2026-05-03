@@ -17,7 +17,10 @@ createInertiaApp({
     resolve: (name) => resolvePageComponent(`./pages/${name}.tsx`, import.meta.glob('./pages/**/*.tsx')),
     setup({ el, App, props }) {
         const root = createRoot(el);
-
+        
+        // @ts-ignore
+        window.route = routeFn;
+        
         root.render(<App {...props} />);
     },
     progress: {

@@ -15,16 +15,17 @@ class Tournament extends Model
     public function getSettingsAttribute($value)
     {
         $defaults = [
-            'max_roster_size' => 12,
-            'min_roster_size' => 6,
+            'max_roster_size' => 11,
+            'min_roster_size' => 5,
             'max_licensed_players' => 2,
-            'max_company_players' => 5,
-            'max_licensed_on_pitch' => 1,
-            'max_company_on_pitch' => 3,
-            'yellow_card_limit' => 4,
-            'substitution_limit' => 5,
-            'total_players_on_pitch' => 7,
-            'min_players_on_pitch' => 5,
+            'max_company_players' => 1,
+            'max_licensed_on_pitch' => 0,
+            'max_company_on_pitch' => 1,
+            'yellow_card_limit' => 3,
+            'substitution_limit' => 4,
+            'total_players_on_pitch' => 5,
+            'min_players_on_pitch' => 3,
+            'match_duration' => 50,
         ];
 
         if (!$value) return $defaults;
@@ -51,5 +52,10 @@ class Tournament extends Model
     public function games()
     {
         return $this->hasMany(Game::class);
+    }
+
+    public function galleries()
+    {
+        return $this->hasMany(Gallery::class);
     }
 }

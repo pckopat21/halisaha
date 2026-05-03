@@ -5,7 +5,7 @@ import { Sidebar, SidebarContent, SidebarFooter, SidebarHeader, SidebarMenu, Sid
 import { Button } from '@/components/ui/button';
 import { type NavItem, type SharedData } from '@/types';
 import { Link, usePage } from '@inertiajs/react';
-import { LayoutGrid, Trophy, Users, CalendarDays, Briefcase, BookOpen, Folder, Building2, BarChart3, MapPin } from 'lucide-react';
+import { LayoutGrid, Trophy, Users, CalendarDays, Briefcase, BookOpen, Folder, Building2, BarChart3, MapPin, Image as ImageIcon, Bell } from 'lucide-react';
 import AppLogo from './app-logo';
 
 const mainNavItems: NavItem[] = [
@@ -15,9 +15,19 @@ const mainNavItems: NavItem[] = [
         icon: LayoutGrid,
     },
     {
+        title: 'Duyuru Yönetimi',
+        url: '/announcements',
+        icon: Bell,
+    },
+    {
         title: 'Turnuvalar',
         url: '/tournaments',
         icon: Trophy,
+    },
+    {
+        title: 'Turnuva Galerisi',
+        url: '/gallery',
+        icon: ImageIcon,
     },
     {
         title: 'Takımlar',
@@ -75,7 +85,7 @@ export function AppSidebar() {
         }
 
         // Admin/Committee only items
-        if (['Kullanıcı Yönetimi', 'Personel Havuzu', 'Saha Yönetimi'].includes(item.title)) {
+        if (['Kullanıcı Yönetimi', 'Personel Havuzu', 'Saha Yönetimi', 'Turnuva Galerisi', 'Duyuru Yönetimi'].includes(item.title)) {
             return auth.user?.role === 'super_admin' || auth.user?.role === 'committee';
         }
 

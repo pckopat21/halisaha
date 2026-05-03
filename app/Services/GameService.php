@@ -12,11 +12,13 @@ class GameService
 {
     protected $validator;
     protected $disciplineService;
+    protected $predictionService;
 
-    public function __construct(TournamentValidationService $validator, \App\Services\DisciplineService $disciplineService)
+    public function __construct(TournamentValidationService $validator, \App\Services\DisciplineService $disciplineService, PredictionService $predictionService)
     {
         $this->validator = $validator;
         $this->disciplineService = $disciplineService;
+        $this->predictionService = $predictionService;
     }
 
     public function getValidator(): TournamentValidationService
@@ -196,6 +198,9 @@ class GameService
             if ($game->group_id) {
                 $this->recalculateGroupStandings($game->group_id);
             }
+
+            // Calculate prediction points
+            $this->predictionService->calculatePoints($game);
 
             // Crown Champion logic
             if ($game->round === 'final') {

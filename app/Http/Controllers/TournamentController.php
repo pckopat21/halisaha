@@ -63,7 +63,8 @@ class TournamentController extends Controller
                 'champion.unit',
                 'games' => function($q) {
                     $q->whereNull('group_id')->with(['homeTeam.unit', 'awayTeam.unit', 'field']);
-                }
+                },
+                'galleries'
             ]),
             'fields' => Field::where('is_active', true)->get(),
             'teamStats' => [
@@ -197,6 +198,7 @@ class TournamentController extends Controller
             'settings.substitution_limit' => 'required|integer|min:0',
             'settings.total_players_on_pitch' => 'required|integer|min:1',
             'settings.min_players_on_pitch' => 'required|integer|min:1',
+            'settings.match_duration' => 'required|integer|min:1',
         ]);
 
         $tournament->update(['settings' => $validated['settings']]);

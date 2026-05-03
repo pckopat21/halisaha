@@ -61,7 +61,7 @@ interface PageProps {
         total: number;
     };
     units: Array<{ id: number; name: string }>;
-    filters: { search?: string };
+    filters: { search?: string; filter?: string };
 }
 
 export default function Index({ players, units, filters }: PageProps) {
@@ -76,10 +76,10 @@ export default function Index({ players, units, filters }: PageProps) {
         sicil_no: '',
         jersey_number: '' as string | number,
         unit_id: '',
-        is_company_staff: false,
-        is_permanent_staff: true,
-        is_licensed: false,
-        health_certificate: false,
+        is_company_staff: false as boolean,
+        is_permanent_staff: true as boolean,
+        is_licensed: false as boolean,
+        health_certificate: false as boolean,
     });
 
     const { data: importData, setData: setImportData, post: postImport, processing: importing } = useForm({
@@ -275,7 +275,9 @@ export default function Index({ players, units, filters }: PageProps) {
 
                                     <div className="p-6 bg-neutral-50 dark:bg-neutral-800/50 rounded-[2rem] border border-neutral-100 dark:border-neutral-800 space-y-4">
                                         <Label className="text-[10px] font-black uppercase text-neutral-400 ml-1">PERSONEL STATÜSÜ</Label>
-                                        <RadioGroup className="flex flex-col sm:flex-row gap-6 sm:gap-12" value={addData.is_company_staff ? 'company' : 'permanent'} onValueChange={v => { setAddData({ ...addData, is_company_staff: v === 'company', is_permanent_staff: v === 'permanent' }) }}>
+                                        <RadioGroup className="flex flex-col sm:flex-row gap-6 sm:gap-12" value={addData.is_company_staff ? 'company' : 'permanent'} onValueChange={v => { 
+                                            setAddData(prev => ({ ...prev, is_company_staff: v === 'company', is_permanent_staff: v === 'permanent' })) 
+                                        }}>
                                             <div className="flex items-center space-x-3 group cursor-pointer">
                                                 <RadioGroupItem value="permanent" id="a1" className="h-5 w-5 border-neutral-300 text-blue-600" />
                                                 <Label htmlFor="a1" className="text-xs font-black uppercase cursor-pointer group-hover:text-blue-600 transition-colors">KADROLU PERSONEL</Label>

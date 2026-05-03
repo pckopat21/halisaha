@@ -31,6 +31,9 @@ import {
     Users2,
     ArrowUpDown,
     Tv,
+    Image as ImageIcon,
+    Eye,
+    EyeOff,
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Table, TableHeader, TableBody, TableHead, TableRow, TableCell } from '@/components/ui/table';
@@ -100,6 +103,15 @@ interface Group {
     advance_count?: number;
 }
 
+interface Gallery {
+    id: number;
+    image_path: string;
+    title: string | null;
+    description: string | null;
+    is_active: boolean;
+    sort_order: number;
+}
+
 interface Tournament {
     id: number;
     name: string;
@@ -110,6 +122,7 @@ interface Tournament {
     teams: { id: number; name: string; unit: { name: string } }[];
     groups: Group[];
     games: Game[];
+    galleries: Gallery[];
     settings: {
         max_roster_size: number;
         min_roster_size: number;
@@ -121,6 +134,7 @@ interface Tournament {
         substitution_limit: number;
         total_players_on_pitch: number;
         min_players_on_pitch: number;
+        match_duration: number;
     };
 }
 
@@ -170,7 +184,8 @@ export default function Show({ tournament, teamStats, isGroupStageCompleted, sta
         if (!game.started_at) return 1;
         const start = new Date(game.started_at);
         const diff = Math.floor((currentTime.getTime() - start.getTime()) / 60000);
-        return Math.min(90, Math.max(1, diff + 1));
+        const maxDuration = tournament.settings.match_duration || 50;
+        return Math.min(maxDuration, Math.max(1, diff + 1));
     };
 
     const isCommittee = auth.user?.role === 'committee' || auth.user?.role === 'super_admin';
@@ -203,6 +218,7 @@ export default function Show({ tournament, teamStats, isGroupStageCompleted, sta
             substitution_limit: tournament.settings.substitution_limit,
             total_players_on_pitch: tournament.settings.total_players_on_pitch,
             min_players_on_pitch: tournament.settings.min_players_on_pitch,
+            match_duration: tournament.settings.match_duration || 50,
         }
     });
 
@@ -234,6 +250,35 @@ export default function Show({ tournament, teamStats, isGroupStageCompleted, sta
     });
 
     const thirdPlaceForm = useForm({});
+
+    const galleryForm = useForm({
+        image: null as File | null,
+        title: '',
+    });
+
+    const handleGallerySubmit = (e: React.FormEvent) => {
+        e.preventDefault();
+        galleryForm.post(route('tournaments.gallery.store', tournament.id), {
+            forceFormData: true,
+            onSuccess: () => {
+                galleryForm.reset();
+            },
+        });
+    };
+
+    const deleteGallery = (id: number) => {
+        if (confirm('Bu fotoğrafı silmek istediğinize emin misiniz?')) {
+            router.delete(route('gallery.destroy', id), {
+                preserveScroll: true
+            });
+        }
+    };
+
+    const toggleGallery = (id: number) => {
+        router.patch(route('gallery.toggle', id), {}, {
+            preserveScroll: true
+        });
+    };
 
     const resultForm = useForm({
         home_score: 0,
@@ -1370,12 +1415,12 @@ export default function Show({ tournament, teamStats, isGroupStageCompleted, sta
                                                         />
                                                     </div>
                                                     <div className="space-y-2">
-                                                        <Label className="text-[10px] font-black uppercase tracking-widest text-amber-600">Max Değişiklik Hakkı</Label>
+                                                        <Label className="text-[10px] font-black uppercase tracking-widest text-emerald-600">Standart Maç Süresi (Dakika)</Label>
                                                         <Input 
                                                             type="number" 
-                                                            className="h-14 rounded-2xl font-bold bg-amber-500/5 border-amber-100/50"
-                                                            value={settingsForm.data.settings.substitution_limit}
-                                                            onChange={e => settingsForm.setData('settings', { ...settingsForm.data.settings, substitution_limit: parseInt(e.target.value) })}
+                                                            className="h-14 rounded-2xl font-bold bg-emerald-500/5 border-emerald-100/50"
+                                                            value={settingsForm.data.settings.match_duration}
+                                                            onChange={e => settingsForm.setData('settings', { ...settingsForm.data.settings, match_duration: parseInt(e.target.value) })}
                                                         />
                                                     </div>
                                                 </div>

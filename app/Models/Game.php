@@ -25,6 +25,8 @@ class Game extends Model
         'started_at',
         'live_stream_url'
     ];
+    
+    protected $appends = ['current_minute'];
 
     protected $casts = [
         'scheduled_at' => 'datetime',
@@ -71,5 +73,18 @@ class Game extends Model
     public function field()
     {
         return $this->belongsTo(Field::class);
+    }
+
+    public function getCurrentMinuteAttribute()
+    {
+        if ($this->status !== 'playing' || !$this->started_at) {
+            return 0;
+        }
+        
+        $diffInSeconds = now()->timestamp - $this->started_at->timestamp;
+        $minute = (int) floor(abs($diffInSeconds) / 60) + 1;
+        
+        $maxDuration = $this->tournament->settings['match_duration'] ?? 50;
+        return min($maxDuration, max(1, $minute));
     }
 }

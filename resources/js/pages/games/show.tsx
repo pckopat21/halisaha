@@ -43,6 +43,7 @@ interface Game {
             yellow_card_limit: number;
             substitution_limit: number;
             min_players_on_pitch: number;
+            match_duration: number;
         }
     };
     group?: { name: string };
@@ -50,6 +51,7 @@ interface Game {
     rosters: any[];
     scheduled_at: string;
     started_at: string | null;
+    home_penalty_score?: number;
     away_penalty_score?: number;
     field?: Field | null;
     live_stream_url?: string | null;
@@ -184,12 +186,13 @@ export default function Show({ game }: Props) {
 
     const matchMinute = (() => {
         if (game.status === 'scheduled') return 0;
-        if (game.status === 'completed') return game.events.length > 0 ? Math.max(...game.events.map((e: any) => e.minute)) : 50;
+        const maxDuration = game.tournament.settings.match_duration || 50;
+        if (game.status === 'completed') return game.events.length > 0 ? Math.min(maxDuration, Math.max(...game.events.map((e: any) => e.minute))) : maxDuration;
         if (!game.started_at) return 1;
 
         const start = new Date(game.started_at);
         const diff = Math.floor((currentTime.getTime() - start.getTime()) / 60000);
-        return Math.min(90, Math.max(1, diff + 1));
+        return Math.min(maxDuration, Math.max(1, diff + 1));
     })();
 
     // Auto-update selected minute if user hasn't typed manually

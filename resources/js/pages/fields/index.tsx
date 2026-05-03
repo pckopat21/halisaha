@@ -40,7 +40,7 @@ export default function Index({ fields }: Props) {
         name: '',
         location: '',
         description: '',
-        is_active: true
+        is_active: true as boolean
     });
 
     const onCreateSubmit = (e: React.FormEvent) => {

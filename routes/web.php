@@ -14,6 +14,8 @@ use App\Http\Controllers\StatisticsController;
 use App\Http\Controllers\FieldController;
 
 use App\Http\Controllers\HomeController;
+use App\Http\Controllers\PredictionController;
+use App\Http\Controllers\GalleryController;
 
 Route::get('/', [HomeController::class, 'index'])->name('home');
 
@@ -103,9 +105,27 @@ Route::middleware(['auth'])->group(function () {
     Route::resource('fields', FieldController::class);
     Route::post('games/{game}/assign-field', [GameController::class, 'assignField'])->name('games.assign-field');
 
+    // Predictions
+    Route::post('predictions', [PredictionController::class, 'store'])->name('predictions.store');
+    Route::get('predictions/{game}/analyze', [PredictionController::class, 'analyze'])->name('predictions.analyze');
+    Route::get('predictions/user/{user}', [PredictionController::class, 'userPredictions'])->name('predictions.user');
+
     // Tournament Reports (PDF)
     Route::get('/reports/standings/{tournament}', [App\Http\Controllers\ReportController::class, 'standings'])->name('reports.standings');
     Route::get('/reports/fixture/{tournament}', [App\Http\Controllers\ReportController::class, 'fixture'])->name('reports.fixture');
+
+    // Gallery Management
+    Route::get('gallery', [GalleryController::class, 'index'])->name('gallery.index');
+    Route::post('tournaments/{tournament}/gallery', [GalleryController::class, 'store'])->name('tournaments.gallery.store');
+    Route::delete('gallery/{gallery}', [GalleryController::class, 'destroy'])->name('gallery.destroy');
+    Route::patch('gallery/{gallery}/toggle', [GalleryController::class, 'toggle'])->name('gallery.toggle');
+
+    // Announcement Management
+    Route::get('announcements', [App\Http\Controllers\AnnouncementController::class, 'index'])->name('announcements.index');
+    Route::post('announcements', [App\Http\Controllers\AnnouncementController::class, 'store'])->name('announcements.store');
+    Route::patch('announcements/{announcement}', [App\Http\Controllers\AnnouncementController::class, 'update'])->name('announcements.update');
+    Route::delete('announcements/{announcement}', [App\Http\Controllers\AnnouncementController::class, 'destroy'])->name('announcements.destroy');
+    Route::patch('announcements/{announcement}/toggle', [App\Http\Controllers\AnnouncementController::class, 'toggle'])->name('announcements.toggle');
 });
 
 require __DIR__ . '/settings.php';
