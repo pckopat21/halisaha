@@ -103,7 +103,20 @@ class HomeController extends Controller
             return [
                 'name' => $group->name,
                 'advance_count' => $group->advance_count,
-                'rows' => $group->standings->sortByDesc('points')->values()->map(function ($standing) {
+                'rows' => $group->standings->sort(function ($a, $b) {
+                    if ($a->points !== $b->points) {
+                        return $b->points <=> $a->points;
+                    }
+                    
+                    $aAv = $a->goals_for - $a->goals_against;
+                    $bAv = $b->goals_for - $b->goals_against;
+                    
+                    if ($aAv !== $bAv) {
+                        return $bAv <=> $aAv;
+                    }
+                    
+                    return strcasecmp($a->team->name, $b->team->name);
+                })->values()->map(function ($standing) {
                     return [
                         'team' => ['name' => $standing->team->name],
                         'played' => $standing->played,

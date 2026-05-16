@@ -23,7 +23,7 @@ class GameController extends Controller
     public function index()
     {
         return Inertia::render('games/index', [
-            'games' => Game::with(['homeTeam', 'awayTeam', 'group', 'tournament'])->latest()->get(),
+            'games' => Game::with(['homeTeam', 'awayTeam', 'group', 'tournament'])->orderBy('scheduled_at', 'asc')->get(),
         ]);
     }
 

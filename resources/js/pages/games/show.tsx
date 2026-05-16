@@ -376,7 +376,7 @@ export default function Show({ game }: Props) {
                                                             </Button>
                                                         )}
                                                     </div>
-                                                    <h4 className="font-black text-sm uppercase tracking-tight">{event.player?.first_name} {event.player?.last_name}</h4>
+                                                    <h4 className="font-black text-sm uppercase tracking-tight">{event.player?.first_name} {event.player?.last_name} <span className="ml-2 text-blue-600 opacity-70">({event.team_id === game.home_team.id ? game.home_team.name.split(' ').map((w: any) => w[0]).join('').toUpperCase() : game.away_team.name.split(' ').map((w: any) => w[0]).join('').toUpperCase()})</span></h4>
                                                     <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-[0.2em]">
                                                         {event.event_type === 'goal' ? 'GOOOL!' : 
                                                          event.event_type === 'assist' ? 'ŞIK BİR ASİST YAPTI' :

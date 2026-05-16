@@ -830,7 +830,7 @@ export default function Show({ tournament, teamStats, isGroupStageCompleted, sta
                                                     </TableRow>
                                                 </TableHeader>
                                                 <TableBody>
-                                                    {group.standings?.sort((a, b) => (b.points - a.points) || ((b.goals_for - b.goals_against) - (a.goals_for - a.goals_against))).map((s, idx) => (
+                                                    {group.standings?.sort((a, b) => (b.points - a.points) || ((b.goals_for - b.goals_against) - (a.goals_for - a.goals_against)) || a.team.name.localeCompare(b.team.name)).map((s, idx) => (
                                                         <TableRow key={idx} className="border-b border-slate-50 dark:border-white/5 hover:bg-slate-50/50 dark:hover:bg-white/[0.02] transition-colors group">
                                                             <TableCell className="text-center">
                                                                 <span className={`w-7 h-7 flex items-center justify-center rounded-full text-xs font-black ${idx < (group.advance_count ?? 2) ? 'bg-emerald-50 text-emerald-600 dark:bg-emerald-500/10 dark:text-emerald-500' : 'text-slate-400'}`}>

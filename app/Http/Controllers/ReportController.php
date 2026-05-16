@@ -15,15 +15,15 @@ class ReportController extends Controller
      */
     public function standings(Tournament $tournament)
     {
-        $standings = Standing::select('standings.*', 'groups.name as group_name')
+        $standings = Standing::select('standings.*', 'groups.name as group_name', 'teams.name as team_name')
             ->join('groups', 'standings.group_id', '=', 'groups.id')
-            ->whereHas('team', function($q) use ($tournament) {
-                $q->where('tournament_id', $tournament->id);
-            })
+            ->join('teams', 'standings.team_id', '=', 'teams.id')
+            ->where('teams.tournament_id', $tournament->id)
             ->with(['team.unit'])
             ->orderBy('group_name')
             ->orderByDesc('points')
             ->orderByRaw('(goals_for - goals_against) DESC')
+            ->orderBy('team_name')
             ->get()
             ->groupBy('group_name');
 
