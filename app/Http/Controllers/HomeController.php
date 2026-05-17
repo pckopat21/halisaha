@@ -42,14 +42,66 @@ class HomeController extends Controller
                 ->take(5)
                 ->get(),
             'predictionLeaderboard' => $this->predictionService->getLeaderboard($activeTournament?->id, 5),
-            'playerOfTheWeek' => ($activeTournament ? $this->statsService->getTopScorers($activeTournament, 1)->first() : null)
-                ?? Player::select('players.*', \Illuminate\Support\Facades\DB::raw('count(match_events.id) as goals_count'))
-                    ->join('match_events', 'players.id', '=', 'match_events.player_id')
-                    ->where('match_events.event_type', 'goal')
-                    ->groupBy('players.id')
-                    ->orderByDesc('goals_count')
-                    ->with(['unit', 'teams'])
-                    ->first(),
+            'playerOfTheWeek' => (function() use ($activeTournament) {
+                $player = ($activeTournament ? $this->statsService->getTopScorers($activeTournament, 1)->first() : null)
+                    ?? Player::select('players.*', \Illuminate\Support\Facades\DB::raw('count(match_events.id) as goals_count'))
+                        ->join('match_events', 'players.id', '=', 'match_events.player_id')
+                        ->where('match_events.event_type', 'goal')
+                        ->groupBy('players.id')
+                        ->orderByDesc('goals_count')
+                        ->with(['unit', 'teams'])
+                        ->first();
+
+                if ($player) {
+                    $player->assists_count = \App\Models\GameEvent::where('player_id', $player->id)
+                        ->where('event_type', 'assist')
+                        ->whereHas('game', function($q) use ($activeTournament) {
+                            if ($activeTournament) {
+                                $q->where('tournament_id', $activeTournament->id);
+                            }
+                        })
+                        ->count();
+
+                    $player->yellow_cards_count = \App\Models\GameEvent::where('player_id', $player->id)
+                        ->where('event_type', 'yellow_card')
+                        ->whereHas('game', function($q) use ($activeTournament) {
+                            if ($activeTournament) {
+                                $q->where('tournament_id', $activeTournament->id);
+                            }
+                        })
+                        ->count();
+
+                    $player->red_cards_count = \App\Models\GameEvent::where('player_id', $player->id)
+                        ->where('event_type', 'red_card')
+                        ->whereHas('game', function($q) use ($activeTournament) {
+                            if ($activeTournament) {
+                                $q->where('tournament_id', $activeTournament->id);
+                            }
+                        })
+                        ->count();
+
+                    $player->matches_count = \App\Models\GameRoster::where('player_id', $player->id)
+                        ->whereHas('game', function($q) use ($activeTournament) {
+                            if ($activeTournament) {
+                                $q->where('tournament_id', $activeTournament->id);
+                            }
+                        })
+                        ->count();
+
+                    // If matches_count is 0 but they have goals/assists, set matches_count to at least 1 or count distinct games from events
+                    if ($player->matches_count === 0) {
+                        $player->matches_count = \App\Models\GameEvent::where('player_id', $player->id)
+                            ->distinct('game_id')
+                            ->count('game_id');
+                    }
+
+                    // Calculate a dynamic performance rating
+                    $baseRating = 6.0 + ($player->goals_count * 0.8) + ($player->assists_count * 0.5) - ($player->yellow_cards_count * 0.2) - ($player->red_cards_count * 1.0);
+                    $player->rating = number_format(min(9.9, max(6.0, $baseRating)), 1);
+                }
+
+                return $player;
+            })(),
             'userPredictions' => $activeTournament
                 ? Prediction::where(function($q) {
                     if (auth()->check()) {

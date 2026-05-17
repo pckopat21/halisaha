@@ -381,7 +381,7 @@ export default function Show({ game }: Props) {
                                                         {event.event_type === 'goal' ? 'GOOOL!' : 
                                                          event.event_type === 'assist' ? 'ŞIK BİR ASİST YAPTI' :
                                                          event.event_type === 'yellow_card' ? 'SARI KART GÖRDÜ' : 
-                                                         event.event_type === 'red_card' ? 'OYUN DIŞI KALDI' : 'OYUNCU DEĞİŞİKLİĞİ'}
+                                                         event.event_type === 'red_card' ? (event.details?.second_yellow ? 'İKİNCİ SARIDAN KIRMIZI KART GÖRDÜ' : 'DİREKT KIRMIZI KARTLA OYUN DIŞI KALDI') : 'OYUNCU DEĞİŞİKLİĞİ'}
                                                     </p>
                                                 </div>
                                             </div>
@@ -398,6 +398,14 @@ export default function Show({ game }: Props) {
                         {canManageEvents && game.status !== 'completed' && (
                             <Card className="border-none shadow-2xl bg-blue-600 text-white rounded-[3rem] overflow-hidden">
                                 <CardContent className="p-8 space-y-8">
+                                    {game.status === 'scheduled' && (
+                                        <div className="flex items-center gap-3 p-4 bg-amber-500/20 border border-amber-500/30 rounded-2xl text-amber-200">
+                                            <AlertTriangle className="h-5 w-5 shrink-0 text-amber-400 animate-pulse" />
+                                            <p className="text-[10px] font-black uppercase tracking-widest leading-relaxed">
+                                                OLAY TANIMLAYABİLMEK (GOL, KART, ASİST) İÇİN LÜTFEN ÖNCE SAYFANIN EN ALTINDAKİ "MAÇI BAŞLAT" BUTONUNU KULLANARAK MAÇI BAŞLATIN.
+                                            </p>
+                                        </div>
+                                    )}
                                     <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                                         <div className="space-y-4">
                                             <div className="flex items-center gap-2 mb-2">
@@ -484,35 +492,45 @@ export default function Show({ game }: Props) {
                                                     const isRosterEmpty = game.rosters.filter((r: any) => r.team_id === team.id).length === 0;
 
                                                     return (
-                                                        <div key={player.id} className={`flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-4 border rounded-2xl transition-all ${isSuspended ? 'bg-rose-500/5 border-rose-500/20 opacity-80' : !isOnPitch && !isRosterEmpty ? 'bg-slate-500/5 border-white/5 opacity-40' : 'bg-white/5 border-white/10 hover:bg-white/10'}`}>
+                                                        <div key={player.id} className={`flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-4 border rounded-2xl transition-all ${game.events.some((e: any) => e.player_id === player.id && e.event_type === 'red_card') ? 'bg-rose-950/20 border-rose-500/30 opacity-70' : isSuspended ? 'bg-rose-500/5 border-rose-500/20 opacity-80' : !isOnPitch && !isRosterEmpty ? 'bg-slate-500/5 border-white/5 opacity-40' : 'bg-white/5 border-white/10 hover:bg-white/10'}`}>
                                                             <div className="flex items-center gap-3">
                                                                 <div className="flex flex-col">
                                                                     <span className="font-black text-sm uppercase truncate max-w-[150px]">{player.first_name} {player.last_name}</span>
-                                                                    {!isOnPitch && !isRosterEmpty && <span className="text-[8px] font-black uppercase text-slate-500">YEDEK KULÜBESİNDE</span>}
+                                                                    {game.events.some((e: any) => e.player_id === player.id && e.event_type === 'red_card') ? (
+                                                                        <span className="text-[8px] font-black uppercase text-rose-500 tracking-wider">KIRMIZI KARTLA İHRAÇ EDİLDİ</span>
+                                                                    ) : !isOnPitch && !isRosterEmpty ? (
+                                                                        <span className="text-[8px] font-black uppercase text-slate-500">YEDEK KULÜBESİNDE</span>
+                                                                    ) : null}
                                                                 </div>
                                                                 {isSuspended && (
                                                                     <Badge className="bg-rose-600 text-white border-none text-[8px] font-black px-2 py-0.5 rounded-md animate-pulse" title={player.suspension?.reason || ''}>
                                                                         CEZALI
                                                                     </Badge>
                                                                 )}
+                                                                {game.events.some((e: any) => e.player_id === player.id && e.event_type === 'red_card') && (
+                                                                    <Badge className="bg-rose-600 text-white border-none text-[8px] font-black px-2 py-0.5 rounded-md shadow-lg shadow-rose-900/50">
+                                                                        İHRAÇ
+                                                                    </Badge>
+                                                                )}
                                                             </div>
                                                             <div className="flex gap-1.5 self-end">
-                                                                <Button disabled={isSuspended} onClick={() => submitEvent(team.id, player.id, 'goal')} size="sm" className="h-10 px-3 bg-emerald-500 hover:bg-emerald-600 border-none rounded-xl shadow-lg shadow-emerald-900/40 disabled:opacity-30" title="Gol">
+                                                                <Button disabled={game.status !== 'playing' || isSuspended || game.events.some((e: any) => e.player_id === player.id && e.event_type === 'red_card')} onClick={() => submitEvent(team.id, player.id, 'goal')} size="sm" className="h-10 px-3 bg-emerald-500 hover:bg-emerald-600 border-none rounded-xl shadow-lg shadow-emerald-900/40 disabled:opacity-30" title="Gol">
                                                                     <Goal className="h-4 w-4" />
                                                                 </Button>
-                                                                <Button disabled={isSuspended} onClick={() => submitEvent(team.id, player.id, 'assist')} size="sm" className="h-10 px-3 bg-blue-400 hover:bg-blue-500 border-none rounded-xl shadow-lg shadow-blue-900/40 disabled:opacity-30" title="Asist">
+                                                                <Button disabled={game.status !== 'playing' || isSuspended || game.events.some((e: any) => e.player_id === player.id && e.event_type === 'red_card')} onClick={() => submitEvent(team.id, player.id, 'assist')} size="sm" className="h-10 px-3 bg-blue-400 hover:bg-blue-500 border-none rounded-xl shadow-lg shadow-blue-900/40 disabled:opacity-30" title="Asist">
                                                                     <Target className="h-4 w-4" />
                                                                 </Button>
-                                                                <Button disabled={isSuspended} onClick={() => submitEvent(team.id, player.id, 'yellow_card')} size="sm" className="h-10 px-3 bg-amber-400 hover:bg-amber-500 border-none rounded-xl shadow-lg shadow-amber-900/40 disabled:opacity-30" title="Sarı Kart">
+                                                                <Button disabled={game.status !== 'playing' || isSuspended || game.events.some((e: any) => e.player_id === player.id && e.event_type === 'red_card')} onClick={() => submitEvent(team.id, player.id, 'yellow_card')} size="sm" className="h-10 px-3 bg-amber-400 hover:bg-amber-500 border-none rounded-xl shadow-lg shadow-amber-900/40 disabled:opacity-30" title="Sarı Kart">
                                                                     <div className="h-4 w-3 bg-white/50 rounded-sm" />
                                                                 </Button>
-                                                                <Button disabled={isSuspended} onClick={() => submitEvent(team.id, player.id, 'red_card')} size="sm" className="h-10 px-3 bg-rose-500 hover:bg-rose-600 border-none rounded-xl shadow-lg shadow-rose-900/40 disabled:opacity-30" title="Kırmızı Kart">
+                                                                <Button disabled={game.status !== 'playing' || isSuspended || game.events.some((e: any) => e.player_id === player.id && e.event_type === 'red_card')} onClick={() => submitEvent(team.id, player.id, 'red_card')} size="sm" className="h-10 px-3 bg-rose-500 hover:bg-rose-600 border-none rounded-xl shadow-lg shadow-rose-900/40 disabled:opacity-30" title="Kırmızı Kart">
                                                                     <div className="h-4 w-3 bg-white/50 rounded-sm" />
                                                                 </Button>
                                                                 {onPitchIds(team.id).includes(player.id) && (
                                                                     <Button 
+                                                                        disabled={game.status !== 'playing'}
                                                                         onClick={() => { setManagingTeam(team); setSubOutPlayer(player); setIsSubModalOpen(true); }}
-                                                                        size="sm" className="h-10 px-3 bg-slate-700 hover:bg-slate-800 border-none rounded-xl shadow-lg" title="Oyuncu Değiştir">
+                                                                        size="sm" className="h-10 px-3 bg-slate-700 hover:bg-slate-800 border-none rounded-xl shadow-lg disabled:opacity-30" title="Oyuncu Değiştir">
                                                                         <Repeat className="h-4 w-4" />
                                                                     </Button>
                                                                 )}

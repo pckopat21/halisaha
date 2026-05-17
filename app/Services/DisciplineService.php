@@ -45,13 +45,20 @@ class DisciplineService
         }
 
         // 2. Check for cumulative yellow cards in the tournament
-        // We count yellow cards before this game.
+        // We count yellow cards before this game, excluding matches where player got a red card (direct or indirect).
         $yellowCardsCount = GameEvent::whereHas('game', function($q) use ($tournament, $game) {
                 $q->where('tournament_id', $tournament->id)
                   ->where('scheduled_at', '<', $game->scheduled_at);
             })
             ->where('player_id', $player->id)
             ->where('event_type', 'yellow_card')
+            ->whereNotExists(function ($query) {
+                $query->select(\Illuminate\Support\Facades\DB::raw(1))
+                    ->from('match_events as me')
+                    ->whereRaw('me.game_id = match_events.game_id')
+                    ->whereRaw('me.player_id = match_events.player_id')
+                    ->where('me.event_type', 'red_card');
+            })
             ->count();
 
         // Standard suspension rule: every X yellow cards = 1 match ban.

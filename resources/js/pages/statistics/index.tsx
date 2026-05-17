@@ -1,10 +1,12 @@
 import AppLayout from '@/layouts/app-layout';
 import { type BreadcrumbItem } from '@/types';
 import { Head, router, Link } from '@inertiajs/react';
-import { Trophy, Goal, Target, Shield, AlertTriangle, TrendingUp, Users, Activity, ChevronRight, BarChart3, PieChart as PieChartIcon } from 'lucide-react';
+import { useState } from 'react';
+import { Trophy, Goal, Target, Shield, AlertTriangle, TrendingUp, Users, Activity, ChevronRight, BarChart3, PieChart as PieChartIcon, Search } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { Input } from '@/components/ui/input';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell, PieChart, Pie, LineChart, Line } from 'recharts';
 
@@ -19,6 +21,9 @@ interface Props {
         fairPlay: any[];
         unitGoals: any[];
         trends: any[];
+        topCards?: {
+            players: any[];
+        };
     };
 }
 
@@ -29,6 +34,43 @@ export default function Index({ tournaments, selectedTournament, stats }: Props)
     ];
 
     const COLORS = ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899'];
+
+    const [cardSearch, setCardSearch] = useState('');
+    const [cardSort, setCardSort] = useState<'points' | 'yellow' | 'red'>('points');
+    const [cardPage, setCardPage] = useState(1);
+    const cardPerPage = 8;
+
+    const allCardPlayers = stats.topCards?.players || [];
+    const filteredCardPlayers = allCardPlayers
+        .filter((player: any) => {
+            const fullName = `${player.first_name} ${player.last_name}`.toLowerCase();
+            const unitName = (player.unit?.name || '').toLowerCase();
+            const query = cardSearch.toLowerCase();
+            return fullName.includes(query) || unitName.includes(query);
+        })
+        .sort((a: any, b: any) => {
+            const aYellow = parseInt(a.yellow_cards_count || 0);
+            const bYellow = parseInt(b.yellow_cards_count || 0);
+            const aRed = parseInt(a.red_cards_count || 0);
+            const bRed = parseInt(b.red_cards_count || 0);
+
+            if (cardSort === 'yellow') {
+                if (bYellow !== aYellow) return bYellow - aYellow;
+                return bRed - aRed;
+            }
+            if (cardSort === 'red') {
+                if (bRed !== aRed) return bRed - aRed;
+                return bYellow - aYellow;
+            }
+            // default 'points': weight = red * 3 + yellow
+            const aPoints = (aRed * 3) + aYellow;
+            const bPoints = (bRed * 3) + bYellow;
+            if (bPoints !== aPoints) return bPoints - aPoints;
+            return bRed - aRed;
+        });
+
+    const totalCardPages = Math.max(1, Math.ceil(filteredCardPlayers.length / cardPerPage));
+    const paginatedCardPlayers = filteredCardPlayers.slice((cardPage - 1) * cardPerPage, cardPage * cardPerPage);
 
     return (
         <AppLayout breadcrumbs={breadcrumbs}>
@@ -84,13 +126,12 @@ export default function Index({ tournaments, selectedTournament, stats }: Props)
                             ))}
                         </div>
 
-                        {/* Main Tabs Segment */}
                         <Tabs defaultValue="overview" className="space-y-8">
                             <TabsList className="bg-transparent h-auto p-0 flex-wrap gap-2 flex justify-start mb-8">
-                                {['BİR BAKIŞTA', 'GOL VE ASİST', 'TAKIM ANALİZİ', 'BİRİM DAĞILIMI'].map((tab, i) => (
+                                {['BİR BAKIŞTA', 'GOL VE ASİST', 'KART ANALİZİ', 'TAKIM ANALİZİ', 'BİRİM DAĞILIMI'].map((tab, i) => (
                                     <TabsTrigger 
                                         key={i}
-                                        value={['overview', 'players', 'teams', 'units'][i]}
+                                        value={['overview', 'players', 'cards', 'teams', 'units'][i]}
                                         className="rounded-2xl px-6 py-3 font-black text-[10px] uppercase tracking-widest border border-slate-200 dark:border-white/5 data-[state=active]:bg-blue-600 data-[state=active]:text-white transition-all shadow-sm"
                                     >
                                         {tab}
@@ -237,6 +278,139 @@ export default function Index({ tournaments, selectedTournament, stats }: Props)
                                         </CardContent>
                                     </Card>
                                 </div>
+                            </TabsContent>
+
+                            {/* Cards Tab */}
+                            <TabsContent value="cards">
+                                <Card className="border-none shadow-2xl bg-white/80 dark:bg-neutral-900/80 backdrop-blur-3xl rounded-[3rem] overflow-hidden">
+                                    <CardHeader className="p-8 md:p-10 border-b border-slate-100 dark:border-white/5 flex flex-col md:flex-row items-stretch md:items-center justify-between gap-6">
+                                        <div>
+                                            <CardTitle className="text-xl font-black uppercase tracking-tighter flex items-center gap-3">
+                                                <AlertTriangle className="h-6 w-6 text-rose-500 animate-pulse" /> CEZA VE DİSİPLİN RAPORU
+                                            </CardTitle>
+                                            <CardDescription className="text-xs font-black uppercase tracking-widest opacity-50 mt-1">TURNUVA BAZINDA KART GÖREN TÜM OYUNCULARIN DİSİPLİN ANALİZİ</CardDescription>
+                                        </div>
+                                        
+                                        <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
+                                            <div className="relative w-full sm:w-[260px] group">
+                                                <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-neutral-400 group-focus-within:text-blue-600 transition-colors" />
+                                                <Input
+                                                    placeholder="İSİM VEYA BİRİM ARA..."
+                                                    className="h-11 pl-10 pr-4 rounded-xl bg-slate-50 dark:bg-white/5 border-none uppercase font-black text-[9px] tracking-wider placeholder:text-neutral-400 shadow-inner"
+                                                    value={cardSearch}
+                                                    onChange={e => { setCardSearch(e.target.value); setCardPage(1); }}
+                                                />
+                                            </div>
+                                            
+                                            <div className="flex gap-1.5 bg-slate-100 dark:bg-white/5 p-1 rounded-xl">
+                                                {[
+                                                    { key: 'points', label: 'CEZA PUANI' },
+                                                    { key: 'yellow', label: 'SARI KART' },
+                                                    { key: 'red', label: 'KIRMIZI KART' }
+                                                ].map((opt) => (
+                                                    <Button
+                                                        key={opt.key}
+                                                        size="sm"
+                                                        variant={cardSort === opt.key ? 'default' : 'ghost'}
+                                                        className={`h-9 px-3 rounded-lg text-[8px] font-black uppercase tracking-wider ${cardSort === opt.key ? 'bg-blue-600 text-white shadow-md' : 'text-neutral-500 hover:text-neutral-900 dark:hover:text-white'}`}
+                                                        onClick={() => { setCardSort(opt.key as any); setCardPage(1); }}
+                                                    >
+                                                        {opt.label}
+                                                    </Button>
+                                                ))}
+                                            </div>
+                                        </div>
+                                    </CardHeader>
+                                    
+                                    <CardContent className="p-8 md:p-10">
+                                        {paginatedCardPlayers.length === 0 ? (
+                                            <div className="py-24 text-center">
+                                                <AlertTriangle className="h-10 w-10 text-neutral-300 mx-auto mb-4 animate-bounce" />
+                                                <p className="text-xs font-black text-neutral-400 uppercase tracking-widest">
+                                                    {cardSearch ? 'Arama kriterinize uygun kartlı oyuncu bulunamadı' : 'Bu turnuvada henüz kart gören oyuncu yok.'}
+                                                </p>
+                                            </div>
+                                        ) : (
+                                            <>
+                                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                                    {paginatedCardPlayers.map((player: any, idx: number) => {
+                                                        const globalIndex = (cardPage - 1) * cardPerPage + idx + 1;
+                                                        const yellowCount = parseInt(player.yellow_cards_count || 0);
+                                                        const redCount = parseInt(player.red_cards_count || 0);
+                                                        const totalPoints = (redCount * 3) + yellowCount;
+                                                        const activeTeam = player.teams?.[0]?.name;
+
+                                                        return (
+                                                            <div key={player.id} className="flex items-center justify-between p-4 bg-slate-50 dark:bg-white/5 border border-slate-100 dark:border-white/5 rounded-3xl hover:bg-slate-100/50 dark:hover:bg-white/10 transition-colors group">
+                                                                <div className="flex items-center gap-4">
+                                                                    <div className={`w-10 h-10 rounded-2xl flex items-center justify-center font-black italic text-xs shrink-0 ${totalPoints >= 5 ? 'bg-rose-500/10 text-rose-600' : 'bg-slate-100 dark:bg-white/5 text-slate-500 dark:text-neutral-400'}`}>
+                                                                        #{globalIndex}
+                                                                    </div>
+                                                                    <div>
+                                                                        <Link href={route('players.show', player.id)} className="font-black uppercase tracking-tight text-xs hover:text-blue-600 dark:hover:text-blue-400 transition-colors block">
+                                                                            {player.first_name} {player.last_name}
+                                                                        </Link>
+                                                                        <div className="flex items-center gap-1.5 mt-1 flex-wrap">
+                                                                            {activeTeam && <Badge variant="outline" className="border-blue-500/20 text-blue-600 text-[8px] font-black uppercase px-1.5 py-0.5 rounded">{activeTeam}</Badge>}
+                                                                            <span className="text-[9px] font-bold text-neutral-400 uppercase">{player.unit?.name}</span>
+                                                                        </div>
+                                                                    </div>
+                                                                </div>
+                                                                
+                                                                <div className="flex items-center gap-4">
+                                                                    <div className="flex gap-2">
+                                                                        {yellowCount > 0 && (
+                                                                            <div className="flex items-center gap-1.5 bg-amber-400/5 px-2 py-1 rounded-xl border border-amber-400/10">
+                                                                                <div className="w-2.5 h-4 bg-amber-400 border border-amber-500 rounded-sm shadow-sm" />
+                                                                                <span className="text-[11px] font-black tabular-nums">{yellowCount}</span>
+                                                                            </div>
+                                                                        )}
+                                                                        {redCount > 0 && (
+                                                                            <div className="flex items-center gap-1.5 bg-rose-500/5 px-2 py-1 rounded-xl border border-rose-500/10">
+                                                                                <div className="w-2.5 h-4 bg-rose-600 border border-rose-700 rounded-sm shadow-sm" />
+                                                                                <span className="text-[11px] font-black tabular-nums">{redCount}</span>
+                                                                            </div>
+                                                                        )}
+                                                                    </div>
+                                                                    <Badge className="bg-slate-900 dark:bg-white/10 text-white border-none font-black text-[8px] px-2.5 py-1.5 rounded-lg shrink-0">
+                                                                        {totalPoints} PUAN
+                                                                    </Badge>
+                                                                </div>
+                                                            </div>
+                                                        );
+                                                    })}
+                                                </div>
+                                                
+                                                {/* Card List Pagination */}
+                                                <div className="flex flex-col sm:flex-row items-center justify-between gap-4 mt-8 pt-8 border-t border-slate-100 dark:border-white/5">
+                                                    <p className="text-[9px] font-black uppercase text-neutral-400 tracking-widest">
+                                                        SAYFA {cardPage} / {totalCardPages} <span className="mx-2 opacity-30">•</span> TOPLAM {filteredCardPlayers.length} OYUNCU LİSTELENİYOR
+                                                    </p>
+                                                    <div className="flex items-center gap-2">
+                                                        <Button
+                                                            disabled={cardPage === 1}
+                                                            variant="outline"
+                                                            size="sm"
+                                                            onClick={() => setCardPage(prev => Math.max(1, prev - 1))}
+                                                            className="h-10 px-4 rounded-xl border-slate-200 dark:border-white/5 text-[9px] font-black uppercase tracking-widest hover:bg-neutral-900 hover:text-white dark:hover:bg-white dark:hover:text-black transition-all"
+                                                        >
+                                                            ÖNCEKİ
+                                                        </Button>
+                                                        <Button
+                                                            disabled={cardPage === totalCardPages}
+                                                            variant="outline"
+                                                            size="sm"
+                                                            onClick={() => setCardPage(prev => Math.min(totalCardPages, prev + 1))}
+                                                            className="h-10 px-4 rounded-xl border-slate-200 dark:border-white/5 text-[9px] font-black uppercase tracking-widest hover:bg-neutral-900 hover:text-white dark:hover:bg-white dark:hover:text-black transition-all"
+                                                        >
+                                                            SONRAKİ
+                                                        </Button>
+                                                    </div>
+                                                </div>
+                                            </>
+                                        )}
+                                    </CardContent>
+                                </Card>
                             </TabsContent>
 
                             {/* Teams Tab */}

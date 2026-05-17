@@ -58,6 +58,7 @@ interface Player {
     current_team?: { id: number; name: string };
     goals_count?: number;
     yellow_cards_count?: number;
+    red_cards_count?: number;
     jersey_number: number | null;
     suspension?: {
         is_suspended: boolean;
@@ -648,13 +649,25 @@ export default function Show({ team, performance, nextMatch, can }: Props) {
                                                 </TableCell>
                                                 <TableCell className="text-center">
                                                     <div className="flex flex-col items-center gap-2">
-                                                        <div className="flex items-center gap-1">
-                                                            {[...Array(team.tournament?.settings.yellow_card_limit)].map((_, i) => (
-                                                                <div 
-                                                                    key={i} 
-                                                                    className={`h-4 w-2.5 rounded-sm border ${i < (player.yellow_cards_count || 0) ? 'bg-amber-400 border-amber-500 shadow-sm shadow-amber-500/50' : 'bg-slate-100 dark:bg-white/5 border-transparent opacity-30'}`} 
-                                                                />
-                                                            ))}
+                                                        <div className="flex items-center gap-2">
+                                                            <div className="flex items-center gap-1">
+                                                                {[...Array(team.tournament?.settings.yellow_card_limit || 2)].map((_, i) => (
+                                                                    <div 
+                                                                        key={`y-${i}`} 
+                                                                        className={`h-4 w-2.5 rounded-sm border ${i < (player.yellow_cards_count || 0) ? 'bg-amber-400 border-amber-500 shadow-sm shadow-amber-500/50' : 'bg-slate-100 dark:bg-white/5 border-transparent opacity-30'}`} 
+                                                                    />
+                                                                ))}
+                                                            </div>
+                                                            {player.red_cards_count && player.red_cards_count > 0 ? (
+                                                                <div className="flex items-center gap-1 border-l border-slate-200 dark:border-white/10 pl-2">
+                                                                    {[...Array(player.red_cards_count)].map((_, i) => (
+                                                                        <div 
+                                                                            key={`r-${i}`} 
+                                                                            className="h-4 w-2.5 rounded-sm border bg-rose-600 border-rose-700 shadow-sm shadow-rose-600/50"
+                                                                        />
+                                                                    ))}
+                                                                </div>
+                                                            ) : null}
                                                         </div>
                                                         <span className="text-[9px] font-black text-muted-foreground uppercase tracking-widest">DİSİPLİN DURUMU</span>
                                                     </div>

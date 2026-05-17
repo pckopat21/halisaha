@@ -62,8 +62,15 @@ class TeamController extends Controller
                     $q->where('tournament_id', $team->tournament_id);
                 })
                 ->count();
+
+            $player->red_cards_count = \App\Models\GameEvent::where('player_id', $player->id)
+                ->where('event_type', 'red_card')
+                ->whereHas('game', function($q) use ($team) {
+                    $q->where('tournament_id', $team->tournament_id);
+                })
+                ->count();
             
-            if ($nextGame) {
+            if ($nextGame instanceof \App\Models\Game) {
                 $player->suspension = $this->disciplineService->isPlayerSuspended($player, $nextGame);
             } else {
                 // If no upcoming game, check general status (e.g. pending red card carryover)
@@ -86,7 +93,7 @@ class TeamController extends Controller
     {
         Gate::authorize('approve', $team);
 
-        $validation = $validator->validateTeamRoster($team, $team->players);
+        $validation = $validator->validateTeamRoster($team, collect($team->players));
 
         if (!$validation['is_valid']) {
             return redirect()->back()->withErrors([
@@ -181,7 +188,7 @@ class TeamController extends Controller
         }
 
         // Simulate new roster for validation
-        $newRoster = $team->players->push($player);
+        $newRoster = collect($team->players->all())->push($player);
         $validation = $validator->validateTeamRoster($team, $newRoster, false);
 
         if (!$validation['is_valid'] && !$team->has_exception) {

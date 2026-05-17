@@ -24,7 +24,9 @@ export default function PlayerOfTheWeek({ playerOfTheWeek }: PlayerOfTheWeekProp
                                         {playerOfTheWeek.first_name?.[0]}{playerOfTheWeek.last_name?.[0]}
                                     </div>
                                 </div>
-                                <div className="absolute -bottom-3 -right-3 bg-slate-900 text-white text-lg font-black px-6 py-2 rounded-full border-4 border-white shadow-2xl">9.9</div>
+                                <div className="absolute -bottom-3 -right-3 bg-slate-900 text-white text-lg font-black px-6 py-2 rounded-full border-4 border-white shadow-2xl">
+                                    {playerOfTheWeek.rating || '6.0'}
+                                </div>
                             </div>
                             <div className="space-y-2">
                                 <h3 className="text-3xl md:text-4xl font-black uppercase tracking-tighter text-slate-900 leading-tight">
@@ -46,17 +48,17 @@ export default function PlayerOfTheWeek({ playerOfTheWeek }: PlayerOfTheWeekProp
                             </div>
                             <div className="bg-slate-50/50 backdrop-blur-sm rounded-[2rem] p-6 md:p-8 text-center border border-slate-100 group-hover:bg-white transition-all shadow-sm flex flex-col justify-center min-h-[140px]">
                                 <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-2">ASİST</p>
-                                <p className="text-5xl font-black text-slate-900 tabular-nums">3</p>
+                                <p className="text-5xl font-black text-slate-900 tabular-nums">{playerOfTheWeek.assists_count || 0}</p>
                             </div>
                             <div className="bg-slate-50/50 backdrop-blur-sm rounded-[2rem] p-6 md:p-8 text-center border border-slate-100 group-hover:bg-white transition-all shadow-sm flex flex-col justify-center min-h-[140px]">
-                                <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-2">SARI KART</p>
-                                <p className="text-5xl font-black text-amber-500 tabular-nums">0</p>
+                                <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-2">SKORA KATKI (G+A)</p>
+                                <p className="text-5xl font-black text-orange-600 tabular-nums">
+                                    {(playerOfTheWeek.goals_count || 0) + (playerOfTheWeek.assists_count || 0)}
+                                </p>
                             </div>
                             <div className="bg-slate-50/50 backdrop-blur-sm rounded-[2rem] p-6 md:p-8 text-center border border-slate-100 group-hover:bg-white transition-all shadow-sm flex flex-col justify-center min-h-[140px]">
-                                <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-2">RATING</p>
-                                <div className="flex items-center justify-center gap-1 mt-1">
-                                    {[1, 2, 3, 4, 5].map(s => <Star key={s} className="h-5 w-5 fill-orange-500 text-orange-500" />)}
-                                </div>
+                                <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-2">MAÇ SAYISI</p>
+                                <p className="text-5xl font-black text-slate-900 tabular-nums">{playerOfTheWeek.matches_count || 0}</p>
                             </div>
                         </div>
                     </div>

@@ -46,6 +46,7 @@ class StatisticsController extends Controller
                 'fairPlay' => $this->statsService->getFairPlayTable($selectedTournament),
                 'unitGoals' => $this->statsService->getGoalsByUnit($selectedTournament),
                 'trends' => $this->statsService->getMatchTrends($selectedTournament),
+                'topCards' => $this->statsService->getTopCardPlayers($selectedTournament),
             ]
         ]);
     }

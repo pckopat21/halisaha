@@ -134,7 +134,7 @@ class StatsService
      */
     public function getPlayerStats(Player $player)
     {
-        $events = \App\Models\GameEvent::where('player_id', $player->id)
+        $events = GameEvent::where('player_id', $player->id)
             ->with(['game.homeTeam', 'game.awayTeam', 'team'])
             ->orderByDesc('created_at')
             ->get();
@@ -251,6 +251,30 @@ class StatsService
                 ->groupBy('players.id', 'players.first_name', 'players.last_name', 'players.unit_id', 'players.tc_id', 'players.sicil_no', 'players.is_company_staff', 'players.is_permanent_staff', 'players.is_licensed', 'players.health_certificate_at', 'players.created_at', 'players.updated_at')
                 ->orderByDesc('goals_count')
                 ->first()
+        ];
+    }
+
+    /**
+     * Get players with the most cards in a tournament.
+     */
+    public function getTopCardPlayers(Tournament $tournament, $limit = 10)
+    {
+        $players = Player::select('players.*')
+            ->selectRaw('SUM(CASE WHEN match_events.event_type = "yellow_card" THEN 1 ELSE 0 END) as yellow_cards_count')
+            ->selectRaw('SUM(CASE WHEN match_events.event_type = "red_card" THEN 1 ELSE 0 END) as red_cards_count')
+            ->join('match_events', 'players.id', '=', 'match_events.player_id')
+            ->join('games', 'match_events.game_id', '=', 'games.id')
+            ->where('games.tournament_id', $tournament->id)
+            ->whereIn('match_events.event_type', ['yellow_card', 'red_card'])
+            ->groupBy('players.id')
+            ->orderByRaw('(SUM(CASE WHEN match_events.event_type = "red_card" THEN 1 ELSE 0 END) * 3 + SUM(CASE WHEN match_events.event_type = "yellow_card" THEN 1 ELSE 0 END)) DESC')
+            ->with(['unit', 'teams' => function($q) use ($tournament) {
+                $q->where('tournament_id', $tournament->id);
+            }])
+            ->get();
+
+        return [
+            'players' => $players
         ];
     }
 }

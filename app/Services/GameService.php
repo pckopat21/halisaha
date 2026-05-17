@@ -44,6 +44,11 @@ class GameService
     public function logEvent(Game $game, array $data)
     {
         return DB::transaction(function () use ($game, $data) {
+            // Check match status
+            if ($game->status !== 'playing') {
+                throw new \Exception("Maç henüz başlatılmadı veya zaten tamamlandı. Olay kaydedebilmek için maçın devam ediyor (playing) durumunda olması gerekir.");
+            }
+
             // Check suspension
             $player = \App\Models\Player::findOrFail($data['player_id']);
             $suspension = $this->disciplineService->isPlayerSuspended($player, $game);
@@ -51,10 +56,41 @@ class GameService
                 throw new \Exception("Bu oyuncu cezalıdır: " . $suspension['reason']);
             }
 
+            // Check if player has already received a red card in this match
+            $hasRedCardInGame = $game->events()
+                ->where('player_id', $data['player_id'])
+                ->where('event_type', 'red_card')
+                ->exists();
+
+            if ($hasRedCardInGame) {
+                throw new \Exception("Bu oyuncu kırmızı kartla oyun dışı kaldığı için yeni bir olay kaydedilemez.");
+            }
+
             $event = $game->events()->create($data);
 
             if ($data['event_type'] === 'goal') {
                 $this->updateScore($game, $data['team_id'], 1);
+            }
+
+            if ($data['event_type'] === 'yellow_card') {
+                $yellowCount = $game->events()
+                    ->where('player_id', $data['player_id'])
+                    ->where('event_type', 'yellow_card')
+                    ->count();
+
+                if ($yellowCount >= 2) {
+                    // This is the second yellow card! Auto-generate a red card.
+                    $redCardData = [
+                        'game_id' => $game->id,
+                        'team_id' => $data['team_id'],
+                        'player_id' => $data['player_id'],
+                        'event_type' => 'red_card',
+                        'minute' => $data['minute'] ?? null,
+                        'details' => ['second_yellow' => true]
+                    ];
+                    $game->events()->create($redCardData);
+                    $this->handleDiscipline($game, $redCardData);
+                }
             }
 
             // Red cards should check for forfeit
@@ -174,6 +210,30 @@ class GameService
                 } else {
                     $game->away_score = max(0, $game->away_score - 1);
                     $game->save();
+                }
+            }
+
+            if ($type === 'yellow_card') {
+                // If we delete a yellow card, and there was an automatic red card from second yellow, delete it too
+                $redEvent = $game->events()
+                    ->where('player_id', $event->player_id)
+                    ->where('event_type', 'red_card')
+                    ->where('details->second_yellow', true)
+                    ->first();
+                if ($redEvent) {
+                    $redEvent->delete();
+                }
+            }
+
+            if ($type === 'red_card' && isset($event->details['second_yellow']) && $event->details['second_yellow']) {
+                // If we delete an automatic red card, delete the second yellow card too
+                $yellowEvent = $game->events()
+                    ->where('player_id', $event->player_id)
+                    ->where('event_type', 'yellow_card')
+                    ->orderByDesc('created_at')
+                    ->first();
+                if ($yellowEvent) {
+                    $yellowEvent->delete();
                 }
             }
 
