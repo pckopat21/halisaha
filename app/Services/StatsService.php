@@ -630,4 +630,135 @@ class StatsService
 
         return $lineup;
     }
+
+    /**
+     * Get comprehensive compare data (all players and all teams) for a tournament.
+     */
+    public function getCompareData(Tournament $tournament)
+    {
+        // --- 1. Fetch Players Compare Data ---
+        $players = Player::whereHas('teams', function($q) use ($tournament) {
+            $q->where('tournament_id', $tournament->id);
+        })->with(['unit', 'teams' => function($q) use ($tournament) {
+            $q->where('tournament_id', $tournament->id);
+        }])->get();
+
+        $events = DB::table('match_events')
+            ->join('games', 'match_events.game_id', '=', 'games.id')
+            ->where('games.tournament_id', $tournament->id)
+            ->select('match_events.player_id', 'match_events.event_type')
+            ->get();
+
+        $matchesPlayed = DB::table('match_rosters')
+            ->join('games', 'match_rosters.game_id', '=', 'games.id')
+            ->where('games.tournament_id', $tournament->id)
+            ->select('match_rosters.player_id')
+            ->get();
+
+        $playerCompare = $players->map(function ($player) use ($events, $matchesPlayed) {
+            $pEvents = $events->where('player_id', $player->id);
+            $goals = $pEvents->where('event_type', 'goal')->count();
+            $assists = $pEvents->where('event_type', 'assist')->count();
+            $yellows = $pEvents->where('event_type', 'yellow_card')->count();
+            $reds = $pEvents->where('event_type', 'red_card')->count();
+
+            // Performans rating formula:
+            $rating = ($goals * 3.0) + ($assists * 2.0) - ($yellows * 1.0) - ($reds * 3.0);
+            $played = $matchesPlayed->where('player_id', $player->id)->count();
+
+            return [
+                'id' => $player->id,
+                'name' => $player->first_name . ' ' . $player->last_name,
+                'team_name' => $player->teams->first() ? $player->teams->first()->name : 'Serbest',
+                'unit_name' => $player->unit ? $player->unit->name : 'Genel',
+                'goals' => $goals,
+                'assists' => $assists,
+                'yellow_cards' => $yellows,
+                'red_cards' => $reds,
+                'played_matches' => $played,
+                'goals_per_match' => $played > 0 ? round($goals / $played, 2) : 0,
+                'assists_per_match' => $played > 0 ? round($assists / $played, 2) : 0,
+                'rating' => $rating,
+            ];
+        })->sortByDesc('rating')->values();
+
+        // --- 2. Fetch Teams Compare Data ---
+        $games = \App\Models\Game::where('tournament_id', $tournament->id)
+            ->where('status', 'completed')
+            ->get();
+
+        $teams = Team::where('tournament_id', $tournament->id)->with('unit')->get();
+
+        $teamCards = DB::table('match_events')
+            ->join('games', 'match_events.game_id', '=', 'games.id')
+            ->where('games.tournament_id', $tournament->id)
+            ->whereIn('match_events.event_type', ['yellow_card', 'red_card'])
+            ->select('match_events.team_id', 'match_events.event_type')
+            ->get();
+
+        $teamCompare = $teams->map(function ($team) use ($games, $teamCards) {
+            $myGames = $games->filter(function($g) use ($team) {
+                return $g->home_team_id === $team->id || $g->away_team_id === $team->id;
+            });
+
+            $wins = 0;
+            $draws = 0;
+            $losses = 0;
+            $goalsFor = 0;
+            $goalsAgainst = 0;
+            $cleanSheets = 0;
+
+            foreach ($myGames as $game) {
+                $isHome = $game->home_team_id === $team->id;
+                $myScore = $isHome ? $game->home_score : $game->away_score;
+                $oppScore = $isHome ? $game->away_score : $game->home_score;
+
+                $goalsFor += $myScore;
+                $goalsAgainst += $oppScore;
+                if ($oppScore === 0) {
+                    $cleanSheets++;
+                }
+
+                if ($myScore > $oppScore) {
+                    $wins++;
+                } elseif ($myScore < $oppScore) {
+                    $losses++;
+                } else {
+                    $draws++;
+                }
+            }
+
+            $played = $myGames->count();
+            $points = ($wins * 3) + ($draws * 1);
+            $goalDiff = $goalsFor - $goalsAgainst;
+            $winRatio = $played > 0 ? round(($wins / $played) * 100, 1) : 0;
+
+            $myCards = $teamCards->where('team_id', $team->id);
+            $yellows = $myCards->where('event_type', 'yellow_card')->count();
+            $reds = $myCards->where('event_type', 'red_card')->count();
+
+            return [
+                'id' => $team->id,
+                'name' => $team->name,
+                'unit_name' => $team->unit ? $team->unit->name : 'Genel',
+                'played' => $played,
+                'wins' => $wins,
+                'draws' => $draws,
+                'losses' => $losses,
+                'points' => $points,
+                'goals_for' => $goalsFor,
+                'goals_against' => $goalsAgainst,
+                'goal_difference' => $goalDiff,
+                'clean_sheets' => $cleanSheets,
+                'yellow_cards' => $yellows,
+                'red_cards' => $reds,
+                'win_ratio' => $winRatio,
+            ];
+        })->sortByDesc('points')->values();
+
+        return [
+            'players' => $playerCompare,
+            'teams' => $teamCompare,
+        ];
+    }
 }

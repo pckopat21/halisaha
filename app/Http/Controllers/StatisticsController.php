@@ -52,6 +52,7 @@ class StatisticsController extends Controller
                 'unitGoals' => $this->statsService->getGoalsByUnit($selectedTournament),
                 'trends' => $this->statsService->getMatchTrends($selectedTournament),
                 'topCards' => $this->statsService->getTopCardPlayers($selectedTournament),
+                'compare' => $this->statsService->getCompareData($selectedTournament),
             ]
         ]);
     }

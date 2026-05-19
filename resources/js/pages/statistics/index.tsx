@@ -8,7 +8,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell, PieChart, Pie, LineChart, Line } from 'recharts';
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell, PieChart, Pie, LineChart, Line, RadarChart, Radar, PolarGrid, PolarAngleAxis, PolarRadiusAxis } from 'recharts';
 
 interface Props {
     tournaments: any[];
@@ -29,6 +29,10 @@ interface Props {
         topCards?: {
             players: any[];
         };
+        compare: {
+            players: any[];
+            teams: any[];
+        };
     };
 }
 
@@ -44,6 +48,28 @@ export default function Index({ tournaments, selectedTournament, stats }: Props)
     const [cardSort, setCardSort] = useState<'points' | 'yellow' | 'red'>('points');
     const [cardPage, setCardPage] = useState(1);
     const cardPerPage = 8;
+
+    // Comparison Center States
+    const [compareMode, setCompareMode] = useState<'players' | 'teams'>('players');
+    
+    const playersList = stats.compare?.players || [];
+    const teamsList = stats.compare?.teams || [];
+
+    const [comparePlayer1Id, setComparePlayer1Id] = useState<number | null>(playersList[0]?.id || null);
+    const [comparePlayer2Id, setComparePlayer2Id] = useState<number | null>(playersList[1]?.id || null);
+    
+    const [compareTeam1Id, setCompareTeam1Id] = useState<number | null>(teamsList[0]?.id || null);
+    const [compareTeam2Id, setCompareTeam2Id] = useState<number | null>(teamsList[1]?.id || null);
+
+    const [searchP1, setSearchP1] = useState('');
+    const [searchP2, setSearchP2] = useState('');
+    const [searchT1, setSearchT1] = useState('');
+    const [searchT2, setSearchT2] = useState('');
+
+    const [isOpenP1, setIsOpenP1] = useState(false);
+    const [isOpenP2, setIsOpenP2] = useState(false);
+    const [isOpenT1, setIsOpenT1] = useState(false);
+    const [isOpenT2, setIsOpenT2] = useState(false);
 
     const allCardPlayers = stats.topCards?.players || [];
     const filteredCardPlayers = allCardPlayers
@@ -133,10 +159,10 @@ export default function Index({ tournaments, selectedTournament, stats }: Props)
 
                         <Tabs defaultValue="overview" className="space-y-8">
                             <TabsList className="bg-transparent h-auto p-0 flex-wrap gap-2 flex justify-start mb-8">
-                                {['BİR BAKIŞTA', 'GOL VE ASİST', '⚡ ÖLÜMCÜL İKİLİLER', 'KART ANALİZİ', 'TAKIM ANALİZİ', 'BİRİM DAĞILIMI', '🏆 RÜYA TAKIMI'].map((tab, i) => (
+                                {['BİR BAKIŞTA', 'GOL VE ASİST', '⚡ ÖLÜMCÜL İKİLİLER', 'KART ANALİZİ', 'TAKIM ANALİZİ', 'BİRİM DAĞILIMI', '🆚 KIYASLAMA', '🏆 RÜYA TAKIMI'].map((tab, i) => (
                                     <TabsTrigger 
                                         key={i}
-                                        value={['overview', 'players', 'duos', 'cards', 'teams', 'units', 'dream_team'][i]}
+                                        value={['overview', 'players', 'duos', 'cards', 'teams', 'units', 'compare', 'dream_team'][i]}
                                         className="rounded-2xl px-6 py-3 font-black text-[10px] uppercase tracking-widest border border-slate-200 dark:border-white/5 data-[state=active]:bg-blue-600 data-[state=active]:text-white transition-all shadow-sm"
                                     >
                                         {tab}
@@ -724,6 +750,561 @@ export default function Index({ tournaments, selectedTournament, stats }: Props)
                                         </ResponsiveContainer>
                                     </CardContent>
                                 </Card>
+                            </TabsContent>
+
+                            {/* Comparison Center Tab */}
+                            <TabsContent value="compare">
+                                <div className="space-y-8">
+                                    {/* Mode Selector & Search Comboboxes */}
+                                    <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 p-6 bg-slate-50 dark:bg-white/5 border border-slate-100 dark:border-white/5 rounded-[2rem]">
+                                        <div className="flex gap-2">
+                                            <Button
+                                                variant={compareMode === 'players' ? 'default' : 'outline'}
+                                                onClick={() => setCompareMode('players')}
+                                                className="rounded-2xl font-black text-xs uppercase tracking-wider"
+                                            >
+                                                🏃 OYUNCU KIYASLA
+                                            </Button>
+                                            <Button
+                                                variant={compareMode === 'teams' ? 'default' : 'outline'}
+                                                onClick={() => setCompareMode('teams')}
+                                                className="rounded-2xl font-black text-xs uppercase tracking-wider"
+                                            >
+                                                🛡️ TAKIM KIYASLA
+                                            </Button>
+                                        </div>
+                                        <div className="text-xs font-black uppercase text-muted-foreground tracking-widest bg-white dark:bg-neutral-900 px-4 py-2 rounded-2xl border border-slate-100 dark:border-white/5">
+                                            BİREBİR HEAD-TO-HEAD KIYASLAMA ANALİZİ
+                                        </div>
+                                    </div>
+
+                                    {/* Search Combobox Area */}
+                                    {compareMode === 'players' ? (
+                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-8 items-center relative">
+                                            {/* Player 1 Selection */}
+                                            <div className="relative">
+                                                <label className="block text-[10px] font-black uppercase tracking-widest text-muted-foreground mb-2">1. OYUNCU SEÇİMİ</label>
+                                                <div 
+                                                    className="w-full p-4 bg-white dark:bg-neutral-900 border border-slate-200 dark:border-white/10 rounded-2xl cursor-pointer hover:border-blue-500 transition-colors flex justify-between items-center"
+                                                    onClick={() => setIsOpenP1(!isOpenP1)}
+                                                >
+                                                    <div>
+                                                        <h4 className="font-black text-sm uppercase tracking-tight">
+                                                            {playersList.find(p => p.id === comparePlayer1Id)?.name || 'Oyuncu Seçin'}
+                                                        </h4>
+                                                        <span className="text-[10px] font-bold text-muted-foreground uppercase">
+                                                            {playersList.find(p => p.id === comparePlayer1Id)?.team_name || '-'} • {playersList.find(p => p.id === comparePlayer1Id)?.unit_name || '-'}
+                                                        </span>
+                                                    </div>
+                                                    <span className="text-xs font-black text-blue-600">DEĞİŞTİR</span>
+                                                </div>
+                                                {isOpenP1 && (
+                                                    <div className="absolute left-0 right-0 mt-2 p-4 bg-white dark:bg-neutral-900 border border-slate-200 dark:border-white/10 rounded-2xl shadow-2xl z-50 max-h-[350px] flex flex-col gap-2">
+                                                        <div className="relative">
+                                                            <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+                                                            <Input 
+                                                                className="pl-9 rounded-xl font-bold" 
+                                                                placeholder="Oyuncu veya birim ara..." 
+                                                                value={searchP1} 
+                                                                onChange={(e) => setSearchP1(e.target.value)} 
+                                                            />
+                                                        </div>
+                                                        <div className="overflow-y-auto space-y-1 pr-1">
+                                                            {playersList
+                                                                .filter(p => p.name.toLowerCase().includes(searchP1.toLowerCase()) || p.team_name.toLowerCase().includes(searchP1.toLowerCase()) || p.unit_name.toLowerCase().includes(searchP1.toLowerCase()))
+                                                                .map(p => (
+                                                                    <div 
+                                                                        key={p.id} 
+                                                                        onClick={() => {
+                                                                            setComparePlayer1Id(p.id);
+                                                                            setIsOpenP1(false);
+                                                                            setSearchP1('');
+                                                                        }}
+                                                                        className="p-3 hover:bg-slate-50 dark:hover:bg-white/5 rounded-xl cursor-pointer transition-colors flex justify-between items-center"
+                                                                    >
+                                                                        <div>
+                                                                            <p className="text-xs font-black uppercase tracking-tight">{p.name}</p>
+                                                                            <p className="text-[9px] font-bold text-muted-foreground uppercase">{p.team_name} • {p.unit_name}</p>
+                                                                        </div>
+                                                                        <Badge className="font-extrabold bg-blue-600/10 text-blue-600 border-none hover:bg-blue-600/10">{p.rating} Puan</Badge>
+                                                                    </div>
+                                                                ))}
+                                                        </div>
+                                                    </div>
+                                                )}
+                                            </div>
+
+                                            {/* Player 2 Selection */}
+                                            <div className="relative">
+                                                <label className="block text-[10px] font-black uppercase tracking-widest text-muted-foreground mb-2">2. OYUNCU SEÇİMİ</label>
+                                                <div 
+                                                    className="w-full p-4 bg-white dark:bg-neutral-900 border border-slate-200 dark:border-white/10 rounded-2xl cursor-pointer hover:border-amber-500 transition-colors flex justify-between items-center"
+                                                    onClick={() => setIsOpenP2(!isOpenP2)}
+                                                >
+                                                    <div>
+                                                        <h4 className="font-black text-sm uppercase tracking-tight">
+                                                            {playersList.find(p => p.id === comparePlayer2Id)?.name || 'Oyuncu Seçin'}
+                                                        </h4>
+                                                        <span className="text-[10px] font-bold text-muted-foreground uppercase">
+                                                            {playersList.find(p => p.id === comparePlayer2Id)?.team_name || '-'} • {playersList.find(p => p.id === comparePlayer2Id)?.unit_name || '-'}
+                                                        </span>
+                                                    </div>
+                                                    <span className="text-xs font-black text-amber-600">DEĞİŞTİR</span>
+                                                </div>
+                                                {isOpenP2 && (
+                                                    <div className="absolute left-0 right-0 mt-2 p-4 bg-white dark:bg-neutral-900 border border-slate-200 dark:border-white/10 rounded-2xl shadow-2xl z-50 max-h-[350px] flex flex-col gap-2">
+                                                        <div className="relative">
+                                                            <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+                                                            <Input 
+                                                                className="pl-9 rounded-xl font-bold" 
+                                                                placeholder="Oyuncu veya birim ara..." 
+                                                                value={searchP2} 
+                                                                onChange={(e) => setSearchP2(e.target.value)} 
+                                                            />
+                                                        </div>
+                                                        <div className="overflow-y-auto space-y-1 pr-1">
+                                                            {playersList
+                                                                .filter(p => p.name.toLowerCase().includes(searchP2.toLowerCase()) || p.team_name.toLowerCase().includes(searchP2.toLowerCase()) || p.unit_name.toLowerCase().includes(searchP2.toLowerCase()))
+                                                                .map(p => (
+                                                                    <div 
+                                                                        key={p.id} 
+                                                                        onClick={() => {
+                                                                            setComparePlayer2Id(p.id);
+                                                                            setIsOpenP2(false);
+                                                                            setSearchP2('');
+                                                                        }}
+                                                                        className="p-3 hover:bg-slate-50 dark:hover:bg-white/5 rounded-xl cursor-pointer transition-colors flex justify-between items-center"
+                                                                    >
+                                                                        <div>
+                                                                            <p className="text-xs font-black uppercase tracking-tight">{p.name}</p>
+                                                                            <p className="text-[9px] font-bold text-muted-foreground uppercase">{p.team_name} • {p.unit_name}</p>
+                                                                        </div>
+                                                                        <Badge className="font-extrabold bg-amber-500/10 text-amber-600 border-none hover:bg-amber-500/10">{p.rating} Puan</Badge>
+                                                                    </div>
+                                                                ))}
+                                                        </div>
+                                                    </div>
+                                                )}
+                                            </div>
+                                        </div>
+                                    ) : (
+                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-8 items-center relative">
+                                            {/* Team 1 Selection */}
+                                            <div className="relative">
+                                                <label className="block text-[10px] font-black uppercase tracking-widest text-muted-foreground mb-2">1. TAKIM SEÇİMİ</label>
+                                                <div 
+                                                    className="w-full p-4 bg-white dark:bg-neutral-900 border border-slate-200 dark:border-white/10 rounded-2xl cursor-pointer hover:border-blue-500 transition-colors flex justify-between items-center"
+                                                    onClick={() => setIsOpenT1(!isOpenT1)}
+                                                >
+                                                    <div>
+                                                        <h4 className="font-black text-sm uppercase tracking-tight">
+                                                            {teamsList.find(t => t.id === compareTeam1Id)?.name || 'Takım Seçin'}
+                                                        </h4>
+                                                        <span className="text-[10px] font-bold text-muted-foreground uppercase">
+                                                            {teamsList.find(t => t.id === compareTeam1Id)?.unit_name || '-'}
+                                                        </span>
+                                                    </div>
+                                                    <span className="text-xs font-black text-blue-600">DEĞİŞTİR</span>
+                                                </div>
+                                                {isOpenT1 && (
+                                                    <div className="absolute left-0 right-0 mt-2 p-4 bg-white dark:bg-neutral-900 border border-slate-200 dark:border-white/10 rounded-2xl shadow-2xl z-50 max-h-[350px] flex flex-col gap-2">
+                                                        <div className="relative">
+                                                            <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+                                                            <Input 
+                                                                className="pl-9 rounded-xl font-bold" 
+                                                                placeholder="Takım veya birim ara..." 
+                                                                value={searchT1} 
+                                                                onChange={(e) => setSearchT1(e.target.value)} 
+                                                            />
+                                                        </div>
+                                                        <div className="overflow-y-auto space-y-1 pr-1">
+                                                            {teamsList
+                                                                .filter(t => t.name.toLowerCase().includes(searchT1.toLowerCase()) || t.unit_name.toLowerCase().includes(searchT1.toLowerCase()))
+                                                                .map(t => (
+                                                                    <div 
+                                                                        key={t.id} 
+                                                                        onClick={() => {
+                                                                            setCompareTeam1Id(t.id);
+                                                                            setIsOpenT1(false);
+                                                                            setSearchT1('');
+                                                                        }}
+                                                                        className="p-3 hover:bg-slate-50 dark:hover:bg-white/5 rounded-xl cursor-pointer transition-colors flex justify-between items-center"
+                                                                    >
+                                                                        <div>
+                                                                            <p className="text-xs font-black uppercase tracking-tight">{t.name}</p>
+                                                                            <p className="text-[9px] font-bold text-muted-foreground uppercase">{t.unit_name}</p>
+                                                                        </div>
+                                                                        <Badge className="font-extrabold bg-blue-600/10 text-blue-600 border-none hover:bg-blue-600/10">{t.points} Puan</Badge>
+                                                                    </div>
+                                                                ))}
+                                                        </div>
+                                                    </div>
+                                                )}
+                                            </div>
+
+                                            {/* Team 2 Selection */}
+                                            <div className="relative">
+                                                <label className="block text-[10px] font-black uppercase tracking-widest text-muted-foreground mb-2">2. TAKIM SEÇİMİ</label>
+                                                <div 
+                                                    className="w-full p-4 bg-white dark:bg-neutral-900 border border-slate-200 dark:border-white/10 rounded-2xl cursor-pointer hover:border-amber-500 transition-colors flex justify-between items-center"
+                                                    onClick={() => setIsOpenT2(!isOpenT2)}
+                                                >
+                                                    <div>
+                                                        <h4 className="font-black text-sm uppercase tracking-tight">
+                                                            {teamsList.find(t => t.id === compareTeam2Id)?.name || 'Takım Seçin'}
+                                                        </h4>
+                                                        <span className="text-[10px] font-bold text-muted-foreground uppercase">
+                                                            {teamsList.find(t => t.id === compareTeam2Id)?.unit_name || '-'}
+                                                        </span>
+                                                    </div>
+                                                    <span className="text-xs font-black text-amber-600">DEĞİŞTİR</span>
+                                                </div>
+                                                {isOpenT2 && (
+                                                    <div className="absolute left-0 right-0 mt-2 p-4 bg-white dark:bg-neutral-900 border border-slate-200 dark:border-white/10 rounded-2xl shadow-2xl z-50 max-h-[350px] flex flex-col gap-2">
+                                                        <div className="relative">
+                                                            <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+                                                            <Input 
+                                                                className="pl-9 rounded-xl font-bold" 
+                                                                placeholder="Takım veya birim ara..." 
+                                                                value={searchT2} 
+                                                                onChange={(e) => setSearchT2(e.target.value)} 
+                                                            />
+                                                        </div>
+                                                        <div className="overflow-y-auto space-y-1 pr-1">
+                                                            {teamsList
+                                                                .filter(t => t.name.toLowerCase().includes(searchT2.toLowerCase()) || t.unit_name.toLowerCase().includes(searchT2.toLowerCase()))
+                                                                .map(t => (
+                                                                    <div 
+                                                                        key={t.id} 
+                                                                        onClick={() => {
+                                                                            setCompareTeam2Id(t.id);
+                                                                            setIsOpenT2(false);
+                                                                            setSearchT2('');
+                                                                        }}
+                                                                        className="p-3 hover:bg-slate-50 dark:hover:bg-white/5 rounded-xl cursor-pointer transition-colors flex justify-between items-center"
+                                                                    >
+                                                                        <div>
+                                                                            <p className="text-xs font-black uppercase tracking-tight">{t.name}</p>
+                                                                            <p className="text-[9px] font-bold text-muted-foreground uppercase">{t.unit_name}</p>
+                                                                        </div>
+                                                                        <Badge className="font-extrabold bg-amber-500/10 text-amber-600 border-none hover:bg-amber-500/10">{t.points} Puan</Badge>
+                                                                    </div>
+                                                                ))}
+                                                        </div>
+                                                    </div>
+                                                )}
+                                            </div>
+                                        </div>
+                                    )}
+
+                                    {/* Display Comparison Content */}
+                                    {compareMode === 'players' ? (
+                                        (() => {
+                                            const p1 = playersList.find(p => p.id === comparePlayer1Id);
+                                            const p2 = playersList.find(p => p.id === comparePlayer2Id);
+
+                                            if (!p1 || !p2) return null;
+
+                                            // Radar Data Setup
+                                            const radarData = [
+                                                { subject: 'Gol ⚽', p1: p1.goals, p2: p2.goals },
+                                                { subject: 'Asist 🎯', p1: p1.assists, p2: p2.assists },
+                                                { subject: 'Maç Sayısı 🏃', p1: p1.played_matches, p2: p2.played_matches },
+                                                { subject: 'M.B. Skor 📈', p1: parseFloat((p1.goals_per_match + p1.assists_per_match).toFixed(1)), p2: parseFloat((p2.goals_per_match + p2.assists_per_match).toFixed(1)) },
+                                                { subject: 'Performans ⭐', p1: Math.max(0, p1.rating), p2: Math.max(0, p2.rating) },
+                                            ];
+
+                                            const compareMetrics = [
+                                                { label: 'REYTING / PERFORMANS SKORU', val1: p1.rating, val2: p2.rating, suffix: ' Puan', lowerIsBetter: false },
+                                                { label: 'TOPLAM GOL', val1: p1.goals, val2: p2.goals, suffix: ' Gol', lowerIsBetter: false },
+                                                { label: 'TOPLAM ASİST', val1: p1.assists, val2: p2.assists, suffix: ' Asist', lowerIsBetter: false },
+                                                { label: 'MAÇ SAYISI', val1: p1.played_matches, val2: p2.played_matches, suffix: ' Maç', lowerIsBetter: false },
+                                                { label: 'MAÇ BAŞI GOL ORTALAMASI', val1: p1.goals_per_match, val2: p2.goals_per_match, suffix: ' Gol/Maç', lowerIsBetter: false },
+                                                { label: 'MAÇ BAŞI ASİST ORTALAMASI', val1: p1.assists_per_match, val2: p2.assists_per_match, suffix: ' Asist/Maç', lowerIsBetter: false },
+                                                { label: 'KART CEZA PUANI (Sarı: 1, Kırmızı: 3)', val1: p1.yellow_cards * 1 + p1.red_cards * 3, val2: p2.yellow_cards * 1 + p2.red_cards * 3, suffix: ' Ceza Puanı', lowerIsBetter: true },
+                                            ];
+
+                                            return (
+                                                <div className="space-y-8">
+                                                    {/* Header Cards (Birebir Profil) */}
+                                                    <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-center">
+                                                        {/* Player 1 Card */}
+                                                        <div className="lg:col-span-5 p-8 bg-gradient-to-br from-blue-500/10 to-indigo-500/10 border-2 border-blue-500/20 rounded-[3rem] shadow-xl relative overflow-hidden group">
+                                                            <div className="absolute -right-4 -bottom-4 w-32 h-32 bg-blue-600/10 rounded-full blur-2xl group-hover:scale-150 transition-transform duration-500" />
+                                                            <Badge variant="outline" className="border-blue-500/30 text-blue-600 mb-4">{p1.unit_name}</Badge>
+                                                            <h2 className="text-3xl font-black uppercase tracking-tighter text-blue-600 truncate">{p1.name}</h2>
+                                                            <p className="text-xs font-black uppercase tracking-widest text-muted-foreground mt-1 truncate">{p1.team_name}</p>
+                                                            <div className="mt-6 flex items-center justify-between">
+                                                                <div className="space-y-1">
+                                                                    <p className="text-[9px] font-black uppercase tracking-widest text-muted-foreground">TOPLAM SKOR KATKISI</p>
+                                                                    <span className="text-2xl font-black text-blue-600">{p1.goals + p1.assists}</span>
+                                                                    <span className="text-[10px] font-bold text-muted-foreground uppercase ml-1">GOL+ASİST</span>
+                                                                </div>
+                                                                <div className="w-16 h-16 rounded-full bg-blue-600 text-white font-black flex flex-col items-center justify-center border-4 border-white shadow-lg shadow-blue-500/20">
+                                                                    <span className="text-[8px] tracking-tighter opacity-80 uppercase leading-none">RATING</span>
+                                                                    <span className="text-lg leading-tight mt-0.5">{p1.rating}</span>
+                                                                </div>
+                                                            </div>
+                                                        </div>
+
+                                                        {/* VS Glowing Badge */}
+                                                        <div className="lg:col-span-2 flex justify-center z-10">
+                                                            <div className="w-16 h-16 rounded-full bg-rose-600 text-white font-black flex items-center justify-center text-xl shadow-2xl shadow-rose-950/40 border-[5px] border-white dark:border-neutral-900 animate-pulse">
+                                                                VS
+                                                            </div>
+                                                        </div>
+
+                                                        {/* Player 2 Card */}
+                                                        <div className="lg:col-span-5 p-8 bg-gradient-to-br from-amber-500/10 to-orange-500/10 border-2 border-amber-500/20 rounded-[3rem] shadow-xl relative overflow-hidden group">
+                                                            <div className="absolute -right-4 -bottom-4 w-32 h-32 bg-amber-600/10 rounded-full blur-2xl group-hover:scale-150 transition-transform duration-500" />
+                                                            <Badge variant="outline" className="border-amber-500/30 text-amber-600 mb-4">{p2.unit_name}</Badge>
+                                                            <h2 className="text-3xl font-black uppercase tracking-tighter text-amber-600 truncate">{p2.name}</h2>
+                                                            <p className="text-xs font-black uppercase tracking-widest text-muted-foreground mt-1 truncate">{p2.team_name}</p>
+                                                            <div className="mt-6 flex items-center justify-between">
+                                                                <div className="space-y-1">
+                                                                    <p className="text-[9px] font-black uppercase tracking-widest text-muted-foreground">TOPLAM SKOR KATKISI</p>
+                                                                    <span className="text-2xl font-black text-amber-600">{p2.goals + p2.assists}</span>
+                                                                    <span className="text-[10px] font-bold text-muted-foreground uppercase ml-1">GOL+ASİST</span>
+                                                                </div>
+                                                                <div className="w-16 h-16 rounded-full bg-amber-500 text-white font-black flex flex-col items-center justify-center border-4 border-white shadow-lg shadow-amber-500/20">
+                                                                    <span className="text-[8px] tracking-tighter opacity-80 uppercase leading-none">RATING</span>
+                                                                    <span className="text-lg leading-tight mt-0.5">{p2.rating}</span>
+                                                                </div>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+
+                                                    {/* Comparative Visualizations */}
+                                                    <div className="grid grid-cols-1 xl:grid-cols-12 gap-8 items-start">
+                                                        {/* Radar Chart */}
+                                                        <Card className="xl:col-span-5 border-none shadow-2xl bg-white/80 dark:bg-neutral-900/80 backdrop-blur-3xl rounded-[3rem] overflow-hidden">
+                                                            <CardHeader className="p-8">
+                                                                <CardTitle className="text-lg font-black uppercase tracking-tighter flex items-center gap-3">
+                                                                    <Activity className="h-5 w-5 text-indigo-600" /> OYUNCU GÜÇ RADARI
+                                                                </CardTitle>
+                                                                <CardDescription className="text-xs font-black uppercase tracking-widest opacity-50">ÖZELLİK BAZLI DENGE GRAFİĞİ</CardDescription>
+                                                            </CardHeader>
+                                                            <CardContent className="p-8 pt-0 h-[380px] flex items-center justify-center">
+                                                                <ResponsiveContainer width="100%" height="100%">
+                                                                    <RadarChart cx="50%" cy="50%" outerRadius="70%" data={radarData}>
+                                                                        <PolarGrid gridType="circle" strokeOpacity={0.1} />
+                                                                        <PolarAngleAxis dataKey="subject" tick={{ fontSize: 9, fontWeight: 'bold' }} />
+                                                                        <PolarRadiusAxis angle={30} domain={[0, 'auto']} tick={{ fontSize: 8 }} />
+                                                                        <Radar name={p1.name} dataKey="p1" stroke="#2563eb" fill="#2563eb" fillOpacity={0.25} />
+                                                                        <Radar name={p2.name} dataKey="p2" stroke="#d97706" fill="#d97706" fillOpacity={0.25} />
+                                                                        <Tooltip contentStyle={{ borderRadius: '1rem', border: 'none', boxShadow: '0 10px 30px rgba(0,0,0,0.1)' }} />
+                                                                    </RadarChart>
+                                                                </ResponsiveContainer>
+                                                            </CardContent>
+                                                        </Card>
+
+                                                        {/* Detailed Comparison Bars */}
+                                                        <Card className="xl:col-span-7 border-none shadow-2xl bg-white/80 dark:bg-neutral-900/80 backdrop-blur-3xl rounded-[3rem]">
+                                                            <CardHeader className="p-8">
+                                                                <CardTitle className="text-lg font-black uppercase tracking-tighter flex items-center gap-3">
+                                                                    <TrendingUp className="h-5 w-5 text-blue-600" /> DETAYLI KARŞILAŞTIRMA
+                                                                </CardTitle>
+                                                                <CardDescription className="text-xs font-black uppercase tracking-widest opacity-50">İSTATİSTİK BAZLI KIYASLAMA BARI</CardDescription>
+                                                            </CardHeader>
+                                                            <CardContent className="p-8 pt-0 space-y-5">
+                                                                {compareMetrics.map((metric, i) => {
+                                                                    const total = metric.val1 + metric.val2;
+                                                                    const p1Percent = total > 0 ? (metric.val1 / total) * 100 : 50;
+                                                                    const p2Percent = total > 0 ? (metric.val2 / total) * 100 : 50;
+                                                                    const isP1Superior = metric.lowerIsBetter ? metric.val1 < metric.val2 : metric.val1 > metric.val2;
+                                                                    const isP2Superior = metric.lowerIsBetter ? metric.val2 < metric.val1 : metric.val2 > metric.val1;
+
+                                                                    return (
+                                                                        <div key={i} className="space-y-1.5">
+                                                                            <div className="flex justify-between items-center text-xs">
+                                                                                <span className={`font-black tracking-tight ${isP1Superior ? 'text-blue-600 font-extrabold text-sm' : 'text-muted-foreground'}`}>
+                                                                                    {metric.val1}{metric.suffix}
+                                                                                </span>
+                                                                                <span className="text-[8px] font-black text-muted-foreground uppercase tracking-widest opacity-60">
+                                                                                    {metric.label}
+                                                                                </span>
+                                                                                <span className={`font-black tracking-tight ${isP2Superior ? 'text-amber-600 font-extrabold text-sm' : 'text-muted-foreground'}`}>
+                                                                                    {metric.val2}{metric.suffix}
+                                                                                </span>
+                                                                            </div>
+                                                                            <div className="flex items-center gap-1">
+                                                                                <div className="flex-1 h-2.5 bg-slate-50 dark:bg-white/5 rounded-l-full overflow-hidden flex justify-end">
+                                                                                    <div 
+                                                                                        className={`h-full transition-all duration-500 ${isP1Superior ? 'bg-gradient-to-l from-blue-600 to-indigo-500 shadow-md shadow-blue-500/20' : 'bg-slate-300 dark:bg-neutral-700'}`} 
+                                                                                        style={{ width: `${p1Percent}%` }} 
+                                                                                    />
+                                                                                </div>
+                                                                                <div className="flex-1 h-2.5 bg-slate-50 dark:bg-white/5 rounded-r-full overflow-hidden flex justify-start">
+                                                                                    <div 
+                                                                                        className={`h-full transition-all duration-500 ${isP2Superior ? 'bg-gradient-to-r from-amber-500 to-orange-500 shadow-md shadow-amber-500/20' : 'bg-slate-300 dark:bg-neutral-700'}`} 
+                                                                                        style={{ width: `${p2Percent}%` }} 
+                                                                                    />
+                                                                                </div>
+                                                                            </div>
+                                                                        </div>
+                                                                    );
+                                                                })}
+                                                            </CardContent>
+                                                        </Card>
+                                                    </div>
+                                                </div>
+                                            );
+                                        })()
+                                    ) : (
+                                        (() => {
+                                            const t1 = teamsList.find(t => t.id === compareTeam1Id);
+                                            const t2 = teamsList.find(t => t.id === compareTeam2Id);
+
+                                            if (!t1 || !t2) return null;
+
+                                            // Radar Data Setup
+                                            const teamRadarData = [
+                                                { subject: 'Puan 🏆', t1: t1.points, t2: t2.points },
+                                                { subject: 'Gol Atılan ⚽', t1: t1.goals_for, t2: t2.goals_for },
+                                                { subject: 'Gol Yenen 🛡️', t1: Math.max(0, 30 - t1.goals_against), t2: Math.max(0, 30 - t2.goals_against) },
+                                                { subject: 'G. Yememe 🧤', t1: t1.clean_sheets, t2: t2.clean_sheets },
+                                                { subject: 'G. Yüzdesi 📈', t1: parseFloat((t1.win_ratio / 10).toFixed(1)), t2: parseFloat((t2.win_ratio / 10).toFixed(1)) },
+                                            ];
+
+                                            const teamMetrics = [
+                                                { label: 'TOPLAM PUAN', val1: t1.points, val2: t2.points, suffix: ' Puan', lowerIsBetter: false },
+                                                { label: 'MAÇ SAYISI', val1: t1.played, val2: t2.played, suffix: ' Maç', lowerIsBetter: false },
+                                                { label: 'GALİBİYET SAYISI', val1: t1.wins, val2: t2.wins, suffix: ' Galibiyet', lowerIsBetter: false },
+                                                { label: 'BERABERLİK SAYISI', val1: t1.draws, val2: t2.draws, suffix: ' Beraberlik', lowerIsBetter: false },
+                                                { label: 'MAĞLUBİYET SAYISI', val1: t1.losses, val2: t2.losses, suffix: ' Mağlubiyet', lowerIsBetter: true },
+                                                { label: 'KAZANMA ORANI (%)', val1: t1.win_ratio, val2: t2.win_ratio, suffix: '%', lowerIsBetter: false },
+                                                { label: 'ATILAN GOL (HÜCUM GÜCÜ)', val1: t1.goals_for, val2: t2.goals_for, suffix: ' Gol', lowerIsBetter: false },
+                                                { label: 'YENEN GOL (SAVUNMA DUVARI)', val1: t1.goals_against, val2: t2.goals_against, suffix: ' Gol', lowerIsBetter: true },
+                                                { label: 'AVERRAJ (GOL FARKI)', val1: t1.goal_difference, val2: t2.goal_difference, suffix: ' Averaj', lowerIsBetter: false },
+                                                { label: 'GOL YEMEDİĞİ MAÇ (CLEAN SHEET)', val1: t1.clean_sheets, val2: t2.clean_sheets, suffix: ' Maç', lowerIsBetter: false },
+                                                { label: 'SARI KART CEZASI', val1: t1.yellow_cards, val2: t2.yellow_cards, suffix: ' Kart', lowerIsBetter: true },
+                                                { label: 'KIRMIZI KART CEZASI', val1: t1.red_cards, val2: t2.red_cards, suffix: ' Kart', lowerIsBetter: true },
+                                            ];
+
+                                            return (
+                                                <div className="space-y-8">
+                                                    {/* Header Cards */}
+                                                    <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-center">
+                                                        {/* Team 1 Card */}
+                                                        <div className="lg:col-span-5 p-8 bg-gradient-to-br from-blue-500/10 to-indigo-500/10 border-2 border-blue-500/20 rounded-[3rem] shadow-xl relative overflow-hidden group">
+                                                            <div className="absolute -right-4 -bottom-4 w-32 h-32 bg-blue-600/10 rounded-full blur-2xl group-hover:scale-150 transition-transform duration-500" />
+                                                            <Badge variant="outline" className="border-blue-500/30 text-blue-600 mb-4">{t1.unit_name}</Badge>
+                                                            <h2 className="text-3xl font-black uppercase tracking-tighter text-blue-600 truncate">{t1.name}</h2>
+                                                            <div className="mt-6 flex items-center justify-between">
+                                                                <div className="space-y-1">
+                                                                    <p className="text-[9px] font-black uppercase tracking-widest text-muted-foreground">KAZANMA ORANI</p>
+                                                                    <span className="text-2xl font-black text-blue-600">%{t1.win_ratio}</span>
+                                                                </div>
+                                                                <div className="w-16 h-16 rounded-full bg-blue-600 text-white font-black flex flex-col items-center justify-center border-4 border-white shadow-lg shadow-blue-500/20">
+                                                                    <span className="text-[8px] tracking-tighter opacity-80 uppercase leading-none">PUAN</span>
+                                                                    <span className="text-lg leading-tight mt-0.5">{t1.points}</span>
+                                                                </div>
+                                                            </div>
+                                                        </div>
+
+                                                        {/* VS Glowing Badge */}
+                                                        <div className="lg:col-span-2 flex justify-center z-10">
+                                                            <div className="w-16 h-16 rounded-full bg-rose-600 text-white font-black flex items-center justify-center text-xl shadow-2xl shadow-rose-950/40 border-[5px] border-white dark:border-neutral-900 animate-pulse">
+                                                                VS
+                                                            </div>
+                                                        </div>
+
+                                                        {/* Team 2 Card */}
+                                                        <div className="lg:col-span-5 p-8 bg-gradient-to-br from-amber-500/10 to-orange-500/10 border-2 border-amber-500/20 rounded-[3rem] shadow-xl relative overflow-hidden group">
+                                                            <div className="absolute -right-4 -bottom-4 w-32 h-32 bg-amber-600/10 rounded-full blur-2xl group-hover:scale-150 transition-transform duration-500" />
+                                                            <Badge variant="outline" className="border-amber-500/30 text-amber-600 mb-4">{t2.unit_name}</Badge>
+                                                            <h2 className="text-3xl font-black uppercase tracking-tighter text-amber-600 truncate">{t2.name}</h2>
+                                                            <div className="mt-6 flex items-center justify-between">
+                                                                <div className="space-y-1">
+                                                                    <p className="text-[9px] font-black uppercase tracking-widest text-muted-foreground">KAZANMA ORANI</p>
+                                                                    <span className="text-2xl font-black text-amber-600">%{t2.win_ratio}</span>
+                                                                </div>
+                                                                <div className="w-16 h-16 rounded-full bg-amber-500 text-white font-black flex flex-col items-center justify-center border-4 border-white shadow-lg shadow-amber-500/20">
+                                                                    <span className="text-[8px] tracking-tighter opacity-80 uppercase leading-none">PUAN</span>
+                                                                    <span className="text-lg leading-tight mt-0.5">{t2.points}</span>
+                                                                </div>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+
+                                                    {/* Comparative Visualizations */}
+                                                    <div className="grid grid-cols-1 xl:grid-cols-12 gap-8 items-start">
+                                                        {/* Radar Chart */}
+                                                        <Card className="xl:col-span-5 border-none shadow-2xl bg-white/80 dark:bg-neutral-900/80 backdrop-blur-3xl rounded-[3rem] overflow-hidden">
+                                                            <CardHeader className="p-8">
+                                                                <CardTitle className="text-lg font-black uppercase tracking-tighter flex items-center gap-3">
+                                                                    <Activity className="h-5 w-5 text-indigo-600" /> TAKIM GÜÇ RADARI
+                                                                </CardTitle>
+                                                                <CardDescription className="text-xs font-black uppercase tracking-widest opacity-50">TAKIMSAL GÜÇ DENGESİ</CardDescription>
+                                                            </CardHeader>
+                                                            <CardContent className="p-8 pt-0 h-[380px] flex items-center justify-center">
+                                                                <ResponsiveContainer width="100%" height="100%">
+                                                                    <RadarChart cx="50%" cy="50%" outerRadius="70%" data={teamRadarData}>
+                                                                        <PolarGrid gridType="circle" strokeOpacity={0.1} />
+                                                                        <PolarAngleAxis dataKey="subject" tick={{ fontSize: 9, fontWeight: 'bold' }} />
+                                                                        <PolarRadiusAxis angle={30} domain={[0, 'auto']} tick={{ fontSize: 8 }} />
+                                                                        <Radar name={t1.name} dataKey="t1" stroke="#2563eb" fill="#2563eb" fillOpacity={0.25} />
+                                                                        <Radar name={t2.name} dataKey="t2" stroke="#d97706" fill="#d97706" fillOpacity={0.25} />
+                                                                        <Tooltip contentStyle={{ borderRadius: '1rem', border: 'none', boxShadow: '0 10px 30px rgba(0,0,0,0.1)' }} />
+                                                                    </RadarChart>
+                                                                </ResponsiveContainer>
+                                                            </CardContent>
+                                                        </Card>
+
+                                                        {/* Detailed Comparison Bars */}
+                                                        <Card className="xl:col-span-7 border-none shadow-2xl bg-white/80 dark:bg-neutral-900/80 backdrop-blur-3xl rounded-[3rem]">
+                                                            <CardHeader className="p-8">
+                                                                <CardTitle className="text-lg font-black uppercase tracking-tighter flex items-center gap-3">
+                                                                    <TrendingUp className="h-5 w-5 text-blue-600" /> TAKIM DETAY DETAYLARI
+                                                                </CardTitle>
+                                                                <CardDescription className="text-xs font-black uppercase tracking-widest opacity-50">İSTATİSTİKSEL DETAY GÖSTERGELERİ</CardDescription>
+                                                            </CardHeader>
+                                                            <CardContent className="p-8 pt-0 space-y-5">
+                                                                {teamMetrics.map((metric, i) => {
+                                                                    const total = metric.val1 + metric.val2;
+                                                                    const p1Percent = total > 0 ? (metric.val1 / total) * 100 : 50;
+                                                                    const p2Percent = total > 0 ? (metric.val2 / total) * 100 : 50;
+                                                                    const isP1Superior = metric.lowerIsBetter ? metric.val1 < metric.val2 : metric.val1 > metric.val2;
+                                                                    const isP2Superior = metric.lowerIsBetter ? metric.val2 < metric.val1 : metric.val2 > metric.val1;
+
+                                                                    return (
+                                                                        <div key={i} className="space-y-1.5">
+                                                                            <div className="flex justify-between items-center text-xs">
+                                                                                <span className={`font-black tracking-tight ${isP1Superior ? 'text-blue-600 font-extrabold text-sm' : 'text-muted-foreground'}`}>
+                                                                                    {metric.val1}{metric.suffix}
+                                                                                </span>
+                                                                                <span className="text-[8px] font-black text-muted-foreground uppercase tracking-widest opacity-60">
+                                                                                    {metric.label}
+                                                                                </span>
+                                                                                <span className={`font-black tracking-tight ${isP2Superior ? 'text-amber-600 font-extrabold text-sm' : 'text-muted-foreground'}`}>
+                                                                                    {metric.val2}{metric.suffix}
+                                                                                </span>
+                                                                            </div>
+                                                                            <div className="flex items-center gap-1">
+                                                                                <div className="flex-1 h-2.5 bg-slate-50 dark:bg-white/5 rounded-l-full overflow-hidden flex justify-end">
+                                                                                    <div 
+                                                                                        className={`h-full transition-all duration-500 ${isP1Superior ? 'bg-gradient-to-l from-blue-600 to-indigo-500 shadow-md shadow-blue-500/20' : 'bg-slate-300 dark:bg-neutral-700'}`} 
+                                                                                        style={{ width: `${p1Percent}%` }} 
+                                                                                    />
+                                                                                </div>
+                                                                                <div className="flex-1 h-2.5 bg-slate-50 dark:bg-white/5 rounded-r-full overflow-hidden flex justify-start">
+                                                                                    <div 
+                                                                                        className={`h-full transition-all duration-500 ${isP2Superior ? 'bg-gradient-to-r from-amber-500 to-orange-500 shadow-md shadow-amber-500/20' : 'bg-slate-300 dark:bg-neutral-700'}`} 
+                                                                                        style={{ width: `${p2Percent}%` }} 
+                                                                                    />
+                                                                                </div>
+                                                                            </div>
+                                                                        </div>
+                                                                    );
+                                                                })}
+                                                            </CardContent>
+                                                        </Card>
+                                                    </div>
+                                                </div>
+                                            );
+                                        })()
+                                    )}
+                                </div>
                             </TabsContent>
 
                             {/* Dream Team Tab */}
