@@ -108,4 +108,32 @@ class PredictionController extends Controller
             'predictions' => $predictions
         ]);
     }
+
+    public function leaderboard()
+    {
+        $leaderboard = $this->service->getLeaderboard(null, 100);
+        
+        $myPredictions = Prediction::where('user_id', auth()->id())
+            ->with(['game.homeTeam', 'game.awayTeam', 'game.group', 'game.tournament'])
+            ->orderBy('created_at', 'desc')
+            ->get();
+            
+        $upcomingGames = Game::where('status', 'scheduled')
+            ->with(['homeTeam', 'awayTeam', 'tournament', 'group'])
+            ->orderBy('scheduled_at', 'asc')
+            ->get()
+            ->map(function(Game $game) {
+                $game->user_prediction = Prediction::where('game_id', $game->id)
+                    ->where('user_id', auth()->id())
+                    ->first();
+                $game->stats = $this->service->getGamePredictionStats($game);
+                return $game;
+            });
+
+        return \Inertia\Inertia::render('predictions/leaderboard', [
+            'leaderboard' => $leaderboard,
+            'my_predictions' => $myPredictions,
+            'upcoming_games' => $upcomingGames,
+        ]);
+    }
 }

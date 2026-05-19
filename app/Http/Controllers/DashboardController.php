@@ -49,7 +49,7 @@ class DashboardController extends Controller
                 'stats' => $stats,
                 'recent_games' => Game::with(['homeTeam', 'awayTeam'])
                     ->where('status', 'completed')
-                    ->latest()
+                    ->latest('scheduled_at')
                     ->take(5)
                     ->get(),
                 'upcoming_games' => $upcomingGames,

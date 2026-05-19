@@ -199,6 +199,9 @@ class TournamentController extends Controller
             'settings.total_players_on_pitch' => 'required|integer|min:1',
             'settings.min_players_on_pitch' => 'required|integer|min:1',
             'settings.match_duration' => 'required|integer|min:1',
+            'settings.allow_reentry' => 'required|boolean',
+            'settings.second_yellow_suspension' => 'required|integer|min:0',
+            'settings.direct_red_suspension' => 'required|integer|min:0',
         ]);
 
         $tournament->update(['settings' => $validated['settings']]);

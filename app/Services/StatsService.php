@@ -77,6 +77,244 @@ class StatsService
     }
 
     /**
+     * Get best attacks (most goals scored) for a tournament.
+     */
+    public function getBestAttacks(Tournament $tournament)
+    {
+        $games = \App\Models\Game::where('tournament_id', $tournament->id)
+            ->where('status', 'completed')
+            ->get();
+
+        $teams = Team::where('tournament_id', $tournament->id)->with('unit')->get();
+
+        return $teams->map(function ($team) use ($games) {
+            $myGames = $games->filter(function($g) use ($team) {
+                return $g->home_team_id === $team->id || $g->away_team_id === $team->id;
+            });
+
+            $goalsScored = $myGames->sum(function($g) use ($team) {
+                return $g->home_team_id === $team->id ? $g->home_score : $g->away_score;
+            });
+
+            return [
+                'team' => $team,
+                'goals_scored' => $goalsScored,
+                'played' => $myGames->count()
+            ];
+        })->sortByDesc('goals_scored')->values();
+    }
+
+    /**
+     * Get top goal-assist duos for a tournament.
+     */
+    public function getTopDuos(Tournament $tournament, $limit = 5)
+    {
+        // 1. Fetch all goals in the tournament
+        $goals = DB::table('match_events')
+            ->join('games', 'match_events.game_id', '=', 'games.id')
+            ->where('games.tournament_id', $tournament->id)
+            ->where('match_events.event_type', 'goal')
+            ->select('match_events.game_id', 'match_events.team_id', 'match_events.minute', 'match_events.player_id as scorer_id')
+            ->get();
+
+        // 2. Fetch all assists in the tournament
+        $assists = DB::table('match_events')
+            ->join('games', 'match_events.game_id', '=', 'games.id')
+            ->where('games.tournament_id', $tournament->id)
+            ->where('match_events.event_type', 'assist')
+            ->select('match_events.game_id', 'match_events.team_id', 'match_events.minute', 'match_events.player_id as assister_id')
+            ->get();
+
+        // 3. Group by game and team
+        $goalsGrouped = [];
+        foreach ($goals as $g) {
+            $goalsGrouped[$g->game_id][$g->team_id][] = $g;
+        }
+
+        $assistsGrouped = [];
+        foreach ($assists as $a) {
+            $assistsGrouped[$a->game_id][$a->team_id][] = $a;
+        }
+
+        $partnerships = [];
+
+        foreach ($goalsGrouped as $gameId => $teams) {
+            foreach ($teams as $teamId => $gameGoals) {
+                $gameAssists = $assistsGrouped[$gameId][$teamId] ?? [];
+                if (empty($gameAssists)) continue;
+
+                // Track matched assists in this game to prevent double counting
+                $matchedAssistIds = [];
+
+                foreach ($gameGoals as $goal) {
+                    $bestAssistIdx = null;
+                    $bestDiff = 999;
+
+                    foreach ($gameAssists as $idx => $assist) {
+                        if (in_array($idx, $matchedAssistIds)) continue;
+                        if ($assist->assister_id == $goal->scorer_id) continue; // No self-assists
+
+                        $diff = abs($goal->minute - $assist->minute);
+                        if ($diff <= 1 && $diff < $bestDiff) {
+                            $bestDiff = $diff;
+                            $bestAssistIdx = $idx;
+                        }
+                    }
+
+                    if ($bestAssistIdx !== null) {
+                        $matchedAssistIds[] = $bestAssistIdx;
+                        $assist = $gameAssists[$bestAssistIdx];
+
+                        $key = $goal->scorer_id . '-' . $assist->assister_id;
+                        $partnerships[$key] = ($partnerships[$key] ?? 0) + 1;
+                    }
+                }
+            }
+        }
+
+        // Sort partnerships by count descending
+        arsort($partnerships);
+
+        // Fetch player details and format top duos
+        $result = [];
+        $count = 0;
+        foreach ($partnerships as $key => $goalsCount) {
+            if ($count >= $limit) break;
+
+            list($scorerId, $assisterId) = explode('-', $key);
+
+            $scorer = Player::with('unit')->find($scorerId);
+            $assister = Player::with('unit')->find($assisterId);
+
+            if ($scorer && $assister) {
+                $team = $scorer->teams()->where('tournament_id', $tournament->id)->first();
+                $teamName = $team ? $team->name : null;
+
+                $result[] = [
+                    'scorer' => $scorer,
+                    'assister' => $assister,
+                    'goals_count' => $goalsCount,
+                    'team_name' => $teamName
+                ];
+                $count++;
+            }
+        }
+
+        return collect($result);
+    }
+
+    /**
+     * Get outstanding tournament records and highlights.
+     */
+    public function getTournamentRecords(Tournament $tournament)
+    {
+        $games = \App\Models\Game::where('tournament_id', $tournament->id)
+            ->where('status', 'completed')
+            ->get();
+
+        if ($games->isEmpty()) {
+            return [
+                'highest_scoring' => null,
+                'biggest_victory' => null,
+                'most_cards' => null,
+            ];
+        }
+
+        // 1. Highest scoring game
+        $highestScoring = $games->sortByDesc(function($g) {
+            return $g->home_score + $g->away_score;
+        })->first();
+
+        // 2. Biggest margin victory
+        $biggestVictory = $games->sortByDesc(function($g) {
+            return abs($g->home_score - $g->away_score);
+        })->first();
+
+        // 3. Most cards game
+        $mostCards = \App\Models\Game::where('tournament_id', $tournament->id)
+            ->where('status', 'completed')
+            ->select('games.*')
+            ->selectRaw('(
+                SELECT COUNT(*) 
+                FROM match_events 
+                WHERE match_events.game_id = games.id 
+                AND match_events.event_type IN ("yellow_card", "red_card")
+            ) as cards_count')
+            ->orderByDesc('cards_count')
+            ->first();
+
+        if ($highestScoring) $highestScoring->load(['homeTeam', 'awayTeam']);
+        if ($biggestVictory) $biggestVictory->load(['homeTeam', 'awayTeam']);
+        if ($mostCards) $mostCards->load(['homeTeam', 'awayTeam']);
+
+        return [
+            'highest_scoring' => $highestScoring ? [
+                'home_team' => $highestScoring->homeTeam->name,
+                'away_team' => $highestScoring->awayTeam->name,
+                'home_score' => $highestScoring->home_score,
+                'away_score' => $highestScoring->away_score,
+                'total_goals' => $highestScoring->home_score + $highestScoring->away_score
+            ] : null,
+            'biggest_victory' => $biggestVictory ? [
+                'home_team' => $biggestVictory->homeTeam->name,
+                'away_team' => $biggestVictory->awayTeam->name,
+                'home_score' => $biggestVictory->home_score,
+                'away_score' => $biggestVictory->away_score,
+                'margin' => abs($biggestVictory->home_score - $biggestVictory->away_score)
+            ] : null,
+            'most_cards' => $mostCards ? [
+                'home_team' => $mostCards->homeTeam->name,
+                'away_team' => $mostCards->awayTeam->name,
+                'home_score' => $mostCards->home_score,
+                'away_score' => $mostCards->away_score,
+                'cards_count' => $mostCards->cards_count
+            ] : null
+        ];
+    }
+
+    /**
+     * Get goal minute distribution (10-minute intervals).
+     */
+    public function getGoalDistribution(Tournament $tournament)
+    {
+        $goals = DB::table('match_events')
+            ->join('games', 'match_events.game_id', '=', 'games.id')
+            ->where('games.tournament_id', $tournament->id)
+            ->where('match_events.event_type', 'goal')
+            ->select('match_events.minute')
+            ->get();
+
+        $intervals = [
+            '1-10' => 0,
+            '11-20' => 0,
+            '21-30' => 0,
+            '31-40' => 0,
+            '41-50' => 0,
+            '50+' => 0
+        ];
+
+        foreach ($goals as $g) {
+            $m = $g->minute;
+            if ($m <= 10) $intervals['1-10']++;
+            elseif ($m <= 20) $intervals['11-20']++;
+            elseif ($m <= 30) $intervals['21-30']++;
+            elseif ($m <= 40) $intervals['31-40']++;
+            elseif ($m <= 50) $intervals['41-50']++;
+            else $intervals['50+']++;
+        }
+
+        $data = [];
+        foreach ($intervals as $range => $count) {
+            $data[] = [
+                'interval' => $range,
+                'goals' => $count
+            ];
+        }
+
+        return $data;
+    }
+
+    /**
      * Get fair play rankings for a tournament.
      */
     public function getFairPlayTable(Tournament $tournament)
@@ -276,5 +514,120 @@ class StatsService
         return [
             'players' => $players
         ];
+    }
+
+    /**
+     * Get the dynamic Dream Team (Best 7 / Altın Karma) of the tournament.
+     */
+    public function getDreamTeam(Tournament $tournament)
+    {
+        // 1. Fetch all players who participated in this tournament
+        $players = Player::whereHas('teams', function($q) use ($tournament) {
+            $q->where('tournament_id', $tournament->id);
+        })->with(['unit', 'teams' => function($q) use ($tournament) {
+            $q->where('tournament_id', $tournament->id);
+        }])->get();
+
+        // 2. Fetch all events in this tournament to compute stats in memory (highly optimized!)
+        $events = DB::table('match_events')
+            ->join('games', 'match_events.game_id', '=', 'games.id')
+            ->where('games.tournament_id', $tournament->id)
+            ->select('match_events.player_id', 'match_events.event_type')
+            ->get();
+
+        $playerStats = [];
+        foreach ($players as $player) {
+            $pEvents = $events->where('player_id', $player->id);
+            $goals = $pEvents->where('event_type', 'goal')->count();
+            $assists = $pEvents->where('event_type', 'assist')->count();
+            $yellows = $pEvents->where('event_type', 'yellow_card')->count();
+            $reds = $pEvents->where('event_type', 'red_card')->count();
+
+            // Performans rating formula:
+            $rating = ($goals * 3.0) + ($assists * 2.0) - ($yellows * 1.0) - ($reds * 3.0);
+
+            if ($rating > 0) {
+                $playerStats[] = [
+                    'player' => $player,
+                    'goals' => $goals,
+                    'assists' => $assists,
+                    'yellows' => $yellows,
+                    'reds' => $reds,
+                    'rating' => $rating,
+                    'team_name' => $player->teams->first() ? $player->teams->first()->name : null
+                ];
+            }
+        }
+
+        // Sort by rating desc, then goals desc, then assists desc
+        usort($playerStats, function($a, $b) {
+            if ($b['rating'] != $a['rating']) {
+                return $b['rating'] <=> $a['rating'];
+            }
+            if ($b['goals'] != $a['goals']) {
+                return $b['goals'] <=> $a['goals'];
+            }
+            return $b['assists'] <=> $a['assists'];
+        });
+
+        // Get players limit from tournament settings (default to 7 if not specified)
+        $totalPlayersOnPitch = isset($tournament->settings['total_players_on_pitch']) 
+            ? (int)$tournament->settings['total_players_on_pitch'] 
+            : 7;
+
+        // Take top N players
+        $slicedPlayers = array_slice($playerStats, 0, $totalPlayersOnPitch);
+
+        // Pre-defined responsive coordinates & roles for standard halisaha sizes (5 to 8)
+        $positionsByCount = [
+            5 => [
+                0 => ['role' => 'ST', 'label' => 'FORVET (ST)', 'desc' => 'Zirve Hücumcu', 'coords' => 'top-[12%] left-1/2 -translate-x-1/2'],
+                1 => ['role' => 'CM', 'label' => 'ORTA SAHA (CM)', 'desc' => 'Orta Saha Lideri', 'coords' => 'top-[38%] left-1/2 -translate-x-1/2'],
+                2 => ['role' => 'LD', 'label' => 'SOL SAVUNMA (LD)', 'desc' => 'Duvar Savunmacı', 'coords' => 'top-[65%] left-[22%]'],
+                3 => ['role' => 'RD', 'label' => 'SAĞ SAVUNMA (RD)', 'desc' => 'Çelik Savunmacı', 'coords' => 'top-[65%] right-[22%]'],
+                4 => ['role' => 'GK', 'label' => 'KALECİ (GK)', 'desc' => 'Panter Kaleci', 'coords' => 'bottom-[8%] left-1/2 -translate-x-1/2'],
+            ],
+            6 => [
+                0 => ['role' => 'ST', 'label' => 'FORVET (ST)', 'desc' => 'Zirve Hücumcu', 'coords' => 'top-[12%] left-1/2 -translate-x-1/2'],
+                1 => ['role' => 'LM', 'label' => 'SOL ORTA (LM)', 'desc' => 'Fırtına Kanat', 'coords' => 'top-[40%] left-[16%]'],
+                2 => ['role' => 'RM', 'label' => 'SAĞ ORTA (RM)', 'desc' => 'Dinamik Kanat', 'coords' => 'top-[40%] right-[16%]'],
+                3 => ['role' => 'LD', 'label' => 'SOL SAVUNMA (LD)', 'desc' => 'Duvar Savunmacı', 'coords' => 'top-[68%] left-[24%]'],
+                4 => ['role' => 'RD', 'label' => 'SAĞ SAVUNMA (RD)', 'desc' => 'Çelik Savunmacı', 'coords' => 'top-[68%] right-[24%]'],
+                5 => ['role' => 'GK', 'label' => 'KALECİ (GK)', 'desc' => 'Panter Kaleci', 'coords' => 'bottom-[8%] left-1/2 -translate-x-1/2'],
+            ],
+            7 => [
+                0 => ['role' => 'ST', 'label' => 'FORVET (ST)', 'desc' => 'Zirve Hücumcu', 'coords' => 'top-[12%] left-1/2 -translate-x-1/2'],
+                1 => ['role' => 'CAM', 'label' => 'OYUN KURUCU (CAM)', 'desc' => 'Orta Saha Lideri', 'coords' => 'top-[38%] left-1/2 -translate-x-1/2'],
+                2 => ['role' => 'LW', 'label' => 'SOL KANAT (LW)', 'desc' => 'Fırtına Kanat', 'coords' => 'top-[40%] left-[12%] md:left-[15%]'],
+                3 => ['role' => 'RW', 'label' => 'SAĞ KANAT (RW)', 'desc' => 'Dinamik Kanat', 'coords' => 'top-[40%] right-[12%] md:right-[15%]'],
+                4 => ['role' => 'LD', 'label' => 'SOL SAVUNMA (LD)', 'desc' => 'Duvar Savunmacı', 'coords' => 'top-[68%] left-[20%] md:left-[24%]'],
+                5 => ['role' => 'RD', 'label' => 'SAĞ SAVUNMA (RD)', 'desc' => 'Çelik Savunmacı', 'coords' => 'top-[68%] right-[20%] md:right-[24%]'],
+                6 => ['role' => 'GK', 'label' => 'KALECİ (GK)', 'desc' => 'Panter Kaleci', 'coords' => 'bottom-[8%] left-1/2 -translate-x-1/2'],
+            ],
+            8 => [
+                0 => ['role' => 'ST', 'label' => 'FORVET (ST)', 'desc' => 'Zirve Hücumcu', 'coords' => 'top-[14%] left-1/2 -translate-x-1/2'],
+                1 => ['role' => 'CM', 'label' => 'ORTA SAHA (CM)', 'desc' => 'Orta Saha Lideri', 'coords' => 'top-[40%] left-1/2 -translate-x-1/2'],
+                2 => ['role' => 'LW', 'label' => 'SOL KANAT (LW)', 'desc' => 'Fırtına Kanat', 'coords' => 'top-[42%] left-[12%]'],
+                3 => ['role' => 'RW', 'label' => 'SAĞ KANAT (RW)', 'desc' => 'Dinamik Kanat', 'coords' => 'top-[42%] right-[12%]'],
+                4 => ['role' => 'CD', 'label' => 'MERKEZ DEFANS (CD)', 'desc' => 'Savunma Lideri', 'coords' => 'top-[72%] left-1/2 -translate-x-1/2'],
+                5 => ['role' => 'LD', 'label' => 'SOL SAVUNMA (LD)', 'desc' => 'Duvar Savunmacı', 'coords' => 'top-[70%] left-[12%]'],
+                6 => ['role' => 'RD', 'label' => 'SAĞ SAVUNMA (RD)', 'desc' => 'Çelik Savunmacı', 'coords' => 'top-[70%] right-[12%]'],
+                7 => ['role' => 'GK', 'label' => 'KALECİ (GK)', 'desc' => 'Panter Kaleci', 'coords' => 'bottom-[8%] left-1/2 -translate-x-1/2'],
+            ]
+        ];
+
+        // Choose positions map based on total players, fallback to 7 if out of range
+        $positions = isset($positionsByCount[$totalPlayersOnPitch]) 
+            ? $positionsByCount[$totalPlayersOnPitch] 
+            : $positionsByCount[7];
+
+        $lineup = [];
+        foreach ($slicedPlayers as $idx => $data) {
+            if (isset($positions[$idx])) {
+                $lineup[] = array_merge($data, $positions[$idx]);
+            }
+        }
+
+        return $lineup;
     }
 }

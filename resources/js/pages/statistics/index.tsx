@@ -18,6 +18,11 @@ interface Props {
         topScorers: any[];
         topAssists: any[];
         bestDefenses: any[];
+        bestAttacks: any[];
+        topDuos: any[];
+        dreamTeam: any[];
+        records: any;
+        goalDistribution: any[];
         fairPlay: any[];
         unitGoals: any[];
         trends: any[];
@@ -128,10 +133,10 @@ export default function Index({ tournaments, selectedTournament, stats }: Props)
 
                         <Tabs defaultValue="overview" className="space-y-8">
                             <TabsList className="bg-transparent h-auto p-0 flex-wrap gap-2 flex justify-start mb-8">
-                                {['BİR BAKIŞTA', 'GOL VE ASİST', 'KART ANALİZİ', 'TAKIM ANALİZİ', 'BİRİM DAĞILIMI'].map((tab, i) => (
+                                {['BİR BAKIŞTA', 'GOL VE ASİST', '⚡ ÖLÜMCÜL İKİLİLER', 'KART ANALİZİ', 'TAKIM ANALİZİ', 'BİRİM DAĞILIMI', '🏆 RÜYA TAKIMI'].map((tab, i) => (
                                     <TabsTrigger 
                                         key={i}
-                                        value={['overview', 'players', 'cards', 'teams', 'units'][i]}
+                                        value={['overview', 'players', 'duos', 'cards', 'teams', 'units', 'dream_team'][i]}
                                         className="rounded-2xl px-6 py-3 font-black text-[10px] uppercase tracking-widest border border-slate-200 dark:border-white/5 data-[state=active]:bg-blue-600 data-[state=active]:text-white transition-all shadow-sm"
                                     >
                                         {tab}
@@ -142,13 +147,92 @@ export default function Index({ tournaments, selectedTournament, stats }: Props)
                             {/* Overview Tab */}
                             <TabsContent value="overview">
                                 <div className="grid grid-cols-1 xl:grid-cols-2 gap-8">
+                                    {/* Tournament Records Card */}
+                                    <Card className="border-none shadow-2xl bg-white/80 dark:bg-neutral-900/80 backdrop-blur-3xl rounded-[3rem] overflow-hidden col-span-1 xl:col-span-2">
+                                        <CardHeader className="p-8 pb-4">
+                                            <CardTitle className="text-xl font-black uppercase tracking-tighter flex items-center gap-3">
+                                                <Trophy className="h-5 w-5 text-yellow-500 animate-bounce" /> TURNUVA REKORLARI & MİLATLAR
+                                            </CardTitle>
+                                            <CardDescription className="text-xs font-black uppercase tracking-widest opacity-50 mt-1">BU TURNUVADA ŞİMDİYE KADAR KAYDEDİLEN ZİRVE PERFORMANSLAR VE DETAYLI MAÇ ANALİZLERİ</CardDescription>
+                                        </CardHeader>
+                                        <CardContent className="p-8 pt-4">
+                                            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                                                {/* Highest scoring */}
+                                                <div className="p-6 bg-slate-50 dark:bg-white/5 border border-slate-100 dark:border-white/5 rounded-[2.5rem] flex flex-col justify-between group hover:scale-[1.02] transition-transform duration-300">
+                                                    <div>
+                                                        <div className="flex items-center gap-2 mb-4">
+                                                            <span className="p-2.5 bg-emerald-500/10 text-emerald-500 rounded-2xl group-hover:rotate-12 transition-transform">
+                                                                <Goal className="h-5 w-5" />
+                                                            </span>
+                                                            <span className="text-[9px] font-black text-emerald-500 uppercase tracking-wider">EN GOLCÜ MAÇ</span>
+                                                        </div>
+                                                        {stats.records.highest_scoring ? (
+                                                            <>
+                                                                <p className="text-xs font-bold text-muted-foreground uppercase leading-tight truncate">{stats.records.highest_scoring.home_team}</p>
+                                                                <p className="text-lg font-black uppercase tracking-tight my-1 tabular-nums">{stats.records.highest_scoring.home_score} - {stats.records.highest_scoring.away_score}</p>
+                                                                <p className="text-xs font-bold text-muted-foreground uppercase leading-tight truncate mb-4">{stats.records.highest_scoring.away_team}</p>
+                                                                <Badge className="bg-emerald-500/10 text-emerald-500 hover:bg-emerald-500/15 border-none text-[8px] font-black uppercase px-2.5 py-1 rounded-full">{stats.records.highest_scoring.total_goals} GOL ATILDI</Badge>
+                                                            </>
+                                                        ) : (
+                                                            <p className="text-xs font-black text-neutral-400 uppercase tracking-wider py-8 text-center">KAYIT BULUNMUYOR</p>
+                                                        )}
+                                                    </div>
+                                                </div>
+
+                                                {/* Biggest margin victory */}
+                                                <div className="p-6 bg-slate-50 dark:bg-white/5 border border-slate-100 dark:border-white/5 rounded-[2.5rem] flex flex-col justify-between group hover:scale-[1.02] transition-transform duration-300">
+                                                    <div>
+                                                        <div className="flex items-center gap-2 mb-4">
+                                                            <span className="p-2.5 bg-blue-500/10 text-blue-500 rounded-2xl group-hover:rotate-12 transition-transform">
+                                                                <Shield className="h-5 w-5" />
+                                                            </span>
+                                                            <span className="text-[9px] font-black text-blue-500 uppercase tracking-wider">EN FARKLI GALİBİYET</span>
+                                                        </div>
+                                                        {stats.records.biggest_victory ? (
+                                                            <>
+                                                                <p className="text-xs font-bold text-muted-foreground uppercase leading-tight truncate">{stats.records.biggest_victory.home_team}</p>
+                                                                <p className="text-lg font-black uppercase tracking-tight my-1 tabular-nums">{stats.records.biggest_victory.home_score} - {stats.records.biggest_victory.away_score}</p>
+                                                                <p className="text-xs font-bold text-muted-foreground uppercase leading-tight truncate mb-4">{stats.records.biggest_victory.away_team}</p>
+                                                                <Badge className="bg-blue-500/10 text-blue-500 hover:bg-blue-500/15 border-none text-[8px] font-black uppercase px-2.5 py-1 rounded-full">{stats.records.biggest_victory.margin} FARKLI SKOR</Badge>
+                                                            </>
+                                                        ) : (
+                                                            <p className="text-xs font-black text-neutral-400 uppercase tracking-wider py-8 text-center">KAYIT BULUNMUYOR</p>
+                                                        )}
+                                                    </div>
+                                                </div>
+
+                                                {/* Most carded game */}
+                                                <div className="p-6 bg-slate-50 dark:bg-white/5 border border-slate-100 dark:border-white/5 rounded-[2.5rem] flex flex-col justify-between group hover:scale-[1.02] transition-transform duration-300">
+                                                    <div>
+                                                        <div className="flex items-center gap-2 mb-4">
+                                                            <span className="p-2.5 bg-rose-500/10 text-rose-500 rounded-2xl group-hover:rotate-12 transition-transform">
+                                                                <AlertTriangle className="h-5 w-5" />
+                                                            </span>
+                                                            <span className="text-[9px] font-black text-rose-500 uppercase tracking-wider">EN GERGİN MAÇ</span>
+                                                        </div>
+                                                        {stats.records.most_cards ? (
+                                                            <>
+                                                                <p className="text-xs font-bold text-muted-foreground uppercase leading-tight truncate">{stats.records.most_cards.home_team}</p>
+                                                                <p className="text-lg font-black uppercase tracking-tight my-1 tabular-nums">{stats.records.most_cards.home_score} - {stats.records.most_cards.away_score}</p>
+                                                                <p className="text-xs font-bold text-muted-foreground uppercase leading-tight truncate mb-4">{stats.records.most_cards.away_team}</p>
+                                                                <Badge className="bg-rose-500/10 text-rose-500 hover:bg-rose-500/15 border-none text-[8px] font-black uppercase px-2.5 py-1 rounded-full">{stats.records.most_cards.cards_count} TOPLAM KART</Badge>
+                                                            </>
+                                                        ) : (
+                                                            <p className="text-xs font-black text-neutral-400 uppercase tracking-wider py-8 text-center">KAYIT BULUNMUYOR</p>
+                                                        )}
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </CardContent>
+                                    </Card>
+
                                     {/* Score Progression Trend */}
                                     <Card className="border-none shadow-2xl bg-white/80 dark:bg-neutral-900/80 backdrop-blur-3xl rounded-[3rem] overflow-hidden">
                                         <CardHeader className="p-8">
                                             <CardTitle className="text-xl font-black uppercase tracking-tighter flex items-center gap-3">
                                                 <TrendingUp className="h-5 w-5 text-blue-600" /> GOL TRENDLERİ
                                             </CardTitle>
-                                            <CardDescription className="text-xs font-black uppercase tracking-widest opacity-50">GÜNLER BAZINDA ÜRETİLEN TOPLAM SKOR</CardDescription>
+                                            <CardDescription className="text-xs font-black uppercase tracking-widest opacity-50 mt-1">GÜNLER BAZINDA ÜRETİLEN TOPLAM SKOR</CardDescription>
                                         </CardHeader>
                                         <CardContent className="p-8 h-[350px]">
                                             <ResponsiveContainer width="100%" height="100%">
@@ -165,13 +249,40 @@ export default function Index({ tournaments, selectedTournament, stats }: Props)
                                         </CardContent>
                                     </Card>
 
-                                    {/* Unit Distribution Pie */}
+                                    {/* Goal Minutes Distribution */}
                                     <Card className="border-none shadow-2xl bg-white/80 dark:bg-neutral-900/80 backdrop-blur-3xl rounded-[3rem] overflow-hidden">
+                                        <CardHeader className="p-8">
+                                            <CardTitle className="text-xl font-black uppercase tracking-tighter flex items-center gap-3">
+                                                <BarChart3 className="h-5 w-5 text-amber-500" /> GOL DAKİKALARI DAĞILIMI
+                                            </CardTitle>
+                                            <CardDescription className="text-xs font-black uppercase tracking-widest opacity-50 mt-1">GOLLERİN 10'AR DAKİKALIK ZAMAN DİLİMLERİNE GÖRE ANALİZİ</CardDescription>
+                                        </CardHeader>
+                                        <CardContent className="p-8 h-[350px]">
+                                            <ResponsiveContainer width="100%" height="100%">
+                                                <BarChart data={stats.goalDistribution}>
+                                                    <CartesianGrid strokeDasharray="3 3" vertical={false} strokeOpacity={0.1} />
+                                                    <XAxis dataKey="interval" axisLine={false} tickLine={false} tick={{ fontSize: 10, fontWeight: 'bold' }} />
+                                                    <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 10, fontWeight: 'bold' }} />
+                                                    <Tooltip 
+                                                        contentStyle={{ borderRadius: '1rem', border: 'none', boxShadow: '0 10px 30px rgba(0,0,0,0.1)' }}
+                                                    />
+                                                    <Bar dataKey="goals" radius={[8, 8, 0, 0]}>
+                                                        {stats.goalDistribution.map((entry, index) => (
+                                                            <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                                                        ))}
+                                                    </Bar>
+                                                </BarChart>
+                                            </ResponsiveContainer>
+                                        </CardContent>
+                                    </Card>
+
+                                    {/* Unit Distribution Pie */}
+                                    <Card className="border-none shadow-2xl bg-white/80 dark:bg-neutral-900/80 backdrop-blur-3xl rounded-[3rem] overflow-hidden col-span-1 xl:col-span-2">
                                         <CardHeader className="p-8">
                                             <CardTitle className="text-xl font-black uppercase tracking-tighter flex items-center gap-3">
                                                 <PieChartIcon className="h-5 w-5 text-emerald-600" /> BİRİM DOMİNASYONU
                                             </CardTitle>
-                                            <CardDescription className="text-xs font-black uppercase tracking-widest opacity-50">BİRİMLERİN TOPLAM GOL KATKISI</CardDescription>
+                                            <CardDescription className="text-xs font-black uppercase tracking-widest opacity-50 mt-1">ORGANİZASYONEL BİRİMLERİN TOPLAM GOL KATKISI DAĞILIMI</CardDescription>
                                         </CardHeader>
                                         <CardContent className="p-8 h-[350px]">
                                             <ResponsiveContainer width="100%" height="100%">
@@ -278,6 +389,75 @@ export default function Index({ tournaments, selectedTournament, stats }: Props)
                                         </CardContent>
                                     </Card>
                                 </div>
+                            </TabsContent>
+
+                            {/* Duos Tab */}
+                            <TabsContent value="duos">
+                                <Card className="border-none shadow-2xl bg-white/80 dark:bg-neutral-900/80 backdrop-blur-3xl rounded-[3rem] overflow-hidden">
+                                    <CardHeader className="p-8 md:p-10 border-b border-slate-100 dark:border-white/5 flex flex-col md:flex-row items-stretch md:items-center justify-between gap-6">
+                                        <div>
+                                            <CardTitle className="text-xl font-black uppercase tracking-tighter flex items-center gap-3">
+                                                <Activity className="h-6 w-6 text-blue-600 animate-pulse" /> ⚡ ÖLÜMCÜL İKİLİLER
+                                            </CardTitle>
+                                            <CardDescription className="text-xs font-black uppercase tracking-widest opacity-50 mt-1">ASİST - GOL UYUMU EN YÜKSEK OYUNCU ORTAKLIKLARI</CardDescription>
+                                        </div>
+                                    </CardHeader>
+                                    <CardContent className="p-8 md:p-10">
+                                        {stats.topDuos.length === 0 ? (
+                                            <div className="py-24 text-center">
+                                                <Activity className="h-10 w-10 text-neutral-300 mx-auto mb-4 animate-bounce" />
+                                                <p className="text-xs font-black text-neutral-400 uppercase tracking-widest">
+                                                    Bu turnuvada henüz asist-gol ortaklığı kaydı bulunmuyor.
+                                                </p>
+                                            </div>
+                                        ) : (
+                                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                                {stats.topDuos.map((duo: any, idx: number) => (
+                                                    <div key={idx} className="flex flex-col p-6 bg-slate-50 dark:bg-white/5 border border-slate-100 dark:border-white/5 rounded-[2.5rem] hover:scale-[1.01] transition-all duration-300 group">
+                                                        <div className="flex items-center justify-between mb-6">
+                                                            <div className="flex items-center gap-2">
+                                                                <span className="text-[10px] font-black uppercase text-blue-600 bg-blue-500/10 px-3 py-1 rounded-full">ORTAKLIK #{idx + 1}</span>
+                                                                {duo.team_name && (
+                                                                    <Badge variant="outline" className="border-slate-300 dark:border-white/10 text-muted-foreground text-[8px] font-black uppercase px-2 py-0.5 rounded-full">{duo.team_name}</Badge>
+                                                                )}
+                                                            </div>
+                                                            <div className="flex items-center gap-1 bg-blue-600 text-white font-black text-[10px] px-3.5 py-1.5 rounded-2xl shadow-lg shadow-blue-500/20">
+                                                                <span className="tabular-nums text-sm mr-1">{duo.goals_count}</span> GOL
+                                                            </div>
+                                                        </div>
+                                                        
+                                                        <div className="grid grid-cols-11 items-center gap-2 bg-white/60 dark:bg-neutral-900/60 p-4 rounded-3xl border border-slate-100/50 dark:border-white/5">
+                                                            {/* Assister */}
+                                                            <div className="col-span-5 text-center">
+                                                                <span className="text-[8px] font-black text-blue-500 uppercase tracking-widest block mb-1">ASİST YAPAN</span>
+                                                                <Link href={route('players.show', duo.assister.id)} className="font-black uppercase tracking-tight text-xs hover:text-blue-600 dark:hover:text-blue-400 transition-colors block leading-tight truncate">
+                                                                    {duo.assister.first_name} {duo.assister.last_name}
+                                                                </Link>
+                                                                <span className="text-[8px] font-bold text-neutral-400 uppercase tracking-wider block mt-0.5 truncate">{duo.assister.unit?.name}</span>
+                                                            </div>
+
+                                                            {/* Connection arrow / lightning */}
+                                                            <div className="col-span-1 flex items-center justify-center">
+                                                                <div className="h-8 w-8 bg-blue-500/10 rounded-full flex items-center justify-center text-blue-600 group-hover:scale-110 transition-transform">
+                                                                    ⚡
+                                                                </div>
+                                                            </div>
+
+                                                            {/* Scorer */}
+                                                            <div className="col-span-5 text-center">
+                                                                <span className="text-[8px] font-black text-emerald-500 uppercase tracking-widest block mb-1">GOLÜ ATAN</span>
+                                                                <Link href={route('players.show', duo.scorer.id)} className="font-black uppercase tracking-tight text-xs hover:text-blue-600 dark:hover:text-blue-400 transition-colors block leading-tight truncate">
+                                                                    {duo.scorer.first_name} {duo.scorer.last_name}
+                                                                </Link>
+                                                                <span className="text-[8px] font-bold text-neutral-400 uppercase tracking-wider block mt-0.5 truncate">{duo.scorer.unit?.name}</span>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        )}
+                                    </CardContent>
+                                </Card>
                             </TabsContent>
 
                             {/* Cards Tab */}
@@ -415,7 +595,36 @@ export default function Index({ tournaments, selectedTournament, stats }: Props)
 
                             {/* Teams Tab */}
                             <TabsContent value="teams">
-                                <div className="grid grid-cols-1 xl:grid-cols-2 gap-8">
+                                <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+                                    {/* Offensive Records */}
+                                    <Card className="border-none shadow-2xl bg-white/80 dark:bg-neutral-900/80 backdrop-blur-3xl rounded-[3rem]">
+                                        <CardHeader className="p-8">
+                                            <CardTitle className="text-xl font-black uppercase tracking-tighter flex items-center gap-3">
+                                                <Goal className="h-5 w-5 text-orange-500" /> EN İYİ HÜCUM
+                                            </CardTitle>
+                                            <CardDescription className="text-xs font-black uppercase tracking-widest opacity-50">RAKİP FİLELERİ SARSAN EKİPLER</CardDescription>
+                                        </CardHeader>
+                                        <CardContent className="p-8 pt-0">
+                                            <div className="space-y-4">
+                                                {stats.bestAttacks.map((entry, i) => (
+                                                    <div key={entry.team.id} className="grid grid-cols-12 items-center p-4 bg-slate-50 dark:bg-white/5 rounded-2xl hover:bg-slate-100 dark:hover:bg-white/10 transition-colors group">
+                                                        <div className="col-span-8 flex items-center gap-4">
+                                                            <span className="w-6 text-[10px] font-black text-orange-600">#{i + 1}</span>
+                                                            <div>
+                                                                <Badge variant="outline" className="border-orange-500/20 text-orange-600 text-[8px] mb-1">{entry.team.unit?.name}</Badge>
+                                                                <h4 className="font-black uppercase tracking-tight text-sm">{entry.team.name}</h4>
+                                                            </div>
+                                                        </div>
+                                                        <div className="col-span-4 flex flex-col items-end">
+                                                            <span className="text-2xl font-black tabular-nums">{entry.goals_scored}</span>
+                                                            <span className="text-[8px] font-black uppercase text-muted-foreground">TOPLAM GOL</span>
+                                                        </div>
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        </CardContent>
+                                    </Card>
+
                                     {/* Defensive Records */}
                                     <Card className="border-none shadow-2xl bg-white/80 dark:bg-neutral-900/80 backdrop-blur-3xl rounded-[3rem]">
                                         <CardHeader className="p-8">
@@ -429,7 +638,7 @@ export default function Index({ tournaments, selectedTournament, stats }: Props)
                                                 {stats.bestDefenses.map((entry, i) => (
                                                     <div key={entry.team.id} className="grid grid-cols-12 items-center p-4 bg-slate-50 dark:bg-white/5 rounded-2xl hover:bg-slate-100 dark:hover:bg-white/10 transition-colors group">
                                                         <div className="col-span-8 flex items-center gap-4">
-                                                            <span className="w-6 text-[10px] font-black text-rose-600">#{i + 1}</span>
+                                                            <span className="w-6 text-[10px] font-black text-emerald-600">#{i + 1}</span>
                                                             <div>
                                                                 <Badge variant="outline" className="border-emerald-500/20 text-emerald-600 text-[8px] mb-1">{entry.team.unit?.name}</Badge>
                                                                 <h4 className="font-black uppercase tracking-tight text-sm">{entry.team.name}</h4>
@@ -451,28 +660,34 @@ export default function Index({ tournaments, selectedTournament, stats }: Props)
                                             <CardTitle className="text-xl font-black uppercase tracking-tighter flex items-center gap-3">
                                                 <TrendingUp className="h-5 w-5 text-blue-600" /> FAIR-PLAY TABLOSU
                                             </CardTitle>
-                                            <CardDescription className="text-xs font-black uppercase tracking-widest opacity-50">KART PUANI DÜŞÜK OLANLAR (Sarı: 1, Kırmızı: 3)</CardDescription>
+                                            <CardDescription className="text-xs font-black uppercase tracking-widest opacity-50">CEZA PUANI EN DÜŞÜK OLANLAR (Sarı: 1, Kırmızı: 3)</CardDescription>
                                         </CardHeader>
                                         <CardContent className="p-8 pt-0">
                                             <div className="space-y-4">
-                                                {stats.fairPlay.slice(0, 10).map((entry, i) => (
-                                                    <div key={entry.team.id} className="flex items-center justify-between p-4 bg-slate-50 dark:bg-white/5 rounded-2xl group">
-                                                        <div className="flex items-center gap-4">
+                                                {stats.fairPlay.map((entry, i) => (
+                                                    <div key={entry.team.id} className="grid grid-cols-12 items-center p-4 bg-slate-50 dark:bg-white/5 rounded-2xl hover:bg-slate-100 dark:hover:bg-white/10 transition-colors group">
+                                                        <div className="col-span-7 flex items-center gap-4">
                                                             <span className="w-6 text-[10px] font-black text-blue-600">#{i + 1}</span>
-                                                            <h4 className="font-black uppercase tracking-tight text-sm">{entry.team.name}</h4>
+                                                            <div>
+                                                                <Badge variant="outline" className="border-blue-500/20 text-blue-600 text-[8px] mb-1">{entry.team.unit?.name || 'GENEL'}</Badge>
+                                                                <h4 className="font-black uppercase tracking-tight text-sm">{entry.team.name}</h4>
+                                                            </div>
                                                         </div>
-                                                        <div className="flex items-center gap-4">
+                                                        <div className="col-span-5 flex items-center justify-end gap-3">
                                                             <div className="flex gap-2">
-                                                                <div className="flex items-center gap-1">
+                                                                <div className="flex items-center gap-1.5 bg-amber-400/5 px-2 py-0.5 rounded border border-amber-400/10">
                                                                     <div className="w-2 h-3 bg-amber-400 rounded-sm" />
-                                                                    <span className="text-[10px] font-black">{entry.yellow_cards}</span>
+                                                                    <span className="text-[10px] font-black tabular-nums">{entry.yellow_cards}</span>
                                                                 </div>
-                                                                <div className="flex items-center gap-1">
+                                                                <div className="flex items-center gap-1.5 bg-rose-500/5 px-2 py-0.5 rounded border border-rose-500/10">
                                                                     <div className="w-2 h-3 bg-rose-600 rounded-sm" />
-                                                                    <span className="text-[10px] font-black">{entry.red_cards}</span>
+                                                                    <span className="text-[10px] font-black tabular-nums">{entry.red_cards}</span>
                                                                 </div>
                                                             </div>
-                                                            <Badge className="bg-blue-600 text-white font-black text-[10px] min-w-[3rem] justify-center">{entry.points} P</Badge>
+                                                            <div className="flex flex-col items-end shrink-0 min-w-[55px]">
+                                                                <span className="text-2xl font-black tabular-nums text-blue-600">{entry.points}</span>
+                                                                <span className="text-[8px] font-black uppercase text-muted-foreground">CEZA PUANI</span>
+                                                            </div>
                                                         </div>
                                                     </div>
                                                 ))}
@@ -509,6 +724,144 @@ export default function Index({ tournaments, selectedTournament, stats }: Props)
                                         </ResponsiveContainer>
                                     </CardContent>
                                 </Card>
+                            </TabsContent>
+
+                            {/* Dream Team Tab */}
+                            <TabsContent value="dream_team">
+                                <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+                                    {/* Left: Pitch Visualizer (2 Columns on large screens) */}
+                                    <div className="lg:col-span-2 flex flex-col items-center">
+                                        <div className="w-full max-w-[550px] relative aspect-[3/4.5] bg-gradient-to-b from-emerald-800 to-emerald-950 border-[6px] border-white/70 rounded-[3rem] shadow-2xl overflow-hidden group">
+                                            {/* Pitch Stripes */}
+                                            <div className="absolute inset-0 bg-[linear-gradient(to_bottom,rgba(0,0,0,0.06)_50%,transparent_50%)] bg-[length:100%_12.5%] pointer-events-none" />
+                                            
+                                            {/* Pitch Markings */}
+                                            {/* Center Line */}
+                                            <div className="absolute top-1/2 left-0 right-0 h-1 bg-white/40 -translate-y-1/2 pointer-events-none" />
+                                            {/* Center Circle */}
+                                            <div className="absolute top-1/2 left-1/2 w-[24%] aspect-square rounded-full border-4 border-white/40 -translate-x-1/2 -translate-y-1/2 pointer-events-none" />
+                                            {/* Center Dot */}
+                                            <div className="absolute top-1/2 left-1/2 w-3 h-3 rounded-full bg-white/60 -translate-x-1/2 -translate-y-1/2 pointer-events-none" />
+                                            
+                                            {/* Top Goal Box */}
+                                            <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[48%] h-[12%] border-b-4 border-x-4 border-white/40 rounded-b-[2rem] pointer-events-none" />
+                                            {/* Top Penalty Circle segment */}
+                                            <div className="absolute top-[12%] left-1/2 -translate-x-1/2 w-[20%] h-[5%] border-b-4 border-white/40 rounded-b-full pointer-events-none" />
+
+                                            {/* Bottom Goal Box */}
+                                            <div className="absolute bottom-0 left-1/2 -translate-x-1/2 w-[48%] h-[12%] border-t-4 border-x-4 border-white/40 rounded-t-[2rem] pointer-events-none" />
+                                            {/* Bottom Penalty Circle segment */}
+                                            <div className="absolute bottom-[12%] left-1/2 -translate-x-1/2 w-[20%] h-[5%] border-t-4 border-white/40 rounded-t-full pointer-events-none" />
+
+                                            {/* Render Dream Team Players on the Pitch */}
+                                            {stats.dreamTeam && stats.dreamTeam.length > 0 ? (
+                                                stats.dreamTeam.map((item, idx) => (
+                                                    <div 
+                                                        key={idx} 
+                                                        className={`absolute ${item.coords} flex flex-col items-center group/shirt cursor-pointer transition-transform duration-300 hover:scale-110 z-20`}
+                                                    >
+                                                        {/* Player Shirt Icon / Card */}
+                                                        <div className="relative flex items-center justify-center">
+                                                            {/* Shiny Jersey Card */}
+                                                            <div className="w-14 h-14 md:w-16 md:h-16 rounded-full bg-gradient-to-br from-yellow-400 via-amber-500 to-amber-600 border-2 border-white flex items-center justify-center font-black text-white text-xs md:text-sm shadow-xl shadow-amber-950/40 relative z-10 group-hover/shirt:rotate-12 transition-transform duration-300">
+                                                                <Trophy className="h-4 w-4 md:h-5 md:w-5 text-white absolute -top-1 -right-1 drop-shadow-md animate-bounce" />
+                                                                {/* Jersey Rating Badge at bottom */}
+                                                                <span className="absolute -bottom-1.5 bg-indigo-600 text-white font-black text-[8px] md:text-[9px] px-2 py-0.5 rounded-full border border-white uppercase tracking-tighter shadow-md">
+                                                                    {item.rating.toFixed(0)}
+                                                                </span>
+                                                                <span className="font-extrabold tracking-tighter">
+                                                                    {item.role}
+                                                                </span>
+                                                            </div>
+                                                            {/* Glowing Aura */}
+                                                            <div className="absolute inset-0 bg-yellow-400/30 rounded-full blur-md opacity-70 group-hover/shirt:blur-xl transition-all duration-300" />
+                                                        </div>
+
+                                                        {/* Player Label Card */}
+                                                        <div className="mt-3.5 bg-slate-900/90 dark:bg-black/90 text-white px-3.5 py-1.5 rounded-[1.2rem] border border-white/10 text-center max-w-[120px] md:max-w-[140px] shadow-lg">
+                                                            <p className="text-[9px] md:text-[10px] font-black uppercase tracking-wide truncate leading-tight">
+                                                                {item.player.first_name} {item.player.last_name}
+                                                            </p>
+                                                            <p className="text-[7px] md:text-[8px] font-bold text-amber-400 uppercase tracking-widest truncate mt-0.5">
+                                                                {item.team_name}
+                                                            </p>
+                                                        </div>
+                                                    </div>
+                                                ))
+                                            ) : (
+                                                <div className="absolute inset-0 flex flex-col items-center justify-center p-8 text-center text-white/50">
+                                                    <Trophy className="h-16 w-16 mb-4 opacity-25" />
+                                                    <p className="text-sm font-black uppercase tracking-wider">Turnuvada henüz puanı olan oyuncu bulunmuyor.</p>
+                                                </div>
+                                            )}
+                                        </div>
+                                    </div>
+
+                                    {/* Right: Ranks List & Algorithm explanation (1 Column) */}
+                                    <div className="space-y-6">
+                                        <Card className="border-none shadow-2xl bg-white/80 dark:bg-neutral-900/80 backdrop-blur-3xl rounded-[3rem] overflow-hidden">
+                                            <CardHeader className="p-8">
+                                                <CardTitle className="text-xl font-black uppercase tracking-tighter flex items-center gap-3">
+                                                    <Trophy className="h-5 w-5 text-yellow-500" /> ALTIN KARMA LİSTESİ
+                                                </CardTitle>
+                                                <CardDescription className="text-xs font-black uppercase tracking-widest opacity-50 mt-1">
+                                                    TURNUVANIN EN DEĞERLİ {stats.dreamTeam?.length || 7} OYUNCUSUNUN PERFORMANS DETAYLARI
+                                                </CardDescription>
+                                            </CardHeader>
+                                            <CardContent className="p-8 pt-0 space-y-4">
+                                                {stats.dreamTeam && stats.dreamTeam.length > 0 ? (
+                                                    stats.dreamTeam.map((item, idx) => (
+                                                        <div key={idx} className="flex items-center justify-between p-4 bg-slate-50 dark:bg-white/5 border border-slate-100 dark:border-white/5 rounded-2xl group hover:scale-[1.01] transition-transform">
+                                                            <div className="flex items-center gap-3">
+                                                                <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-yellow-400 to-amber-500 text-white font-black text-xs flex items-center justify-center">
+                                                                    #{idx + 1}
+                                                                </div>
+                                                                <div>
+                                                                    <p className="text-xs font-black uppercase tracking-tight">{item.player.first_name} {item.player.last_name}</p>
+                                                                    <p className="text-[9px] font-bold text-muted-foreground uppercase tracking-widest">{item.team_name}</p>
+                                                                </div>
+                                                            </div>
+                                                            <div className="text-right">
+                                                                <span className="text-sm font-black text-indigo-600 dark:text-indigo-400 tabular-nums">
+                                                                    {item.rating.toFixed(0)} Puan
+                                                                </span>
+                                                                <div className="flex gap-2 justify-end mt-0.5 text-[8px] font-black text-muted-foreground font-mono">
+                                                                    <span>⚽ {item.goals} Gol</span>
+                                                                    <span>🎯 {item.assists} Asist</span>
+                                                                </div>
+                                                            </div>
+                                                        </div>
+                                                    ))
+                                                ) : (
+                                                    <p className="text-xs font-black text-neutral-400 uppercase tracking-wider py-8 text-center">Rüya Takım adayları henüz açıklanmadı.</p>
+                                                )}
+                                            </CardContent>
+                                        </Card>
+
+                                        {/* Dynamic Performance Scoring Guide */}
+                                        <Card className="border-none shadow-2xl bg-white/80 dark:bg-neutral-900/80 backdrop-blur-3xl rounded-[3rem] overflow-hidden">
+                                            <CardHeader className="p-8">
+                                                <CardTitle className="text-lg font-black uppercase tracking-tighter flex items-center gap-3">
+                                                    <Activity className="h-5 w-5 text-indigo-500" /> PUANLAMA ALGORİTMASI
+                                                </CardTitle>
+                                                <CardDescription className="text-xs font-black uppercase tracking-widest opacity-50 mt-1">RÜYA TAKIM SEÇİMİ NASIL HESAPLANIYOR?</CardDescription>
+                                            </CardHeader>
+                                            <CardContent className="p-8 pt-0 text-xs text-muted-foreground space-y-4 font-semibold leading-relaxed">
+                                                <p>
+                                                    Altın Karma seçimi, oyuncuların sahada gösterdiği tüm kritik eylemlerin ağırlıklı bir performans formülüyle hesaplanmasıyla yapılır:
+                                                </p>
+                                                <div className="p-4 bg-slate-50 dark:bg-white/5 rounded-2xl border border-slate-100 dark:border-white/5 font-mono text-[9px] leading-normal uppercase tracking-wide text-indigo-600 dark:text-indigo-400">
+                                                    PERFORMANS PUANI = <br/>
+                                                    (⚽ Gol * 3.0) + (🎯 Asist * 2.0) <br/>
+                                                    - (🟨 Sarı Kart * 1.0) - (🟥 Kırmızı Kart * 3.0)
+                                                </div>
+                                                <p>
+                                                    Bu formülle en yüksek katkı puanına sahip ilk {stats.dreamTeam?.length || 7} oyuncu, turnuva kurallarında belirlenen <strong>toplam oyuncu (kaleci dahil)</strong> ayarlarına göre sahada yerini alır!
+                                                </p>
+                                            </CardContent>
+                                        </Card>
+                                    </div>
+                                </div>
                             </TabsContent>
                         </Tabs>
                     </>

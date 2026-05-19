@@ -63,6 +63,7 @@ Route::get('predictions/user/{user}', [PredictionController::class, 'userPredict
 // Protected Routes
 Route::middleware(['auth'])->group(function () {
     Route::get('dashboard', [DashboardController::class, 'index'])->name('dashboard');
+    Route::get('predictions/leaderboard', [PredictionController::class, 'leaderboard'])->name('predictions.leaderboard');
 
     // Tournament Management
     Route::post('tournaments', [TournamentController::class, 'store'])->name('tournaments.store');

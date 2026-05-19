@@ -85,6 +85,9 @@ interface Team {
             substitution_limit: number;
             total_players_on_pitch: number;
             min_players_on_pitch: number;
+            allow_reentry: boolean;
+            second_yellow_suspension: number;
+            direct_red_suspension: number;
         };
     } | null;
     captain: Player | null;
@@ -381,6 +384,24 @@ export default function Show({ team, performance, nextMatch, can }: Props) {
                                         <div className="flex items-center justify-between text-[10px] font-black uppercase tracking-widest text-muted-foreground opacity-60">
                                             <span>MAÇ BAŞI DEĞİŞİKLİK</span>
                                             <span className="text-blue-500">{team.tournament?.settings.substitution_limit} HAK</span>
+                                        </div>
+                                        <div className="flex items-center justify-between text-[10px] font-black uppercase tracking-widest text-muted-foreground opacity-60">
+                                            <span>ÇIKAN OYUNCU TEKRAR GİREBİLİR</span>
+                                            <span className={team.tournament?.settings.allow_reentry ? "text-emerald-500 font-black" : "text-rose-500 font-black"}>
+                                                {team.tournament?.settings.allow_reentry ? "EVET" : "HAYIR"}
+                                            </span>
+                                        </div>
+                                        <div className="flex items-center justify-between text-[10px] font-black uppercase tracking-widest text-muted-foreground opacity-60">
+                                            <span>ÇİFT SARIDAN CEZA</span>
+                                            <span className={team.tournament?.settings.second_yellow_suspension > 0 ? "text-amber-500 font-black" : "text-emerald-500 font-black"}>
+                                                {team.tournament?.settings.second_yellow_suspension > 0 ? `${team.tournament?.settings.second_yellow_suspension} MAÇ` : "YOK (CEZASIZ)"}
+                                            </span>
+                                        </div>
+                                        <div className="flex items-center justify-between text-[10px] font-black uppercase tracking-widest text-muted-foreground opacity-60">
+                                            <span>DİREKT KIRMIZIDAN CEZA</span>
+                                            <span className="text-rose-500 font-black">
+                                                {team.tournament?.settings.direct_red_suspension} MAÇ
+                                            </span>
                                         </div>
                                     </div>
                                     <StatLine label="Fair-Play Performansı" value={Math.max(0, 100 - (performance.stats.losses * 10))} max={100} color="bg-emerald-500" />

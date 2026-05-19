@@ -44,6 +44,7 @@ interface Game {
             substitution_limit: number;
             min_players_on_pitch: number;
             match_duration: number;
+            allow_reentry: boolean;
         }
     };
     group?: { name: string };
@@ -68,6 +69,7 @@ export default function Show({ game }: Props) {
     const canManageEvents = isCommittee || isReferee;
     
     const [selectedMinute, setSelectedMinute] = useState('1');
+    const [addedMinute, setAddedMinute] = useState('');
     const [currentTime, setCurrentTime] = useState(new Date());
     const [isCompleteDialogOpen, setIsCompleteDialogOpen] = useState(false);
     const [isReopenDialogOpen, setIsReopenDialogOpen] = useState(false);
@@ -88,7 +90,10 @@ export default function Show({ game }: Props) {
         // Let's assume if no rosters, everyone is eligible but substitution logic is disabled.
         if (game.rosters.filter((r: any) => r.team_id === teamId).length === 0) return [];
 
-        game.events.filter(e => e.team_id === teamId).forEach((e: any) => {
+        // Sort events chronologically by ID using a copy to prevent in-place mutation issues
+        const chronologicalEvents = [...game.events].sort((a: any, b: any) => a.id - b.id);
+
+        chronologicalEvents.filter(e => e.team_id === teamId).forEach((e: any) => {
             if (e.event_type === 'sub_in') players.push(e.player_id);
             if (e.event_type === 'sub_out' || e.event_type === 'red_card') {
                 players = players.filter(id => id !== e.player_id);
@@ -105,11 +110,30 @@ export default function Show({ game }: Props) {
                 const p = game.home_team.id === teamId ? game.home_team.players.find(p => p.id === r.player_id) : game.away_team.players.find(p => p.id === r.player_id);
                 
                 // Also check if they were already subbed OUT (can't come back in usually)
-                const alreadySubbedOut = game.events.some(e => e.team_id === teamId && e.player_id === r.player_id && e.event_type === 'sub_out');
-                if (alreadySubbedOut) return null;
+                if (!game.tournament.settings.allow_reentry) {
+                    const alreadySubbedOut = game.events.some(e => e.team_id === teamId && e.player_id === r.player_id && e.event_type === 'sub_out');
+                    if (alreadySubbedOut) return null;
+                }
                 
                 return p;
             }).filter(Boolean);
+    };
+
+    const getPlayerNameById = (id: number) => {
+        if (!id) return '';
+        const player = [...game.home_team.players, ...game.away_team.players].find(p => p.id === id);
+        return player ? `${player.first_name} ${player.last_name}` : `Oyuncu #${id}`;
+    };
+
+    const getReplacedByPlayer = (subOutPlayerId: number, minute: number, teamId: number) => {
+        if (!subOutPlayerId) return null;
+        const subInEvent = game.events.find(e => 
+            e.team_id === teamId && 
+            e.event_type === 'sub_in' && 
+            e.minute === minute && 
+            e.details?.replaced_player_id === subOutPlayerId
+        );
+        return subInEvent ? `${subInEvent.player?.first_name} ${subInEvent.player?.last_name}` : null;
     };
 
     const submitSubstitution = (inPlayerId: number) => {
@@ -117,7 +141,8 @@ export default function Show({ game }: Props) {
             team_id: managingTeam.id,
             player_id: subOutPlayer.id,
             event_type: 'sub_out',
-            minute: selectedMinute
+            minute: selectedMinute,
+            details: addedMinute ? { added_time: parseInt(addedMinute) } : null
         }, {
             preserveScroll: true,
             onSuccess: () => {
@@ -126,10 +151,13 @@ export default function Show({ game }: Props) {
                     player_id: inPlayerId,
                     event_type: 'sub_in',
                     minute: selectedMinute,
-                    details: { replaced_player_id: subOutPlayer.id }
+                    details: addedMinute ? { added_time: parseInt(addedMinute), replaced_player_id: subOutPlayer.id } : { replaced_player_id: subOutPlayer.id }
                 }, {
                     preserveScroll: true,
-                    onSuccess: () => setIsSubModalOpen(false)
+                    onSuccess: () => {
+                        setIsSubModalOpen(false);
+                        setAddedMinute('');
+                    }
                 });
             }
         });
@@ -208,8 +236,10 @@ export default function Show({ game }: Props) {
             player_id: playerId,
             event_type: type,
             minute: parseInt(selectedMinute),
+            details: addedMinute ? { added_time: parseInt(addedMinute) } : null,
         }, {
             preserveScroll: true,
+            onSuccess: () => setAddedMinute(''),
         });
     };
 
@@ -284,7 +314,7 @@ export default function Show({ game }: Props) {
                                             <TimerIcon className={`h-4 w-4 ${game.status === 'playing' ? 'text-emerald-500 animate-spin-slow' : 'text-blue-500'}`} />
                                             <span className="font-black uppercase tracking-widest text-[10px]">
                                                 {game.status === 'scheduled' ? 'BAŞLAMADI' : 
-                                                 game.status === 'playing' ? `${matchMinute}. DAKİKA` : 'MÜSABAKA BİTTİ'}
+                                                 game.status === 'playing' ? (matchMinute === 25 ? 'DEVRE ARASI' : `${matchMinute}. DAKİKA`) : 'MÜSABAKA BİTTİ'}
                                             </span>
                                         </div>
                                         {game.live_stream_url && (
@@ -326,6 +356,74 @@ export default function Show({ game }: Props) {
                                 <h2 className="text-2xl md:text-3xl font-black text-center uppercase tracking-tighter leading-none">{game.away_team.name}</h2>
                             </div>
                         </div>
+
+                        {/* Sofascore-style Match Timeline */}
+                        <div className="mt-16 pt-12 border-t border-white/5 space-y-6">
+                            <div className="flex items-center justify-between">
+                                <span className="font-black text-xs uppercase tracking-[0.2em] text-white/40">Zaman Tüneli / Momentum</span>
+                                <div className="flex gap-4 text-[9px] font-black uppercase tracking-wider text-white/50">
+                                    <span className="flex items-center gap-1.5"><span className="w-2 h-2 bg-emerald-500 rounded-full animate-pulse" /> Gol</span>
+                                    <span className="flex items-center gap-1.5"><span className="w-2 h-2 bg-blue-500 rounded-full" /> Asist</span>
+                                    <span className="flex items-center gap-1.5"><span className="w-2 h-1.5 bg-amber-400 rounded-sm" /> Sarı Kart</span>
+                                    <span className="flex items-center gap-1.5"><span className="w-2 h-1.5 bg-rose-600 rounded-sm" /> Kırmızı Kart</span>
+                                </div>
+                            </div>
+                            
+                            <div className="relative h-24 w-full flex items-center">
+                                {/* Center Match Line */}
+                                <div className="absolute left-0 right-0 h-1 bg-white/10 rounded-full" />
+                                
+                                {/* Halftime Separator (25' Minute Mark) */}
+                                <div className="absolute left-1/2 -translate-x-1/2 top-0 bottom-0 w-0.5 bg-white/20 border-dashed border-r border-white/10 flex flex-col justify-between items-center z-10">
+                                    <span className="text-[8px] font-black text-white/30 uppercase tracking-widest bg-slate-950 px-2 py-0.5 rounded-full">D.A.</span>
+                                </div>
+
+                                {/* Minute indicators */}
+                                <div className="absolute left-2 text-[8px] font-black text-white/30">0'</div>
+                                <div className="absolute right-2 text-[8px] font-black text-white/30">50'</div>
+
+                                {/* Dynamic Event Markers */}
+                                {game.events.map((event: any, idx: number) => {
+                                    const pct = Math.min(100, Math.max(0, (event.minute / 50) * 100));
+                                    const isHome = event.team_id === game.home_team.id;
+                                    
+                                    return (
+                                        <div 
+                                            key={idx}
+                                            className="absolute -translate-x-1/2 group/marker z-20"
+                                            style={{ left: `${pct}%`, top: isHome ? '10%' : '50%' }}
+                                        >
+                                            {/* Tooltip */}
+                                            <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-3 w-48 scale-0 group-hover/marker:scale-100 transition-all duration-300 origin-bottom bg-slate-900 border border-white/10 rounded-2xl p-3 shadow-2xl text-center pointer-events-none z-30">
+                                                <p className="text-[9px] font-black uppercase text-blue-400 tracking-wider mb-1">{event.details?.added_time ? `${event.minute}+${event.details.added_time}` : event.minute}' Dakika</p>
+                                                <p className="text-[11px] font-black text-white uppercase">{event.player?.first_name} {event.player?.last_name}</p>
+                                                <p className="text-[8px] font-black text-white/50 uppercase tracking-widest mt-1">
+                                                    {event.event_type === 'goal' ? '⚽ Gol Attı' :
+                                                     event.event_type === 'assist' ? '🎯 Asist Yaptı' :
+                                                     event.event_type === 'yellow_card' ? '🟨 Sarı Kart' :
+                                                     event.event_type === 'red_card' ? '🟥 Kırmızı Kart' : '🔄 Değişiklik'}
+                                                </p>
+                                                <div className="absolute top-full left-1/2 -translate-x-1/2 -mt-1 border-[6px] border-transparent border-t-slate-900" />
+                                            </div>
+
+                                            {/* Action Dot Indicator */}
+                                            <div className={`h-8 w-8 rounded-full border-2 border-slate-950 flex items-center justify-center cursor-pointer transition-all duration-300 hover:scale-125 hover:border-white shadow-xl ${
+                                                event.event_type === 'goal' ? 'bg-emerald-500 text-white' :
+                                                event.event_type === 'assist' ? 'bg-blue-500 text-white' :
+                                                event.event_type === 'yellow_card' ? 'bg-amber-400 text-slate-900' :
+                                                event.event_type === 'red_card' ? 'bg-rose-600 text-white' : 'bg-slate-700 text-white'
+                                            }`}>
+                                                {event.event_type === 'goal' && <Goal className="h-3.5 w-3.5" />}
+                                                {event.event_type === 'assist' && <Target className="h-3.5 w-3.5" />}
+                                                {event.event_type === 'yellow_card' && <div className="h-3.5 w-2 bg-slate-900 rounded-sm" />}
+                                                {event.event_type === 'red_card' && <div className="h-3.5 w-2 bg-white rounded-sm" />}
+                                                {(event.event_type === 'sub_in' || event.event_type === 'sub_out') && <Repeat className="h-3.5 w-3.5" />}
+                                            </div>
+                                        </div>
+                                    );
+                                })}
+                            </div>
+                        </div>
                     </CardContent>
                 </Card>
 
@@ -353,24 +451,34 @@ export default function Show({ game }: Props) {
                                             <p className="text-xs font-black text-muted-foreground uppercase tracking-widest">Henüz kritik bir an yaşanmadı.</p>
                                         </div>
                                     ) : (
-                                        game.events.sort((a:any, b:any) => b.minute - a.minute).map((event: any, idx) => (
+                                        [...game.events].sort((a:any, b:any) => b.minute - a.minute).map((event: any, idx) => (
                                             <div key={idx} className="relative pl-10 group">
-                                                <div className="absolute left-0 top-1.5 w-6 h-6 rounded-full bg-white dark:bg-neutral-800 border-2 border-blue-600 shadow-lg z-10 flex items-center justify-center">
+                                                <div className={`absolute left-0 top-1.5 w-6 h-6 rounded-full bg-white dark:bg-neutral-800 border-2 shadow-lg z-10 flex items-center justify-center ${
+                                                    event.event_type === 'goal' ? 'border-emerald-500' :
+                                                    event.event_type === 'assist' ? 'border-blue-500' :
+                                                    event.event_type === 'yellow_card' ? 'border-amber-400' :
+                                                    event.event_type === 'red_card' ? 'border-rose-600' :
+                                                    event.event_type === 'sub_in' ? 'border-emerald-500' :
+                                                    event.event_type === 'sub_out' ? 'border-rose-500' : 'border-blue-600'
+                                                }`}>
                                                     {event.event_type === 'goal' && <Goal className="h-3 w-3 text-emerald-500" />}
                                                     {event.event_type === 'assist' && <Target className="h-3 w-3 text-blue-500" />}
                                                     {event.event_type === 'yellow_card' && <div className="h-2.5 w-1.5 bg-amber-400 rounded-sm" />}
                                                     {event.event_type === 'red_card' && <div className="h-2.5 w-1.5 bg-rose-600 rounded-sm" />}
-                                                    {(event.event_type === 'sub_in' || event.event_type === 'sub_out') && <Repeat className="h-3 w-3 text-blue-500" />}
+                                                    {event.event_type === 'sub_in' && <Repeat className="h-3 w-3 text-emerald-500 rotate-180" />}
+                                                    {event.event_type === 'sub_out' && <Repeat className="h-3 w-3 text-rose-500" />}
                                                 </div>
                                                 <div className="flex flex-col gap-1">
                                                     <div className="flex items-center justify-between">
-                                                        <span className="text-xs font-black tabular-nums text-blue-600">{event.minute}' Dakika</span>
+                                                        <span className="text-xs font-black tabular-nums text-blue-600">
+                                                            {event.details?.added_time ? `${event.minute}+${event.details.added_time}` : event.minute}' Dakika
+                                                        </span>
                                                         {isCommittee && game.status !== 'completed' && (
                                                             <Button 
                                                                 variant="ghost" 
                                                                 size="icon" 
                                                                 className="h-6 w-6 rounded-full opacity-0 group-hover:opacity-100 hover:bg-rose-50 hover:text-rose-600 transition-all font-black"
-                                                                onClick={() => router.delete(route('games.events.destroy', { game: game.id, event: event.id }), { preserveScroll: true })}
+                                                                 onClick={() => router.delete(route('games.events.destroy', { game: game.id, event: event.id }), { preserveScroll: true })}
                                                             >
                                                                 <X className="h-3 w-3" />
                                                             </Button>
@@ -381,7 +489,10 @@ export default function Show({ game }: Props) {
                                                         {event.event_type === 'goal' ? 'GOOOL!' : 
                                                          event.event_type === 'assist' ? 'ŞIK BİR ASİST YAPTI' :
                                                          event.event_type === 'yellow_card' ? 'SARI KART GÖRDÜ' : 
-                                                         event.event_type === 'red_card' ? (event.details?.second_yellow ? 'İKİNCİ SARIDAN KIRMIZI KART GÖRDÜ' : 'DİREKT KIRMIZI KARTLA OYUN DIŞI KALDI') : 'OYUNCU DEĞİŞİKLİĞİ'}
+                                                         event.event_type === 'red_card' ? (event.details?.second_yellow ? 'İKİNCİ SARIDAN KIRMIZI KART GÖRDÜ' : 'DİREKT KIRMIZI KARTLA OYUN DIŞI KALDI') : 
+                                                         event.event_type === 'sub_in' ? `OYUNA GİRDİ (ÇIKAN OYUNCU: ${getPlayerNameById(event.details?.replaced_player_id)})` :
+                                                         event.event_type === 'sub_out' ? `OYUNDAN ÇIKTI (GİREN OYUNCU: ${getReplacedByPlayer(event.player_id, event.minute, event.team_id) || 'BİLİNMİYOR'})` :
+                                                         'OYUNCU DEĞİŞİKLİĞİ'}
                                                     </p>
                                                 </div>
                                             </div>
@@ -444,14 +555,30 @@ export default function Show({ game }: Props) {
                                                 <Clock className="h-4 w-4 text-white" />
                                                 <span className="text-[10px] font-black uppercase tracking-widest">MAÇ DAKİKASI</span>
                                             </div>
-                                            <div className="flex items-center gap-4 bg-white/10 p-2 rounded-2xl border border-white/10 w-fit">
-                                                <span className="text-[10px] font-black uppercase tracking-widest ml-4">DAKİKA:</span>
-                                                <input 
-                                                    type="number" 
-                                                    value={selectedMinute}
-                                                    onChange={(e) => setSelectedMinute(e.target.value)}
-                                                    className="w-16 h-10 bg-white/10 rounded-xl border border-white/20 text-center font-black text-lg focus:outline-none focus:ring-2 focus:ring-white/50"
-                                                />
+                                            <div className="flex flex-wrap items-center gap-3">
+                                                <div className="flex items-center gap-4 bg-white/10 p-2 rounded-2xl border border-white/10 w-fit">
+                                                    <span className="text-[10px] font-black uppercase tracking-widest ml-4">DAKİKA:</span>
+                                                    <input 
+                                                        type="number" 
+                                                        value={selectedMinute}
+                                                        onChange={(e) => setSelectedMinute(e.target.value)}
+                                                        className="w-16 h-10 bg-white/10 rounded-xl border border-white/20 text-center font-black text-lg focus:outline-none focus:ring-2 focus:ring-white/50"
+                                                    />
+                                                </div>
+                                                <span className="text-xl font-black text-white/40">+</span>
+                                                <div className="flex items-center gap-4 bg-white/10 p-2 rounded-2xl border border-white/10 w-fit">
+                                                    <span className="text-[10px] font-black uppercase tracking-widest ml-2">UZATMA:</span>
+                                                    <input 
+                                                        type="number" 
+                                                        placeholder="0"
+                                                        value={addedMinute}
+                                                        onChange={(e) => setAddedMinute(e.target.value)}
+                                                        className="w-12 h-10 bg-white/10 rounded-xl border border-white/20 text-center font-black text-lg focus:outline-none focus:ring-2 focus:ring-white/50"
+                                                    />
+                                                </div>
+                                                <span className="text-[9px] font-black uppercase tracking-widest text-white/40 ml-2">
+                                                    (örn. 25 + 2 veya 50 + 3)
+                                                </span>
                                             </div>
                                         </div>
                                     </div>

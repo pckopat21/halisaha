@@ -17,29 +17,50 @@ class DisciplineService
         $tournament = $game->tournament;
         $yellowCardLimit = $tournament->settings['yellow_card_limit'] ?? 4;
 
-        // 1. Check for RED card in the IMMEDIATE PREVIOUS game of the same team in this tournament
-        $previousGame = Game::where('tournament_id', $tournament->id)
-            ->where(function($q) use ($game) {
-                $q->where('home_team_id', $game->home_team_id)
-                  ->orWhere('away_team_id', $game->away_team_id)
-                  ->orWhere('home_team_id', $game->away_team_id)
-                  ->orWhere('away_team_id', $game->home_team_id);
+        // 1. Check for RED cards in the tournament before this game
+        $redCardEvents = GameEvent::whereHas('game', function($q) use ($tournament, $game) {
+                $q->where('tournament_id', $tournament->id)
+                  ->where('scheduled_at', '<', $game->scheduled_at)
+                  ->where('status', 'completed');
             })
-            ->where('scheduled_at', '<', $game->scheduled_at)
-            ->where('status', 'completed')
-            ->orderByDesc('scheduled_at')
-            ->first();
+            ->where('player_id', $player->id)
+            ->where('event_type', 'red_card')
+            ->get();
 
-        if ($previousGame) {
-            $hasRed = GameEvent::where('game_id', $previousGame->id)
-                ->where('player_id', $player->id)
-                ->where('event_type', 'red_card')
-                ->exists();
+        foreach ($redCardEvents as $event) {
+            $redGame = $event->game;
+            $teamId = $event->team_id;
 
-            if ($hasRed) {
+            // Count completed matches played by the team after the red card game
+            $gamesPlayedSince = Game::where('tournament_id', $tournament->id)
+                ->where(function($q) use ($teamId) {
+                    $q->where('home_team_id', $teamId)
+                      ->orWhere('away_team_id', $teamId);
+                })
+                ->where('status', 'completed')
+                ->where('scheduled_at', '>', $redGame->scheduled_at)
+                ->where('scheduled_at', '<', $game->scheduled_at)
+                ->count();
+
+            $isSecondYellow = $event->details['second_yellow'] ?? false;
+
+            if ($isSecondYellow) {
+                $banDuration = isset($tournament->settings['second_yellow_suspension']) 
+                    ? (int)$tournament->settings['second_yellow_suspension'] 
+                    : 0; // Default: 0 means no suspension for 2nd yellow (as requested by user)
+            } else {
+                $banDuration = isset($tournament->settings['direct_red_suspension']) 
+                    ? (int)$tournament->settings['direct_red_suspension'] 
+                    : 1; // Default: 1 match suspension for direct red card
+            }
+
+            if ($gamesPlayedSince < $banDuration) {
+                $remaining = $banDuration - $gamesPlayedSince;
                 return [
                     'is_suspended' => true,
-                    'reason' => 'Bir önceki maçta görülen kırmızı kart nedeniyle cezalı.'
+                    'reason' => $isSecondYellow
+                        ? "2. sarı karttan oyun dışı kaldığı için cezalı (Kalan ceza: {$remaining} maç)."
+                        : "Direkt kırmızı kart gördüğü için cezalı (Kalan ceza: {$remaining} maç)."
                 ];
             }
         }
@@ -71,6 +92,20 @@ class DisciplineService
         // AND the last yellow card was in the player's last game.
         
         if ($yellowCardsCount > 0 && $yellowCardsCount % $yellowCardLimit === 0) {
+            // Find player's team in the current game
+            $teamId = $game->home_team->players->contains($player->id) ? $game->home_team_id : $game->away_team_id;
+
+            // Find player's team's immediate previous completed game
+            $previousGame = Game::where('tournament_id', $tournament->id)
+                ->where(function($q) use ($teamId) {
+                    $q->where('home_team_id', $teamId)
+                      ->orWhere('away_team_id', $teamId);
+                })
+                ->where('scheduled_at', '<', $game->scheduled_at)
+                ->where('status', 'completed')
+                ->orderByDesc('scheduled_at')
+                ->first();
+
             // Find the game where the last yellow card was received
             $lastYellowEvent = GameEvent::whereHas('game', function($q) use ($tournament, $game) {
                     $q->where('tournament_id', $tournament->id)

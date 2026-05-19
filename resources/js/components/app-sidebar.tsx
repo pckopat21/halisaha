@@ -5,7 +5,7 @@ import { Sidebar, SidebarContent, SidebarFooter, SidebarHeader, SidebarMenu, Sid
 import { Button } from '@/components/ui/button';
 import { type NavItem, type SharedData } from '@/types';
 import { Link, usePage } from '@inertiajs/react';
-import { LayoutGrid, Trophy, Users, CalendarDays, Briefcase, BookOpen, Folder, Building2, BarChart3, MapPin, Image as ImageIcon, Bell } from 'lucide-react';
+import { LayoutGrid, Trophy, Users, CalendarDays, Briefcase, BookOpen, Folder, Building2, BarChart3, MapPin, Image as ImageIcon, Bell, Target } from 'lucide-react';
 import AppLogo from './app-logo';
 
 const mainNavItems: NavItem[] = [
@@ -13,6 +13,11 @@ const mainNavItems: NavItem[] = [
         title: 'Panel',
         url: '/dashboard',
         icon: LayoutGrid,
+    },
+    {
+        title: 'Tahmin Ligi',
+        url: '/predictions/leaderboard',
+        icon: Target,
     },
     {
         title: 'Duyuru Yönetimi',
@@ -79,8 +84,8 @@ export function AppSidebar() {
             return true;
         }
 
-        // Dashboard is only for logged-in users
-        if (item.title === 'Panel') {
+        // Dashboard/Predictions is only for logged-in users
+        if (['Panel', 'Tahmin Ligi'].includes(item.title)) {
             return !!auth.user;
         }
 

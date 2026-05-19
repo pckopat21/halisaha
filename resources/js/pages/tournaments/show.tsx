@@ -135,6 +135,9 @@ interface Tournament {
         total_players_on_pitch: number;
         min_players_on_pitch: number;
         match_duration: number;
+        allow_reentry: boolean;
+        second_yellow_suspension: number;
+        direct_red_suspension: number;
     };
 }
 
@@ -167,6 +170,7 @@ export default function Show({ tournament, teamStats, isGroupStageCompleted, sta
     const [isResultModalOpen, setIsResultModalOpen] = useState(false);
     const [isFieldModalOpen, setIsFieldModalOpen] = useState(false);
     const [activeTab, setActiveTab] = useState('groups');
+    const [hoveredTeamId, setHoveredTeamId] = useState<number | null>(null);
     
     const { data: fieldData, setData: setFieldData, post: postField, processing: fieldProcessing } = useForm({
         field_id: '',
@@ -219,6 +223,9 @@ export default function Show({ tournament, teamStats, isGroupStageCompleted, sta
             total_players_on_pitch: tournament.settings.total_players_on_pitch,
             min_players_on_pitch: tournament.settings.min_players_on_pitch,
             match_duration: tournament.settings.match_duration || 50,
+            allow_reentry: tournament.settings.allow_reentry ?? false,
+            second_yellow_suspension: tournament.settings.second_yellow_suspension ?? 0,
+            direct_red_suspension: tournament.settings.direct_red_suspension ?? 1,
         }
     });
 
@@ -1114,16 +1121,32 @@ export default function Show({ tournament, teamStats, isGroupStageCompleted, sta
                                                                 </Button>
                                                             )}
                                                             <Link href={route('games.show', m.id)}>
-                                                                <div className="w-[260px] md:w-[280px] bg-white dark:bg-neutral-800 rounded-2xl md:rounded-3xl shadow-xl border-2 border-slate-100 dark:border-white/5 group-hover:border-blue-500 transition-all p-3 md:p-4 z-10 relative">
+                                                                <div className={`w-[260px] md:w-[280px] rounded-2xl md:rounded-3xl shadow-xl border-2 transition-all p-3 md:p-4 z-10 relative ${
+                                                                    (hoveredTeamId && (m.home_team?.id === hoveredTeamId || m.away_team?.id === hoveredTeamId))
+                                                                        ? 'bg-slate-900 border-blue-500 scale-105 shadow-2xl shadow-blue-500/20 text-white dark:bg-neutral-800'
+                                                                        : 'bg-white dark:bg-neutral-800 border-slate-100 dark:border-white/5 group-hover:border-blue-500'
+                                                                }`}>
                                                                     <div className="space-y-4">
-                                                                        <div className="flex items-center justify-between">
+                                                                        <div 
+                                                                            onMouseEnter={() => m.home_team?.id && setHoveredTeamId(m.home_team.id)}
+                                                                            onMouseLeave={() => setHoveredTeamId(null)}
+                                                                            className={`flex items-center justify-between p-1.5 rounded-xl transition-all ${
+                                                                                hoveredTeamId === m.home_team?.id ? 'bg-blue-600/25 scale-[1.02]' : ''
+                                                                            }`}
+                                                                        >
                                                                             <div className="flex items-center gap-3">
                                                                                 <div className="w-8 h-8 rounded-xl bg-slate-50 dark:bg-black/20 flex items-center justify-center text-[10px] font-black">{(m.home_team?.name || '??').substring(0, 2).toUpperCase()}</div>
                                                                                 <span className="font-bold text-sm truncate w-32">{m.home_team?.name || 'BELİRLENMEDİ'}</span>
                                                                             </div>
                                                                             <span className={`text-xl font-black tabular-nums ${m.status === 'completed' && (m.home_score ?? 0) > (m.away_score ?? 0) ? 'text-blue-600' : 'text-slate-400'}`}>{m.home_score ?? 0}</span>
                                                                         </div>
-                                                                        <div className="flex items-center justify-between">
+                                                                        <div 
+                                                                            onMouseEnter={() => m.away_team?.id && setHoveredTeamId(m.away_team.id)}
+                                                                            onMouseLeave={() => setHoveredTeamId(null)}
+                                                                            className={`flex items-center justify-between p-1.5 rounded-xl transition-all ${
+                                                                                hoveredTeamId === m.away_team?.id ? 'bg-blue-600/25 scale-[1.02]' : ''
+                                                                            }`}
+                                                                        >
                                                                             <div className="flex items-center gap-3">
                                                                                 <div className="w-8 h-8 rounded-xl bg-slate-50 dark:bg-black/20 flex items-center justify-center text-[10px] font-black">{(m.away_team?.name || '??').substring(0, 2).toUpperCase()}</div>
                                                                                 <span className="font-bold text-sm truncate w-32">{m.away_team?.name || 'BELİRLENMEDİ'}</span>
@@ -1139,7 +1162,11 @@ export default function Show({ tournament, teamStats, isGroupStageCompleted, sta
                                                                 </div>
                                                             </Link>
                                                             {round !== 'final' && round !== 'third_place' && (
-                                                                <div className="absolute top-1/2 -right-24 w-24 h-px border-t-2 border-dashed border-slate-200 dark:border-white/10 -z-10 group-hover:border-blue-400" />
+                                                                <div className={`absolute top-1/2 -right-24 w-24 h-px border-t-2 transition-all duration-300 -z-10 ${
+                                                                    hoveredTeamId && (m.home_team?.id === hoveredTeamId || m.away_team?.id === hoveredTeamId)
+                                                                        ? 'border-solid border-blue-500 shadow-[0_0_8px_#3b82f6]'
+                                                                        : 'border-dashed border-slate-200 dark:border-white/10 group-hover:border-blue-400'
+                                                                }`} />
                                                             )}
                                                         </div>
                                                     ))}
@@ -1421,6 +1448,48 @@ export default function Show({ tournament, teamStats, isGroupStageCompleted, sta
                                                             className="h-14 rounded-2xl font-bold bg-emerald-500/5 border-emerald-100/50"
                                                             value={settingsForm.data.settings.match_duration}
                                                             onChange={e => settingsForm.setData('settings', { ...settingsForm.data.settings, match_duration: parseInt(e.target.value) })}
+                                                        />
+                                                    </div>
+                                                    <div className="space-y-2">
+                                                        <Label className="text-[10px] font-black uppercase tracking-widest text-amber-600">Oyuncu Değişiklik Limiti</Label>
+                                                        <Input 
+                                                            type="number" 
+                                                            className="h-14 rounded-2xl font-bold bg-amber-500/5 border-amber-100/50"
+                                                            value={settingsForm.data.settings.substitution_limit}
+                                                            onChange={e => settingsForm.setData('settings', { ...settingsForm.data.settings, substitution_limit: parseInt(e.target.value) })}
+                                                        />
+                                                    </div>
+                                                    <div className="space-y-2">
+                                                        <Label className="text-[10px] font-black uppercase tracking-widest text-purple-600">Çıkan Oyuncu Tekrar Girebilir mi?</Label>
+                                                        <Select 
+                                                            value={settingsForm.data.settings.allow_reentry ? "true" : "false"}
+                                                            onValueChange={val => settingsForm.setData('settings', { ...settingsForm.data.settings, allow_reentry: val === "true" })}
+                                                        >
+                                                            <SelectTrigger className="h-14 rounded-2xl font-bold bg-purple-500/5 border-purple-100/50 text-xs uppercase px-6">
+                                                                <SelectValue />
+                                                            </SelectTrigger>
+                                                            <SelectContent className="rounded-2xl border-none shadow-3xl p-2 bg-slate-900 text-white">
+                                                                <SelectItem value="false" className="uppercase font-black text-xs py-3 rounded-xl cursor-pointer">HAYIR (TEKRAR GİREMEZ)</SelectItem>
+                                                                <SelectItem value="true" className="uppercase font-black text-xs py-3 rounded-xl cursor-pointer">EVET (TEKRAR GİREBİLİR)</SelectItem>
+                                                            </SelectContent>
+                                                        </Select>
+                                                    </div>
+                                                    <div className="space-y-2">
+                                                        <Label className="text-[10px] font-black uppercase tracking-widest text-amber-600">2. Sarıdan Kaç Maç Ceza? (0 = Ceza Yok)</Label>
+                                                        <Input 
+                                                            type="number" 
+                                                            className="h-14 rounded-2xl font-bold bg-amber-500/5 border-amber-100/50"
+                                                            value={settingsForm.data.settings.second_yellow_suspension}
+                                                            onChange={e => settingsForm.setData('settings', { ...settingsForm.data.settings, second_yellow_suspension: parseInt(e.target.value) })}
+                                                        />
+                                                    </div>
+                                                    <div className="space-y-2">
+                                                        <Label className="text-[10px] font-black uppercase tracking-widest text-rose-600">Direkt Kırmızıdan Kaç Maç Ceza?</Label>
+                                                        <Input 
+                                                            type="number" 
+                                                            className="h-14 rounded-2xl font-bold bg-rose-500/5 border-rose-100/50"
+                                                            value={settingsForm.data.settings.direct_red_suspension}
+                                                            onChange={e => settingsForm.setData('settings', { ...settingsForm.data.settings, direct_red_suspension: parseInt(e.target.value) })}
                                                         />
                                                     </div>
                                                 </div>

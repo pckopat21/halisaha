@@ -34,6 +34,9 @@ class Tournament extends Model
             'total_players_on_pitch' => 5,
             'min_players_on_pitch' => 3,
             'match_duration' => 50,
+            'allow_reentry' => false,
+            'second_yellow_suspension' => 0,
+            'direct_red_suspension' => 1,
         ];
 
         if (!$value) return $defaults;

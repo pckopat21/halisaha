@@ -99,7 +99,7 @@ class GameService
             }
 
             if ($data['event_type'] === 'sub_in') {
-                $this->handleSubstitution($game, $data);
+                $this->handleSubstitution($game, $data, $event);
             }
 
             return $event;
@@ -124,12 +124,30 @@ class GameService
         }
     }
 
-    private function handleSubstitution(Game $game, array $data)
+    private function handleSubstitution(Game $game, array $data, $event = null)
     {
         $subLimit = $game->tournament->settings['substitution_limit'] ?? 5;
-        $subCount = $game->events()->where('team_id', $data['team_id'])->where('event_type', 'sub_in')->count();
+        
+        $query = $game->events()->where('team_id', $data['team_id'])->where('event_type', 'sub_in');
+        if ($event && $event->id) {
+            $query->where('id', '!=', $event->id);
+        }
+        
+        $subCount = $query->count();
         if ($subCount >= $subLimit) {
             throw new \Exception("En fazla {$subLimit} oyuncu değişikliği yapılabilir.");
+        }
+
+        // Validate re-entry rule
+        $allowReentry = $game->tournament->settings['allow_reentry'] ?? false;
+        if (!$allowReentry) {
+            $alreadySubbedOut = $game->events()
+                ->where('player_id', $data['player_id'])
+                ->where('event_type', 'sub_out')
+                ->exists();
+            if ($alreadySubbedOut) {
+                throw new \Exception("Çıkan oyuncu tekrar oyuna giremez.");
+            }
         }
 
         // Validate pitch composition

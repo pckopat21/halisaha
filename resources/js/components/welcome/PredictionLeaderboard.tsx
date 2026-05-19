@@ -1,5 +1,5 @@
 import { Card } from "@/components/ui/card";
-import { TrendingUp, Trophy, ChevronRight } from "lucide-react";
+import { TrendingUp, Trophy, ChevronRight, Target, Zap, Sparkles } from "lucide-react";
 
 interface PredictionLeaderboardProps {
     predictionLeaderboard: any[];
@@ -23,9 +23,43 @@ export default function PredictionLeaderboard({ predictionLeaderboard, onLeaderC
                         >
                             <div className="flex items-center gap-3">
                                 <span className={`text-sm font-black italic ${i < 3 ? 'text-orange-500' : 'text-white/20'}`}>#{i + 1}</span>
-                                <div className="flex flex-col">
-                                    <span className="text-[11px] font-black uppercase tracking-tight truncate max-w-[120px]">{user?.name || 'Kullanıcı'}</span>
-                                    <span className="text-[10px] font-bold text-white/40 tabular-nums">{user?.total_points ?? 0} Puan</span>
+                                <div className="flex flex-col gap-1">
+                                    <div className="flex items-center gap-1.5">
+                                        <span className="text-[11px] font-black uppercase tracking-tight truncate max-w-[120px]">{user?.name || 'Kullanıcı'}</span>
+                                        {i === 0 && (
+                                            <span title="Lider / Altın Madalya">
+                                                <Trophy className="h-3.5 w-3.5 text-yellow-400 shrink-0 animate-bounce" />
+                                            </span>
+                                        )}
+                                        {i === 1 && (
+                                            <span title="İkinci / Gümüş Madalya">
+                                                <Trophy className="h-3.5 w-3.5 text-slate-300 shrink-0" />
+                                            </span>
+                                        )}
+                                        {i === 2 && (
+                                            <span title="Üçüncü / Bronz Madalya">
+                                                <Trophy className="h-3.5 w-3.5 text-amber-600 shrink-0" />
+                                            </span>
+                                        )}
+                                    </div>
+                                    <div className="flex flex-wrap items-center gap-1.5">
+                                        <span className="text-[10px] font-bold text-white/40 tabular-nums">{user?.total_points ?? 0} Puan</span>
+                                        {parseInt(user?.exact_hits) >= 1 && (
+                                            <span className="bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 px-1 py-0.5 text-[6px] font-black uppercase rounded shrink-0 tracking-wide" title={`${user?.exact_hits} Skor İsabeti - Keskin Nişancı`}>
+                                                🎯 KESKİN
+                                            </span>
+                                        )}
+                                        {parseInt(user?.accuracy) >= 30 && parseInt(user?.total_predictions) >= 3 && (
+                                            <span className="bg-purple-500/20 text-purple-400 border border-purple-500/30 px-1 py-0.5 text-[6px] font-black uppercase rounded shrink-0 tracking-wide" title={`%${user?.accuracy} İsabet Oranı - Kahin`}>
+                                                🔮 KAHİN
+                                            </span>
+                                        )}
+                                        {parseInt(user?.total_predictions) >= 5 && (
+                                            <span className="bg-blue-500/20 text-blue-400 border border-blue-500/30 px-1 py-0.5 text-[6px] font-black uppercase rounded shrink-0 tracking-wide" title={`${user?.total_predictions} Tahmin - İstikrarlı`}>
+                                                ⚡ AKTİF
+                                            </span>
+                                        )}
+                                    </div>
                                 </div>
                             </div>
                             <ChevronRight className="h-4 w-4 text-white/10 group-hover/item:text-orange-500 transition-all" />
