@@ -1,5 +1,17 @@
 import { Link } from "@inertiajs/react";
-import { Play, Target } from "lucide-react";
+import { motion } from "framer-motion";
+import { Play } from "lucide-react";
+import MatchFixtureHeader, { PredictionActionButton } from "@/components/welcome/MatchDateWithPrediction";
+import PublicVotePanel from "@/components/welcome/PublicVotePanel";
+import {
+    staggerContainer,
+    staggerItem,
+    staggerInView,
+    defaultTransition,
+    inViewViewport,
+    useReducedMotion,
+    sectionTitleClass,
+} from "@/lib/motion-presets";
 
 interface MatchListProps {
     lastResults: any[];
@@ -20,19 +32,35 @@ export default function MatchList({
     getMatchDateMeta,
     getExistingPrediction
 }: MatchListProps) {
+    const reduced = useReducedMotion();
+
     return (
-        <section className="container mx-auto px-6 mb-32 max-w-7xl relative z-10">
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-12">
-                <div className="space-y-8">
-                    <div className="flex items-center justify-between border-l-4 border-slate-900 pl-4">
+        <motion.section
+            className="container mx-auto px-4 sm:px-6 mb-32 max-w-7xl relative z-10"
+            initial={reduced ? false : { y: 24 }}
+            whileInView={{ y: 0 }}
+            viewport={inViewViewport}
+            transition={defaultTransition}
+        >
+            <motion.div
+                className="grid grid-cols-1 lg:grid-cols-2 gap-12"
+                variants={reduced ? undefined : staggerContainer}
+                {...staggerInView(reduced)}
+            >
+                <motion.div variants={reduced ? undefined : staggerItem} className="space-y-8">
+                    <div className={`flex items-center justify-between ${sectionTitleClass} border-slate-900`}>
                         <h2 className="text-2xl font-black uppercase tracking-tighter">SON SONUÇLAR</h2>
                         <Link href="/games" className="text-[10px] font-black text-orange-600 uppercase tracking-widest hover:underline">TÜMÜ</Link>
                     </div>
-                    <div className="bg-white border border-orange-100 rounded-[2.5rem] p-8 shadow-sm space-y-4">
+                    <div className="bg-white/80 backdrop-blur-md border border-orange-100 rounded-[2.5rem] p-8 shadow-sm space-y-4">
                         {(lastResults || []).length > 0 ? lastResults.map((game, idx) => {
                             const dateMeta = getMatchDateMeta(game?.scheduled_at);
                             return (
-                                <div key={idx} className="border-b border-slate-50 last:border-none pb-4 last:pb-0">
+                                <motion.div
+                                    key={game?.id ?? idx}
+                                    className="border-b border-slate-50 last:border-none pb-4 last:pb-0 rounded-xl transition-colors hover:bg-orange-50/30 px-2 -mx-2"
+                                    whileHover={reduced ? undefined : { x: 4 }}
+                                >
                                     <div className="flex items-center justify-between mb-2">
                                         <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest">{typeof game?.group === 'object' ? game?.group?.name : game?.group || 'Grup'}</span>
                                         <span className="text-[9px] font-bold text-orange-600 uppercase">{dateMeta.fullDate}</span>
@@ -48,6 +76,13 @@ export default function MatchList({
                                             </div>
                                         </div>
                                     </Link>
+                                    <div className="mb-2">
+                                        <PublicVotePanel
+                                            stats={game?.public_stats}
+                                            verdict={game?.public_verdict}
+                                            size="sm"
+                                        />
+                                    </div>
                                     {game?.live_stream_url && (
                                         <button
                                             onClick={() => onWatchLive(game)}
@@ -57,28 +92,35 @@ export default function MatchList({
                                             <span className="text-[9px] font-black uppercase tracking-widest">Maçı İzle</span>
                                         </button>
                                     )}
-                                </div>
-                            )
+                                </motion.div>
+                            );
                         }) : (
                             <p className="text-center text-slate-400 py-12 text-sm font-medium italic text-[10px] uppercase">Henüz tamamlanan maç yok.</p>
                         )}
                     </div>
-                </div>
+                </motion.div>
 
-                <div className="space-y-8">
-                    <div className="flex items-center justify-between border-l-4 border-orange-600 pl-4">
+                <motion.div variants={reduced ? undefined : staggerItem} className="space-y-8">
+                    <div className={`flex items-center justify-between ${sectionTitleClass}`}>
                         <h2 className="text-2xl font-black uppercase tracking-tighter">GELECEK MAÇLAR</h2>
                         <Link href="/games" className="text-[10px] font-black text-orange-600 uppercase tracking-widest hover:underline">FİKSTÜR</Link>
                     </div>
-                    <div className="bg-white border border-orange-100 rounded-[2.5rem] p-8 shadow-sm space-y-4">
+                    <div className="bg-white/80 backdrop-blur-md border border-orange-100 rounded-[2.5rem] p-8 shadow-sm space-y-4">
                         {(upcomingFixtures || []).length > 0 ? upcomingFixtures.map((game, idx) => {
                             const dateMeta = getMatchDateMeta(game?.scheduled_at);
+                            const existingPred = getExistingPrediction(game?.id);
                             return (
-                                <div key={idx} className="border-b border-slate-50 last:border-none pb-4 last:pb-0">
-                                    <div className="flex items-center justify-between mb-2">
-                                        <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest">{typeof game?.group === 'object' ? game?.group?.name : game?.group || 'Grup'}</span>
-                                        <span className="text-[9px] font-bold text-orange-600 uppercase">{dateMeta.dayLabel === 'Bugün' ? 'BUGÜN' : dateMeta.fullDate}</span>
-                                    </div>
+                                <motion.div
+                                    key={game?.id ?? idx}
+                                    className="flex flex-col gap-3 border-b border-slate-50 last:border-none pb-4 last:pb-0 rounded-xl transition-colors hover:bg-orange-50/30 px-2 -mx-2"
+                                    whileHover={reduced ? undefined : { x: 4 }}
+                                >
+                                    <MatchFixtureHeader
+                                        groupName={typeof game?.group === 'object' ? game?.group?.name : game?.group || 'Grup'}
+                                        dateMeta={dateMeta}
+                                        size="sm"
+                                        variant="list"
+                                    />
                                     <div className="grid grid-cols-[1fr_60px_1fr] items-center gap-4 flex-1">
                                         <span className="text-xs md:text-sm font-black text-slate-900 text-right truncate">{getTeamName(game?.home_team || game?.homeTeam)}</span>
                                         <div className="bg-orange-50 text-orange-600 text-[10px] font-black px-2 py-1.5 rounded-lg text-center border border-orange-100">
@@ -86,26 +128,20 @@ export default function MatchList({
                                         </div>
                                         <span className="text-xs md:text-sm font-black text-slate-900 text-left truncate">{getTeamName(game?.away_team || game?.awayTeam)}</span>
                                     </div>
-                                    <button
-                                        onClick={() => onPredict(game)}
-                                        className={`flex items-center justify-center gap-1.5 w-full mt-2 py-1.5 rounded-lg border transition-colors cursor-pointer ${getExistingPrediction(game?.id)
-                                            ? 'bg-green-50 hover:bg-green-100 border-green-200 text-green-700'
-                                            : 'bg-orange-50 hover:bg-orange-100 border-orange-100 text-orange-600'
-                                            }`}
-                                    >
-                                        <Target className="h-3 w-3" />
-                                        <span className="text-[9px] font-black uppercase tracking-widest">
-                                            {getExistingPrediction(game?.id) ? 'Tahmini Görüntüle / Güncelle' : 'Tahmin Yap'}
-                                        </span>
-                                    </button>
-                                </div>
-                            )
+                                    <PublicVotePanel stats={game?.public_stats} size="sm" />
+                                    <PredictionActionButton
+                                        existingPrediction={existingPred}
+                                        onPredict={() => onPredict(game)}
+                                        size="sm"
+                                    />
+                                </motion.div>
+                            );
                         }) : (
                             <p className="text-center text-slate-400 py-12 text-sm font-medium italic text-[10px] uppercase">Planlanmış maç bulunmuyor.</p>
                         )}
                     </div>
-                </div>
-            </div>
-        </section>
+                </motion.div>
+            </motion.div>
+        </motion.section>
     );
 }

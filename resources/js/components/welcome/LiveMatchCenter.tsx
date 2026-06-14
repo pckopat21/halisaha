@@ -2,7 +2,21 @@ import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Link } from "@inertiajs/react";
-import { Play, Tv, Calendar, Target } from "lucide-react";
+import { motion } from "framer-motion";
+import { Play, Tv } from "lucide-react";
+import MatchFixtureHeader, { PredictionActionButton } from "@/components/welcome/MatchDateWithPrediction";
+import PublicVotePanel from "@/components/welcome/PublicVotePanel";
+import {
+    fadeUp,
+    staggerContainer,
+    staggerItem,
+    staggerInView,
+    defaultTransition,
+    hoverLift,
+    inViewViewport,
+    useReducedMotion,
+    sectionTitleClass,
+} from "@/lib/motion-presets";
 
 interface LiveMatchCenterProps {
     liveMatches: any[];
@@ -23,22 +37,39 @@ export default function LiveMatchCenter({
     getMatchDateMeta,
     getExistingPrediction
 }: LiveMatchCenterProps) {
+    const reduced = useReducedMotion();
+
     if ((liveMatches || []).length === 0 && (upcomingFixtures || []).length === 0) return null;
 
     return (
-        <section className="container mx-auto px-6 mb-32 max-w-7xl relative z-30">
-            <div className="flex items-center gap-3 border-l-4 border-orange-600 pl-4 mb-12">
+        <motion.section
+            className="container mx-auto px-4 sm:px-6 mb-32 max-w-7xl relative z-30"
+            initial={reduced ? false : { y: 24 }}
+            whileInView={{ y: 0 }}
+            viewport={inViewViewport}
+            transition={defaultTransition}
+        >
+            <div className={`flex items-center gap-3 mb-12 ${sectionTitleClass}`}>
                 <h2 className="text-3xl font-black uppercase tracking-tighter">
                     {(liveMatches || []).length > 0 ? 'CANLI MAÇ MERKEZİ' : 'SIRADAKİ HEYECAN'}
                 </h2>
             </div>
 
             {(liveMatches || []).length > 0 ? (
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6">
+                <motion.div
+                    className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6"
+                    variants={reduced ? undefined : staggerContainer}
+                    {...staggerInView(reduced)}
+                >
                     {liveMatches.map((match) => (
-                        <div key={match?.id} className="group/card">
+                        <motion.div
+                            key={match?.id}
+                            variants={reduced ? undefined : staggerItem}
+                            whileHover={hoverLift(reduced)}
+                            className="group/card"
+                        >
                             <Link href={`/games/${match?.id}`}>
-                                <Card className="border-orange-200 bg-white/80 backdrop-blur-md rounded-2xl md:rounded-[2rem] px-3 py-5 md:p-6 shadow-xl shadow-orange-600/5 hover:border-orange-600 transition-all border-2 relative cursor-pointer hover:shadow-2xl hover:scale-[1.01]">
+                                <Card className="border-orange-200 bg-white/80 backdrop-blur-md rounded-2xl md:rounded-[2rem] px-3 py-5 md:p-6 shadow-xl shadow-orange-600/5 hover:border-orange-600 transition-all border-2 relative cursor-pointer hover:shadow-2xl">
                                     <div className="flex flex-col gap-3 md:gap-4">
                                         <div className="flex items-center justify-between pb-3 border-b border-orange-100">
                                             <span className="text-[9px] md:text-[10px] font-black text-slate-400 uppercase tracking-widest">{typeof match?.group === 'object' ? match?.group?.name : match?.group || 'Grup'}</span>
@@ -62,6 +93,7 @@ export default function LiveMatchCenter({
                                                 <span className="text-[10px] md:text-sm font-black uppercase leading-tight block truncate text-slate-900">{getTeamName(match?.away_team || match?.awayTeam)}</span>
                                             </div>
                                         </div>
+                                        <PublicVotePanel stats={match?.public_stats} size="sm" />
                                     </div>
                                 </Card>
                             </Link>
@@ -75,59 +107,52 @@ export default function LiveMatchCenter({
                                     <Tv className="h-3.5 w-3.5" />
                                 </Button>
                             )}
-                        </div>
+                        </motion.div>
                     ))}
-                </div>
+                </motion.div>
             ) : (
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6">
+                <motion.div
+                    className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6"
+                    variants={reduced ? undefined : staggerContainer}
+                    {...staggerInView(reduced)}
+                >
                     {(upcomingFixtures || []).slice(0, 2).map((game, idx) => {
                         const dateMeta = getMatchDateMeta(game?.scheduled_at);
                         const existingPred = getExistingPrediction(game?.id);
                         return (
-                            <Card key={idx} className="border-orange-100 bg-white/80 backdrop-blur-md rounded-2xl md:rounded-[2rem] px-3 py-5 md:p-6 shadow-sm hover:shadow-lg transition-all border">
-                                <div className="flex flex-col gap-3 md:gap-4">
-                                    <div className="flex items-center justify-between pb-3 border-b border-orange-50">
-                                        <span className="text-[9px] md:text-[10px] font-black text-slate-400 uppercase tracking-widest">{typeof game?.group === 'object' ? game?.group?.name : game?.group || 'Grup'}</span>
-                                        <div className="flex items-center gap-2">
-                                            <Calendar className="h-3 w-3 text-orange-500" />
-                                            <span className="text-[9px] md:text-[10px] font-bold text-orange-600 uppercase">{dateMeta.dayLabel === 'Bugün' ? 'BUGÜN' : dateMeta.fullDate}</span>
-                                        </div>
-                                    </div>
-                                    <div className="flex items-center gap-2 md:gap-4">
-                                        <div className="flex-1 text-right min-w-0">
-                                            <span className="text-[10px] md:text-sm font-black uppercase leading-tight block truncate text-slate-900">{getTeamName(game?.home_team || game?.homeTeam)}</span>
-                                        </div>
-                                        <div className="flex flex-col items-center gap-1 shrink-0">
-                                            <div className="bg-orange-50 text-orange-600 px-2.5 md:px-4 py-1.5 rounded-lg flex items-center gap-1.5 border border-orange-100 shadow-sm">
-                                                <span className="text-[10px] md:text-sm font-black tabular-nums">{dateMeta.time}</span>
+                            <motion.div key={game?.id ?? idx} variants={reduced ? undefined : staggerItem} whileHover={hoverLift(reduced)}>
+                                <Card className="border-orange-100 bg-white/80 backdrop-blur-md rounded-2xl md:rounded-[2rem] px-3 py-5 md:p-6 shadow-sm hover:shadow-xl transition-all border">
+                                    <div className="flex flex-col gap-3 md:gap-4">
+                                        <MatchFixtureHeader
+                                            groupName={typeof game?.group === 'object' ? game?.group?.name : game?.group || 'Grup'}
+                                            dateMeta={dateMeta}
+                                            variant="card"
+                                        />
+                                        <div className="flex items-center gap-2 md:gap-4">
+                                            <div className="flex-1 text-right min-w-0">
+                                                <span className="text-[10px] md:text-sm font-black uppercase leading-tight block truncate text-slate-900">{getTeamName(game?.home_team || game?.homeTeam)}</span>
+                                            </div>
+                                            <div className="flex flex-col items-center gap-1 shrink-0">
+                                                <div className="bg-orange-50 text-orange-600 px-2.5 md:px-4 py-1.5 rounded-lg flex items-center gap-1.5 border border-orange-100 shadow-sm">
+                                                    <span className="text-[10px] md:text-sm font-black tabular-nums">{dateMeta.time}</span>
+                                                </div>
+                                            </div>
+                                            <div className="flex-1 text-left min-w-0">
+                                                <span className="text-[10px] md:text-sm font-black uppercase leading-tight block truncate text-slate-900">{getTeamName(game?.away_team || game?.awayTeam)}</span>
                                             </div>
                                         </div>
-                                        <div className="flex-1 text-left min-w-0">
-                                            <span className="text-[10px] md:text-sm font-black uppercase leading-tight block truncate text-slate-900">{getTeamName(game?.away_team || game?.awayTeam)}</span>
-                                        </div>
+                                        <PublicVotePanel stats={game?.public_stats} size="sm" />
+                                        <PredictionActionButton
+                                            existingPrediction={existingPred}
+                                            onPredict={() => onPredict(game)}
+                                        />
                                     </div>
-                                    <button
-                                        onClick={() => onPredict(game)}
-                                        className={`flex items-center justify-center gap-1.5 w-full py-2.5 rounded-xl border font-black text-[9px] md:text-[10px] uppercase tracking-widest transition-all hover:scale-[1.02] cursor-pointer ${existingPred
-                                            ? 'bg-green-50 hover:bg-green-100 border-green-200 text-green-700'
-                                            : 'bg-slate-900 hover:bg-orange-600 border-transparent text-white shadow-lg'
-                                            }`}
-                                    >
-                                        <Target className="h-3.5 w-3.5" />
-                                        <span>
-                                            {existingPred
-                                                ? (existingPred.prediction_type === 'outcome'
-                                                    ? `Oyunuz: ${existingPred.outcome === 'home' ? '1' : existingPred.outcome === 'draw' ? 'X' : '2'}`
-                                                    : `Tahmininiz: ${existingPred.home_score}-${existingPred.away_score}`)
-                                                : 'Tahmin / Oy Ver'}
-                                        </span>
-                                    </button>
-                                </div>
-                            </Card>
+                                </Card>
+                            </motion.div>
                         );
                     })}
-                </div>
+                </motion.div>
             )}
-        </section>
+        </motion.section>
     );
 }

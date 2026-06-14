@@ -59,6 +59,38 @@ class PredictionService
     public function getGamePredictionStats(Game $game)
     {
         $predictions = Prediction::where('game_id', $game->id)->get();
+        return $this->aggregatePredictions($predictions);
+    }
+
+    /**
+     * Toplu (N+1 önleyici) kamuoyu istatistikleri. Anasayfa maç listeleri için.
+     *
+     * @param  array<int>  $gameIds
+     * @return array<int, array>  game_id => stats
+     */
+    public function getBulkGamePublicStats(array $gameIds): array
+    {
+        if (empty($gameIds)) {
+            return [];
+        }
+
+        $grouped = Prediction::whereIn('game_id', $gameIds)
+            ->get()
+            ->groupBy('game_id');
+
+        $result = [];
+        foreach ($gameIds as $id) {
+            $group = $grouped->get($id, collect());
+            $result[$id] = $this->aggregatePredictions($group);
+        }
+        return $result;
+    }
+
+    /**
+     * Bir Prediction koleksiyonunu özet istatistiklere indirger.
+     */
+    private function aggregatePredictions($predictions): array
+    {
         $total = $predictions->count();
 
         if ($total === 0) {
@@ -66,21 +98,23 @@ class PredictionService
                 'total' => 0,
                 'distribution' => ['home' => 0, 'draw' => 0, 'away' => 0],
                 'counts' => ['home' => 0, 'draw' => 0, 'away' => 0],
-                'common_scores' => []
+                'common_scores' => [],
+                'top_choice' => null,
+                'top_score' => null,
             ];
         }
 
-        $homeWins = $predictions->filter(function($p) {
+        $homeWins = $predictions->filter(function ($p) {
             if ($p->prediction_type === 'outcome') return $p->outcome === 'home';
             return $p->home_score > $p->away_score;
         })->count();
 
-        $draws = $predictions->filter(function($p) {
+        $draws = $predictions->filter(function ($p) {
             if ($p->prediction_type === 'outcome') return $p->outcome === 'draw';
             return $p->home_score == $p->away_score;
         })->count();
 
-        $awayWins = $predictions->filter(function($p) {
+        $awayWins = $predictions->filter(function ($p) {
             if ($p->prediction_type === 'outcome') return $p->outcome === 'away';
             return $p->home_score < $p->away_score;
         })->count();
@@ -91,24 +125,50 @@ class PredictionService
             ->sortDesc()
             ->take(3);
 
+        $distribution = [
+            'home' => (int) round(($homeWins / $total) * 100),
+            'draw' => (int) round(($draws / $total) * 100),
+            'away' => (int) round(($awayWins / $total) * 100),
+        ];
+
+        $topChoice = null;
+        $topValue = -1;
+        foreach (['home', 'draw', 'away'] as $key) {
+            if ($distribution[$key] > $topValue) {
+                $topValue = $distribution[$key];
+                $topChoice = $key;
+            }
+        }
+        if ($topValue <= 0) {
+            $topChoice = null;
+        }
+
+        $topScore = $commonScores->keys()->first();
+
         return [
             'total' => $total,
-            'distribution' => [
-                'home' => $total > 0 ? round(($homeWins / $total) * 100) : 0,
-                'draw' => $total > 0 ? round(($draws / $total) * 100) : 0,
-                'away' => $total > 0 ? round(($awayWins / $total) * 100) : 0,
-            ],
+            'distribution' => $distribution,
             'counts' => [
                 'home' => $homeWins,
                 'draw' => $draws,
-                'away' => $awayWins
+                'away' => $awayWins,
             ],
             'common_scores' => $commonScores->map(fn($count, $score) => [
                 'score' => $score,
                 'count' => $count,
-                'percentage' => round(($count / $total) * 100)
-            ])->values()->toArray()
+                'percentage' => (int) round(($count / $total) * 100),
+            ])->values()->toArray(),
+            'top_choice' => $topChoice,
+            'top_score' => $topScore,
         ];
+    }
+
+    /**
+     * Public version of getOutcome — gerçekleşen maç sonucundan home/draw/away türetir.
+     */
+    public function resultOutcome($home, $away): string
+    {
+        return $this->getOutcome($home, $away);
     }
 
     private function getOutcome($home, $away)

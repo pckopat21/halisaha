@@ -152,7 +152,23 @@
         @apply border-border;
     }
 
+    html {
+        -webkit-text-size-adjust: 100%;
+    }
+
     body {
         @apply bg-background text-foreground;
+        overflow-x: clip;
+        -webkit-font-smoothing: antialiased;
+        text-rendering: optimizeLegibility;
+    }
+
+    /* Mobilde 120px+ blur'lar ilk paint'i ciddi yavaşlatıyor — sadeleştir */
+    @media (max-width: 768px) {
+        .blur-\[120px\] { filter: blur(48px) !important; }
+        .blur-\[100px\] { filter: blur(40px) !important; }
+        .backdrop-blur-3xl { backdrop-filter: blur(16px) !important; -webkit-backdrop-filter: blur(16px) !important; }
+        .backdrop-blur-2xl { backdrop-filter: blur(12px) !important; -webkit-backdrop-filter: blur(12px) !important; }
+        .backdrop-blur-xl { backdrop-filter: blur(10px) !important; -webkit-backdrop-filter: blur(10px) !important; }
     }
 }

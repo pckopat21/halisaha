@@ -2,16 +2,24 @@ import { Link } from "@inertiajs/react";
 import { Button } from "@/components/ui/button";
 import { ChevronRight, Image as ImageIcon } from "lucide-react";
 import { motion } from "framer-motion";
+import { staggerContainer, staggerItem, staggerInView, useReducedMotion, sectionTitleClass } from "@/lib/motion-presets";
 
 interface GallerySectionProps {
     galleries: any[];
 }
 
 export default function GallerySection({ galleries }: GallerySectionProps) {
+    const reduced = useReducedMotion();
+
     return (
         <section className="py-24 px-6 relative z-10">
             <div className="container mx-auto max-w-7xl">
-                <div className="flex items-center justify-between border-l-4 border-orange-600 pl-4 mb-12">
+                <motion.div
+                    className={`flex items-center justify-between mb-12 ${sectionTitleClass}`}
+                    initial={reduced ? false : { y: 16 }}
+                    whileInView={{ y: 0 }}
+                    viewport={{ once: true }}
+                >
                     <div>
                         <h2 className="text-3xl font-black uppercase tracking-tighter text-slate-900">ANLARI ÖLÜMSÜZLEŞTİR</h2>
                         <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mt-1">TURNUVA GALERİSİNDEN SEÇMELER</p>
@@ -21,15 +29,20 @@ export default function GallerySection({ galleries }: GallerySectionProps) {
                             TÜMÜNÜ GÖR <ChevronRight className="h-4 w-4 ml-1" />
                         </Button>
                     </Link>
-                </div>
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                </motion.div>
+                <motion.div
+                    className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6"
+                    variants={reduced ? undefined : staggerContainer}
+                    {...staggerInView(reduced)}
+                >
                     {(galleries || []).slice(0, 4).map((img, idx) => (
                         <motion.div
                             key={img?.id || idx}
-                            whileHover={{ y: -10 }}
+                            variants={reduced ? undefined : staggerItem}
+                            whileHover={reduced ? undefined : { y: -10 }}
                             className="relative h-80 rounded-[2.5rem] overflow-hidden shadow-lg group border border-orange-100 bg-white"
                         >
-                            <img src={img?.image_url} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-1000" />
+                            <img src={img?.image_url} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-1000" alt={img?.title || 'Galeri'} />
                             <div className="absolute inset-0 bg-gradient-to-t from-slate-900/90 via-transparent to-transparent p-8 flex flex-col justify-end">
                                 <p className="text-lg font-black uppercase tracking-tighter text-white translate-y-2 group-hover:translate-y-0 transition-transform">{img?.title || 'Fotoğraf'}</p>
                             </div>
@@ -41,7 +54,7 @@ export default function GallerySection({ galleries }: GallerySectionProps) {
                             <p className="text-[10px] font-black uppercase tracking-widest text-slate-900">Henüz fotoğraf eklenmedi</p>
                         </div>
                     )}
-                </div>
+                </motion.div>
             </div>
         </section>
     );

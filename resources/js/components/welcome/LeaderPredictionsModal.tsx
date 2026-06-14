@@ -3,6 +3,7 @@ import { X, Trophy } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { router } from "@inertiajs/react";
+import { springTransition, staggerContainer, staggerItem, useReducedMotion } from "@/lib/motion-presets";
 
 interface LeaderPredictionsModalProps {
     user: any;
@@ -27,6 +28,8 @@ export default function LeaderPredictionsModal({
     getTeamName,
     fetchLeaderPredictions
 }: LeaderPredictionsModalProps) {
+    const reduced = useReducedMotion();
+
     if (!user) return null;
 
     return (
@@ -36,12 +39,15 @@ export default function LeaderPredictionsModal({
                     initial={{ opacity: 0 }}
                     animate={{ opacity: 1 }}
                     exit={{ opacity: 0 }}
-                    className="fixed inset-0 z-[120] flex items-center justify-center p-4 md:p-6 bg-slate-950/95 backdrop-blur-md"
+                    transition={{ duration: 0.2 }}
+                    className="fixed inset-0 z-[120] flex items-center justify-center p-4 md:p-6 bg-slate-950/95 backdrop-blur-2xl"
                     onClick={onClose}
                 >
                     <motion.div
-                        initial={{ scale: 0.9, y: 30 }}
-                        animate={{ scale: 1, y: 0 }}
+                        initial={reduced ? { opacity: 1 } : { scale: 0.9, y: 30, opacity: 0 }}
+                        animate={{ scale: 1, y: 0, opacity: 1 }}
+                        exit={reduced ? { opacity: 0 } : { scale: 0.92, y: 20, opacity: 0 }}
+                        transition={springTransition}
                         className="bg-white rounded-[3rem] w-full max-w-2xl shadow-2xl border border-slate-100 overflow-hidden flex flex-col max-h-[85vh]"
                         onClick={(e) => e.stopPropagation()}
                     >
@@ -71,12 +77,25 @@ export default function LeaderPredictionsModal({
                         <div className="flex-1 overflow-y-auto p-5 md:p-10 space-y-6 md:space-y-8 custom-scrollbar bg-[#fafafa]">
                             {loading ? (
                                 <div className="flex flex-col items-center justify-center py-20 gap-6">
-                                    <div className="h-14 w-14 border-4 border-orange-600/20 border-t-orange-600 rounded-full animate-spin"></div>
+                                    <div className="space-y-3 w-full max-w-xs">
+                                        {[1, 2, 3].map((i) => (
+                                            <div
+                                                key={i}
+                                                className="h-24 rounded-[2rem] bg-slate-200/80 animate-pulse"
+                                                style={{ animationDelay: `${i * 0.15}s` }}
+                                            />
+                                        ))}
+                                    </div>
                                     <p className="text-xs font-black text-slate-400 uppercase tracking-widest">Tahminler Yükleniyor...</p>
                                 </div>
                             ) : (
                                 <>
-                                    <div className="space-y-5">
+                                    <motion.div
+                                        className="space-y-5"
+                                        variants={reduced ? undefined : staggerContainer}
+                                        initial={reduced ? false : 'hidden'}
+                                        animate="visible"
+                                    >
                                         <div className="flex items-center gap-2 mb-2">
                                             <div className="h-2 w-2 bg-orange-600 rounded-full"></div>
                                             <h3 className="text-[10px] font-black text-slate-400 uppercase tracking-widest">YAPILAN TAHMİNLER</h3>
@@ -87,7 +106,7 @@ export default function LeaderPredictionsModal({
                                                 const isGameScheduled = pred.game?.status === 'scheduled';
 
                                                 return (
-                                                    <div key={i} className="bg-white rounded-[2.5rem] p-6 shadow-sm border border-slate-100 hover:border-orange-200 transition-all duration-300">
+                                                    <motion.div key={i} variants={reduced ? undefined : staggerItem} className="bg-white rounded-[2.5rem] p-6 shadow-sm border border-slate-100 hover:border-orange-200 transition-all duration-300">
                                                         <div className="flex items-center justify-between mb-5">
                                                             <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest bg-slate-50 px-4 py-1.5 rounded-full border border-slate-100">{pred.game?.group?.name || 'GRUP MAÇI'}</span>
                                                             <Badge className={`${pred.status === 'calculated' ? (pred.points > 0 ? 'bg-green-500 text-white' : 'bg-red-500 text-white') : 'bg-slate-200 text-slate-600'} border-none font-black text-[10px] px-4 py-1.5 rounded-xl`}>
@@ -151,13 +170,13 @@ export default function LeaderPredictionsModal({
                                                         {isOwnPrediction && isGameScheduled && (
                                                             <p className="mt-4 text-center text-[8px] font-black text-orange-600 uppercase tracking-widest animate-pulse">Skoru değiştirebilirsin</p>
                                                         )}
-                                                    </div>
+                                                    </motion.div>
                                                 );
                                             })
                                         ) : (
                                             <p className="text-center py-10 text-slate-300 font-black uppercase text-[10px] tracking-widest bg-white rounded-3xl border border-dashed">Tahmin bulunmuyor.</p>
                                         )}
-                                    </div>
+                                    </motion.div>
 
                                     {auth?.user?.id === user.id && (
                                         <div className="space-y-5 pt-8 border-t border-slate-200">
@@ -165,9 +184,15 @@ export default function LeaderPredictionsModal({
                                                 <div className="h-2 w-2 bg-slate-400 rounded-full"></div>
                                                 <h3 className="text-[10px] font-black text-slate-400 uppercase tracking-widest">TAHMİN YAPILABİLECEK TÜM MAÇLAR</h3>
                                             </div>
-                                            {allUpcomingGames.filter(game => !predictions.some(p => p.game_id === game.id)).length > 0 ? (
-                                                allUpcomingGames.filter(game => !predictions.some(p => p.game_id === game.id)).map((game, i) => (
-                                                    <div key={`new-${i}`} className="bg-slate-50 rounded-[2.5rem] p-6 border border-slate-200 hover:border-orange-200 transition-all">
+                                            {(allUpcomingGames ?? []).filter(game => !(predictions ?? []).some(p => p.game_id === game.id)).length > 0 ? (
+                                                (allUpcomingGames ?? []).filter(game => !(predictions ?? []).some(p => p.game_id === game.id)).map((game, i) => (
+                                                    <motion.div
+                                                        key={`new-${i}`}
+                                                        initial={reduced ? false : { opacity: 0, y: 8 }}
+                                                        animate={{ opacity: 1, y: 0 }}
+                                                        transition={{ delay: i * 0.05 }}
+                                                        className="bg-slate-50 rounded-[2.5rem] p-6 border border-slate-200 hover:border-orange-200 transition-all"
+                                                    >
                                                         <div className="flex items-center justify-between mb-5">
                                                             <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest">{game.group?.name || 'SIRADAKİ MAÇ'}</span>
                                                             <span className="text-[9px] font-black text-orange-600 uppercase tracking-widest animate-bounce">Tahmin Yap!</span>
@@ -213,7 +238,7 @@ export default function LeaderPredictionsModal({
                                                                 <p className="text-xs md:text-sm font-black uppercase truncate text-slate-900">{getTeamName(game.awayTeam || game.away_team)}</p>
                                                             </div>
                                                         </div>
-                                                    </div>
+                                                    </motion.div>
                                                 ))
                                             ) : (
                                                 <p className="text-center py-10 text-slate-400 font-black uppercase text-[9px] tracking-widest italic">Tüm maçlar için tahmin yaptın! Tebrikler.</p>

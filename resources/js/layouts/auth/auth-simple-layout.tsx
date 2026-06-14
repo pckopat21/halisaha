@@ -1,4 +1,4 @@
-import AppLogoIcon from '@/components/app-logo-icon';
+import TournamentLogo from '@/components/tournament-logo';
 import { Link } from '@inertiajs/react';
 
 interface AuthLayoutProps {
@@ -26,8 +26,8 @@ export default function AuthSimpleLayout({ children, title, description }: AuthL
                     <div className="bg-white/10 dark:bg-black/20 backdrop-blur-md border border-white/20 p-8 rounded-2xl shadow-2xl">
                         <div className="flex flex-col items-center gap-4 mb-6">
                             <Link href={route('home')} className="flex flex-col items-center gap-2 font-medium">
-                                <div className="mb-1 flex h-12 w-12 items-center justify-center rounded-xl bg-white/10 border border-white/20 shadow-inner">
-                                    <AppLogoIcon className="size-8 text-[#FF8C00] drop-shadow-[0_0_8px_rgba(255,140,0,0.5)]" />
+                                <div className="mb-1 flex h-14 w-14 items-center justify-center rounded-xl bg-white/10 border border-white/20 shadow-inner overflow-hidden">
+                                    <TournamentLogo className="h-full w-full" />
                                 </div>
                                 <span className="sr-only">{title}</span>
                             </Link>

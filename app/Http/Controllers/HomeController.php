@@ -41,7 +41,8 @@ class HomeController extends Controller
                 ->orderBy('created_at', 'desc')
                 ->take(5)
                 ->get(),
-            'predictionLeaderboard' => $this->predictionService->getLeaderboard($activeTournament?->id, 5),
+            'latestAnnouncement' => $this->getLatestAnnouncement(),
+            'predictionLeaderboard' => $this->predictionService->getLeaderboard($activeTournament?->id, 500),
             'playerOfTheWeek' => (function() use ($activeTournament) {
                 $player = ($activeTournament ? $this->statsService->getTopScorers($activeTournament, 1)->first() : null)
                     ?? Player::select('players.*', \Illuminate\Support\Facades\DB::raw('count(match_events.id) as goals_count'))
@@ -134,6 +135,7 @@ class HomeController extends Controller
             'nextMatch' => $this->getNextMatch($activeTournament),
             'homepageStats' => $this->getHomepageStats($activeTournament),
             'allUpcomingGames' => $this->getAllUpcomingGames($activeTournament),
+            'featuredBroadcast' => $this->getFeaturedBroadcast($activeTournament),
             'galleries' => $activeTournament->galleries()
                 ->where('is_active', true)
                 ->orderBy('sort_order', 'asc')
@@ -185,32 +187,123 @@ class HomeController extends Controller
         });
     }
 
+    private function getLatestAnnouncement()
+    {
+        return Announcement::where('is_active', true)
+            ->where(function ($query) {
+                $query->whereNull('published_at')
+                    ->orWhere('published_at', '<=', now());
+            })
+            ->orderByDesc('published_at')
+            ->orderByDesc('created_at')
+            ->first();
+    }
+
+    private function getFeaturedBroadcast($tournament)
+    {
+        $liveGame = Game::where('tournament_id', $tournament->id)
+            ->where('status', 'playing')
+            ->with(['homeTeam', 'awayTeam', 'field', 'group'])
+            ->orderByDesc('started_at')
+            ->orderByDesc('scheduled_at')
+            ->first();
+
+        if ($liveGame) {
+            return [
+                'mode' => 'live',
+                'game' => $liveGame,
+                'stream_url' => $liveGame->live_stream_url,
+            ];
+        }
+
+        $replayGame = Game::where('tournament_id', $tournament->id)
+            ->where('status', 'completed')
+            ->whereNotNull('live_stream_url')
+            ->where('live_stream_url', '!=', '')
+            ->with(['homeTeam', 'awayTeam', 'field', 'group'])
+            ->orderByDesc('scheduled_at')
+            ->first();
+
+        if ($replayGame) {
+            return [
+                'mode' => 'replay',
+                'game' => $replayGame,
+                'stream_url' => $replayGame->live_stream_url,
+            ];
+        }
+
+        return null;
+    }
+
     private function getLiveMatches($tournament)
     {
-        return Game::where('tournament_id', $tournament->id)
+        $games = Game::where('tournament_id', $tournament->id)
             ->where('status', 'playing')
             ->with(['homeTeam', 'awayTeam', 'field', 'group'])
             ->get();
+
+        return $this->attachPublicStats($games);
     }
 
     private function getLastResults($tournament)
     {
-        return Game::where('tournament_id', $tournament->id)
+        $games = Game::where('tournament_id', $tournament->id)
             ->where('status', 'completed')
             ->with(['homeTeam', 'awayTeam', 'field', 'group'])
             ->orderBy('scheduled_at', 'desc')
             ->limit(8)
             ->get();
+
+        return $this->attachPublicStats($games);
     }
 
     private function getUpcomingFixtures($tournament)
     {
-        return Game::where('tournament_id', $tournament->id)
+        $games = Game::where('tournament_id', $tournament->id)
             ->where('status', 'scheduled')
             ->with(['homeTeam', 'awayTeam', 'field', 'group'])
             ->orderBy('scheduled_at', 'asc')
             ->limit(8)
             ->get();
+
+        return $this->attachPublicStats($games);
+    }
+
+    /**
+     * Verilen maç koleksiyonuna her kayıt için kamuoyu tahmin istatistiklerini ve
+     * tamamlananlar için verdict (doğru bildi / yanıldı) bilgisini ekler.
+     */
+    private function attachPublicStats($games)
+    {
+        $ids = $games->pluck('id')->all();
+        $statsMap = $this->predictionService->getBulkGamePublicStats($ids);
+
+        return $games->map(function ($game) use ($statsMap) {
+            $stats = $statsMap[$game->id] ?? null;
+            $game->public_stats = $stats;
+            $game->public_verdict = null;
+
+            if (
+                $stats
+                && $game->status === 'completed'
+                && $game->home_score !== null
+                && $game->away_score !== null
+                && $stats['top_choice'] !== null
+            ) {
+                $actual = $this->predictionService->resultOutcome(
+                    $game->home_score,
+                    $game->away_score,
+                );
+
+                $game->public_verdict = [
+                    'actual' => $actual,
+                    'public_choice' => $stats['top_choice'],
+                    'correct' => $stats['top_choice'] === $actual,
+                ];
+            }
+
+            return $game;
+        });
     }
 
     private function getNextMatch($tournament)

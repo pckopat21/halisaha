@@ -5,10 +5,11 @@ import {
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useState, useEffect, useMemo } from 'react';
+import { useReducedMotion } from '@/lib/motion-presets';
 
 // Welcome Components
 import Navbar from '@/components/welcome/Navbar';
-import Hero from '@/components/welcome/Hero';
+import KarayollariTvHero, { type FeaturedBroadcast } from '@/components/welcome/KarayollariTvHero';
 import LiveMatchCenter from '@/components/welcome/LiveMatchCenter';
 import Announcements from '@/components/welcome/Announcements';
 import GroupStandings from '@/components/welcome/GroupStandings';
@@ -24,6 +25,9 @@ import Footer from '@/components/welcome/Footer';
 import PredictionModal from '@/components/welcome/PredictionModal';
 import LiveStreamModal from '@/components/welcome/LiveStreamModal';
 import LeaderPredictionsModal from '@/components/welcome/LeaderPredictionsModal';
+import AnnouncementModal, { type LatestAnnouncement } from '@/components/welcome/AnnouncementModal';
+import { shouldShowAnnouncement } from '@/lib/announcement-dismissal';
+import { releaseBodyScrollLock } from '@/hooks/use-body-scroll-lock';
 
 interface Player {
     id: number;
@@ -74,6 +78,7 @@ interface PageProps {
             points: number;
         }>;
     }>;
+    featuredBroadcast: FeaturedBroadcast | null;
     liveMatches: Array<{
         id: number;
         group: any;
@@ -128,6 +133,7 @@ interface PageProps {
         totalMatches: number;
     };
     announcements?: any[];
+    latestAnnouncement?: LatestAnnouncement | null;
     galleries?: any[];
     predictionLeaderboard?: any[];
     userPredictions?: any[];
@@ -148,12 +154,14 @@ export default function Welcome({
     activeTournament,
     approvedTeams = [],
     groupStandings = [],
+    featuredBroadcast = null,
     liveMatches = [],
     lastResults = [],
     upcomingFixtures = [],
     homepageStats = null,
     totalStats,
     announcements = [],
+    latestAnnouncement = null,
     galleries = [],
     predictionLeaderboard = [],
     nextMatch = null,
@@ -166,7 +174,7 @@ export default function Welcome({
     const [scrolled, setScrolled] = useState(false);
     const [predictingGame, setPredictingGame] = useState<any | null>(null);
     const [liveStreamMatch, setLiveStreamMatch] = useState<any | null>(null);
-    const [isMounted, setIsMounted] = useState(false);
+    const [isMounted, setIsMounted] = useState(true);
     const [submitting, setSubmitting] = useState(false);
     const [predictionError, setPredictionError] = useState<string | null>(null);
     const [viewingLeader, setViewingLeader] = useState<any | null>(null);
@@ -175,6 +183,8 @@ export default function Welcome({
     const [gameStats, setGameStats] = useState<any>(null);
     const [loadingStats, setLoadingStats] = useState(false);
     const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
+    const [announcementModalOpen, setAnnouncementModalOpen] = useState(false);
+    const reducedMotion = useReducedMotion();
 
     const predictionForm = useForm({
         game_id: '',
@@ -211,11 +221,40 @@ export default function Welcome({
     };
 
     useEffect(() => {
+        releaseBodyScrollLock();
         setIsMounted(true);
+
         const handleScroll = () => setScrolled(window.scrollY > 50);
+        const handlePageShow = (e: PageTransitionEvent) => {
+            if (e.persisted) releaseBodyScrollLock();
+        };
+
         window.addEventListener('scroll', handleScroll);
-        return () => window.removeEventListener('scroll', handleScroll);
+        window.addEventListener('pageshow', handlePageShow);
+        return () => {
+            window.removeEventListener('scroll', handleScroll);
+            window.removeEventListener('pageshow', handlePageShow);
+            releaseBodyScrollLock();
+        };
     }, []);
+
+    useEffect(() => {
+        const interval = setInterval(() => {
+            router.reload({ only: ['featuredBroadcast', 'liveMatches'] });
+        }, 60000);
+        return () => clearInterval(interval);
+    }, []);
+
+    useEffect(() => {
+        if (!isMounted || !latestAnnouncement?.id) return;
+        if (!shouldShowAnnouncement(latestAnnouncement.id)) return;
+
+        // İlk paint tamamlandıktan sonra modalı aç — beyaz/siyah flaş riskini azaltır
+        const timer = window.setTimeout(() => {
+            setAnnouncementModalOpen(true);
+        }, 700);
+        return () => window.clearTimeout(timer);
+    }, [isMounted, latestAnnouncement?.id]);
 
     useEffect(() => {
         if (flash?.success) {
@@ -258,7 +297,7 @@ export default function Welcome({
         try {
             const response = await fetch(`/predictions/user/${user.id}`);
             const data = await response.json();
-            setLeaderPredictions(data.predictions);
+            setLeaderPredictions(Array.isArray(data.predictions) ? data.predictions : []);
         } catch (error) {
             console.error('Leader predictions fetch error:', error);
         } finally {
@@ -290,39 +329,32 @@ export default function Welcome({
         };
     };
 
-    const getYoutubeEmbedUrl = (url: string | null | undefined): string | null => {
-        if (!url) return null;
-        try {
-            const urlObj = new URL(url);
-            let videoId: string | null = null;
-            if (urlObj.hostname.includes('youtube.com')) {
-                videoId = urlObj.searchParams.get('v') || urlObj.pathname.split('/').pop() || null;
-            } else if (urlObj.hostname.includes('youtu.be')) {
-                videoId = urlObj.pathname.slice(1);
-            }
-            if (videoId) return `https://www.youtube.com/embed/${videoId}?autoplay=1&rel=0`;
-            return url;
-        } catch {
-            return url;
-        }
-    };
-
-    if (!isMounted) return null;
-
     return (
-        <div className="min-h-screen bg-[#fafafa] text-slate-900 selection:bg-orange-500 selection:text-white font-sans overflow-x-hidden">
+        <div className="min-h-screen bg-[#fafafa] text-slate-900 selection:bg-orange-500 selection:text-white font-sans">
             <Head title={activeTournament?.name || "Birimler Arası Halı Saha Turnuvası - KGM Arena"} />
 
-            {/* Global Background Elements */}
-            <div className="fixed inset-0 pointer-events-none z-0">
-                <div className="absolute top-[-5%] left-[-5%] w-[40%] h-[40%] bg-orange-200/10 blur-[120px] rounded-full" />
-                <div className="absolute bottom-[-5%] right-[-5%] w-[40%] h-[40%] bg-blue-100/10 blur-[120px] rounded-full" />
+            {/* Global Background Elements — mobilde ilk paint maliyetini düşürmek için gizli */}
+            <div className="fixed inset-0 pointer-events-none z-0 hidden md:block">
+                <motion.div
+                    className="absolute top-[-5%] left-[-5%] w-[40%] h-[40%] bg-orange-200/10 blur-[120px] rounded-full"
+                    animate={reducedMotion ? undefined : { opacity: [0.08, 0.14, 0.08] }}
+                    transition={{ duration: 8, repeat: Infinity, ease: 'easeInOut' }}
+                />
+                <motion.div
+                    className="absolute bottom-[-5%] right-[-5%] w-[40%] h-[40%] bg-blue-100/10 blur-[120px] rounded-full"
+                    animate={reducedMotion ? undefined : { opacity: [0.06, 0.12, 0.06] }}
+                    transition={{ duration: 10, repeat: Infinity, ease: 'easeInOut', delay: 1 }}
+                />
             </div>
 
             <Navbar scrolled={scrolled} auth={auth} />
 
             <main className="relative z-10">
-                <Hero activeTournament={activeTournament} />
+                <KarayollariTvHero
+                    activeTournament={activeTournament}
+                    featuredBroadcast={featuredBroadcast}
+                    getTeamName={getTeamName}
+                />
 
                 <LiveMatchCenter
                     liveMatches={liveMatches}
@@ -350,15 +382,18 @@ export default function Welcome({
 
                 <TournamentStats homepageStats={homepageStats} />
 
-                <section className="py-24 px-6 relative z-10">
+                <section className="py-24 px-4 sm:px-6 relative z-10">
                     <div className="container mx-auto max-w-7xl">
-                        <div className="grid grid-cols-1 lg:grid-cols-12 gap-12 items-stretch">
-                            <PlayerOfTheWeek playerOfTheWeek={playerOfTheWeek} />
-                            <PredictionLeaderboard
-                                predictionLeaderboard={predictionLeaderboard}
-                                onLeaderClick={fetchLeaderPredictions}
-                            />
-                        </div>
+                        <PlayerOfTheWeek playerOfTheWeek={playerOfTheWeek} />
+                    </div>
+                </section>
+
+                <section className="pb-24 px-4 sm:px-6 relative z-10">
+                    <div className="container mx-auto max-w-7xl">
+                        <PredictionLeaderboard
+                            predictionLeaderboard={predictionLeaderboard}
+                            onLeaderClick={fetchLeaderPredictions}
+                        />
                     </div>
                 </section>
 
@@ -370,6 +405,12 @@ export default function Welcome({
             <Footer />
 
             {/* Modals */}
+            <AnnouncementModal
+                announcement={latestAnnouncement}
+                isOpen={announcementModalOpen}
+                onClose={() => setAnnouncementModalOpen(false)}
+            />
+
             <PredictionModal
                 game={predictingGame}
                 isOpen={!!predictingGame}
@@ -389,7 +430,6 @@ export default function Welcome({
                 isOpen={!!liveStreamMatch}
                 onClose={() => setLiveStreamMatch(null)}
                 getTeamName={getTeamName}
-                getYoutubeEmbedUrl={getYoutubeEmbedUrl}
             />
 
             <LeaderPredictionsModal
