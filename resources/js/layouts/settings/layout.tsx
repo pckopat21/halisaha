@@ -27,7 +27,7 @@ export default function SettingsLayout({ children }: { children: React.ReactNode
     const currentPath = window.location.pathname;
 
     return (
-        <div className="px-4 py-6">
+        <div className="px-4 py-6 text-slate-900 dark:text-slate-100">
             <Heading title="Ayarlar" description="Profilinizi ve hesap ayarlarınızı yönetin" />
 
             <div className="flex flex-col space-y-8 lg:flex-row lg:space-y-0 lg:space-x-12">

@@ -100,6 +100,7 @@ Route::middleware(['auth'])->group(function () {
     Route::post('games/{game}/quick-result', [GameController::class, 'updateQuickResult'])->name('games.quick-result');
     Route::post('games/{game}/complete', [GameController::class, 'complete'])->name('games.complete');
     Route::post('games/{game}/reopen', [GameController::class, 'reopen'])->name('games.reopen');
+    Route::put('games/{game}/teams', [GameController::class, 'updateTeams'])->name('games.update-teams');
 
     // User Management (Admin only)
     Route::get('users', [DashboardController::class, 'users'])->name('users.index');

@@ -219,4 +219,28 @@ class GameController extends Controller
 
         return back()->with('success', 'Saha ataması başarıyla yapıldı.');
     }
+
+    public function updateTeams(Game $game, Request $request)
+    {
+        Gate::authorize('update', $game);
+
+        $rules = [
+            'home_team_id' => 'nullable|exists:teams,id',
+            'away_team_id' => 'nullable|exists:teams,id',
+        ];
+
+        // Only enforce 'different' rule if both are provided
+        if ($request->filled('home_team_id') && $request->filled('away_team_id')) {
+            $rules['away_team_id'] .= '|different:home_team_id';
+        }
+
+        $validated = $request->validate($rules);
+
+        $game->update([
+            'home_team_id' => $validated['home_team_id'],
+            'away_team_id' => $validated['away_team_id'],
+        ]);
+
+        return back()->with('success', 'Maç eşleşmesi başarıyla güncellendi.');
+    }
 }

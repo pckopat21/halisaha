@@ -9,6 +9,7 @@ import { useReducedMotion } from '@/lib/motion-presets';
 
 // Welcome Components
 import Navbar from '@/components/welcome/Navbar';
+import Hero from '@/components/welcome/Hero';
 import KarayollariTvHero, { type FeaturedBroadcast } from '@/components/welcome/KarayollariTvHero';
 import LiveMatchCenter from '@/components/welcome/LiveMatchCenter';
 import Announcements from '@/components/welcome/Announcements';
@@ -20,6 +21,8 @@ import PredictionLeaderboard from '@/components/welcome/PredictionLeaderboard';
 import GallerySection from '@/components/welcome/GallerySection';
 import OverallStats from '@/components/welcome/OverallStats';
 import Footer from '@/components/welcome/Footer';
+import KnockoutBracket from '@/components/KnockoutBracket';
+import KnockoutSection from '@/components/welcome/KnockoutSection';
 
 // Modals
 import PredictionModal from '@/components/welcome/PredictionModal';
@@ -116,6 +119,7 @@ interface PageProps {
         homeTeam?: any;
         awayTeam?: any;
     }>;
+    knockoutGames?: any[];
     homepageStats: {
         summary: {
             total_goals: number;
@@ -158,6 +162,7 @@ export default function Welcome({
     liveMatches = [],
     lastResults = [],
     upcomingFixtures = [],
+    knockoutGames = [],
     homepageStats = null,
     totalStats,
     announcements = [],
@@ -350,11 +355,15 @@ export default function Welcome({
             <Navbar scrolled={scrolled} auth={auth} />
 
             <main className="relative z-10">
-                <KarayollariTvHero
-                    activeTournament={activeTournament}
-                    featuredBroadcast={featuredBroadcast}
-                    getTeamName={getTeamName}
-                />
+                {activeTournament?.status === 'completed' && activeTournament?.champion ? (
+                    <Hero activeTournament={activeTournament} />
+                ) : (
+                    <KarayollariTvHero
+                        activeTournament={activeTournament}
+                        featuredBroadcast={featuredBroadcast}
+                        getTeamName={getTeamName}
+                    />
+                )}
 
                 <LiveMatchCenter
                     liveMatches={liveMatches}
@@ -367,6 +376,8 @@ export default function Welcome({
                 />
 
                 <Announcements announcements={announcements} />
+
+                <KnockoutSection knockoutGames={knockoutGames} />
 
                 <GroupStandings groupStandings={groupStandings} />
 

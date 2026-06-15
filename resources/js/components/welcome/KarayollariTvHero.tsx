@@ -118,7 +118,7 @@ export default function KarayollariTvHero({
                             <VideoEmbed embedUrl={embedUrl} title={iframeTitle} />
                         </div>
                     ) : (
-                        <NoStreamPlaceholder />
+                        <NoStreamPlaceholder isLive={isLive} />
                     )}
                 </motion.div>
 
@@ -178,13 +178,13 @@ function VideoEmbed({ embedUrl, title }: { embedUrl: string; title: string }) {
     );
 }
 
-function NoStreamPlaceholder() {
+function NoStreamPlaceholder({ isLive }: { isLive: boolean }) {
     return (
         <div className="rounded-2xl md:rounded-[2rem] border-2 border-dashed border-orange-200 bg-white/80 backdrop-blur-md p-8 md:p-12 text-center shadow-lg">
             <Tv className="h-12 w-12 text-orange-400 mx-auto mb-4" />
-            <p className="text-sm font-bold text-slate-600 mb-2">Yayın linki henüz eklenmedi</p>
+            <p className="text-sm font-bold text-slate-600 mb-2">Yayın kaydı bulunamadı</p>
             <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">
-                Canlı skor aşağıda güncellenmektedir
+                {isLive ? "Canlı skor aşağıda güncellenmektedir" : "Maç sonucu aşağıda yer almaktadır"}
             </p>
         </div>
     );

@@ -136,6 +136,12 @@ class HomeController extends Controller
             'homepageStats' => $this->getHomepageStats($activeTournament),
             'allUpcomingGames' => $this->getAllUpcomingGames($activeTournament),
             'featuredBroadcast' => $this->getFeaturedBroadcast($activeTournament),
+            'knockoutGames' => Game::where('tournament_id', $activeTournament->id)
+                ->where('round', '!=', 'group')
+                ->whereNotNull('round')
+                ->with(['homeTeam.unit', 'awayTeam.unit'])
+                ->orderBy('scheduled_at', 'asc')
+                ->get(),
             'galleries' => $activeTournament->galleries()
                 ->where('is_active', true)
                 ->orderBy('sort_order', 'asc')
@@ -218,10 +224,9 @@ class HomeController extends Controller
 
         $replayGame = Game::where('tournament_id', $tournament->id)
             ->where('status', 'completed')
-            ->whereNotNull('live_stream_url')
-            ->where('live_stream_url', '!=', '')
             ->with(['homeTeam', 'awayTeam', 'field', 'group'])
             ->orderByDesc('scheduled_at')
+            ->orderByDesc('started_at')
             ->first();
 
         if ($replayGame) {

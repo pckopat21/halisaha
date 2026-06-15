@@ -44,6 +44,7 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import KnockoutBracket from '@/components/KnockoutBracket';
 import { useState, useEffect } from 'react';
 import { format, addDays } from 'date-fns';
 import { tr } from 'date-fns/locale';
@@ -67,8 +68,8 @@ interface Game {
     id: number;
     home_team_id: number;
     away_team_id: number;
-    home_team: { id: number; name: string; unit: { name: string } };
-    away_team: { id: number; name: string; unit: { name: string } };
+    home_team: { id: number; name: string; unit?: { name: string } };
+    away_team: { id: number; name: string; unit?: { name: string } };
     home_score: number | null;
     away_score: number | null;
     status: 'scheduled' | 'playing' | 'completed';
@@ -659,7 +660,7 @@ export default function Show({ tournament, teamStats, isGroupStageCompleted, sta
                                                     <div className="space-y-2">
                                                         <Label className="text-[10px] font-black uppercase tracking-widest text-slate-400">Tur Seviyesi</Label>
                                                         <select
-                                                            className="w-full h-12 px-4 bg-white dark:bg-black/20 border-slate-200 dark:border-white/10 rounded-2xl font-bold text-sm outline-none"
+                                                            className="w-full h-12 px-4 bg-white dark:bg-black/20 border-slate-200 dark:border-white/10 rounded-2xl font-bold text-sm outline-none text-slate-900 dark:text-white"
                                                             value={knockoutData.round_name}
                                                             onChange={e => setKnockoutData('round_name', e.target.value)}
                                                         >
@@ -672,7 +673,7 @@ export default function Show({ tournament, teamStats, isGroupStageCompleted, sta
                                                     <div className="space-y-2">
                                                         <Label className="text-[10px] font-black uppercase tracking-widest text-slate-400">Gruptan Çıkan</Label>
                                                         <select
-                                                            className="w-full h-12 px-4 bg-white dark:bg-black/20 border-slate-200 dark:border-white/10 rounded-2xl font-bold text-sm outline-none"
+                                                            className="w-full h-12 px-4 bg-white dark:bg-black/20 border-slate-200 dark:border-white/10 rounded-2xl font-bold text-sm outline-none text-slate-900 dark:text-white"
                                                             value={knockoutData.advance_count}
                                                             onChange={e => setKnockoutData('advance_count', parseInt(e.target.value))}
                                                         >
@@ -684,7 +685,7 @@ export default function Show({ tournament, teamStats, isGroupStageCompleted, sta
                                                     <div className="space-y-2">
                                                         <Label className="text-[10px] font-black uppercase tracking-widest text-slate-400">Eşleşme Mantığı</Label>
                                                         <select
-                                                            className="w-full h-12 px-4 bg-white dark:bg-black/20 border-slate-200 dark:border-white/10 rounded-2xl font-bold text-sm outline-none"
+                                                            className="w-full h-12 px-4 bg-white dark:bg-black/20 border-slate-200 dark:border-white/10 rounded-2xl font-bold text-sm outline-none text-slate-900 dark:text-white"
                                                             value={knockoutData.pairing_type}
                                                             onChange={e => setKnockoutData('pairing_type', e.target.value)}
                                                         >
@@ -695,7 +696,7 @@ export default function Show({ tournament, teamStats, isGroupStageCompleted, sta
                                                     <div className="space-y-2">
                                                         <Label className="text-[10px] font-black uppercase tracking-widest text-slate-400">Ekstra Kontenjan</Label>
                                                         <select
-                                                            className="w-full h-12 px-4 bg-white dark:bg-black/20 border-slate-200 dark:border-white/10 rounded-2xl font-bold text-sm outline-none"
+                                                            className="w-full h-12 px-4 bg-white dark:bg-black/20 border-slate-200 dark:border-white/10 rounded-2xl font-bold text-sm outline-none text-slate-900 dark:text-white"
                                                             value={knockoutData.wildcard_count}
                                                             onChange={e => setKnockoutData('wildcard_count', parseInt(e.target.value))}
                                                         >
@@ -1083,107 +1084,12 @@ export default function Show({ tournament, teamStats, isGroupStageCompleted, sta
                     </TabsContent>
 
                     <TabsContent value="knockout" className="space-y-8 mt-0 border-none outline-none">
-                        <Card className="border-none shadow-2xl bg-white/80 dark:bg-neutral-900/80 backdrop-blur-3xl rounded-[3rem] overflow-hidden">
-                            <div className="p-12">
-                                <div className="flex flex-col items-center justify-center mb-12 text-center px-4">
-                                    <Badge className="bg-amber-100 text-amber-600 dark:bg-amber-500/10 dark:text-amber-500 border-none font-black mb-4 uppercase tracking-widest text-[9px]">GÖRSEL MAÇ AĞACI</Badge>
-                                    <h3 className="text-2xl md:text-4xl font-black text-slate-900 dark:text-white tracking-tight leading-tight">ELEME TURLARI</h3>
-                                    <p className="text-slate-500 mt-2 font-medium text-xs md:text-base px-6">Şampiyonluğa giden yol burada şekilleniyor.</p>
-                                </div>
-
-                                <div className="flex flex-nowrap overflow-x-auto pb-12 gap-12 md:gap-24 justify-start md:justify-center min-h-[500px] items-center -mx-6 px-6">
-                                    {['round_16', 'quarter', 'semi', 'final', 'third_place'].map((round) => {
-                                        const matches = (tournament.games || []).filter(g => g.round === round);
-                                        if (matches.length === 0) return null;
-
-                                        return (
-                                            <div key={round} className="flex flex-col gap-12 relative">
-                                                <div className="text-center mb-4">
-                                                    <span className={`text-[10px] font-black uppercase tracking-[0.2em] px-4 py-2 rounded-full ${round === 'third_place' ? 'bg-amber-50 text-amber-600 dark:bg-amber-500/10' : 'bg-blue-50 text-blue-600 dark:bg-blue-500/10'}`}>
-                                                        {round === 'round_16' ? 'SON 16' : round === 'quarter' ? 'ÇEYREK FİNAL' : round === 'semi' ? 'YARI FİNAL' : round === 'third_place' ? '3.LÜK MAÇI' : 'FİNAL'}
-                                                    </span>
-                                                </div>
-                                                <div className="flex flex-col gap-12">
-                                                    {matches.map((m) => (
-                                                        <div key={m.id} className="relative group">
-                                                            {isCommittee && (
-                                                                <Button
-                                                                    size="icon"
-                                                                    variant="ghost"
-                                                                    onClick={(e) => {
-                                                                        e.preventDefault();
-                                                                        e.stopPropagation();
-                                                                        openResultModal(m);
-                                                                    }}
-                                                                    className="absolute -top-3 -right-3 h-8 w-8 rounded-full bg-white dark:bg-neutral-800 shadow-xl border border-border hover:bg-blue-600 hover:text-white transition-all z-20"
-                                                                >
-                                                                    <Edit3 className="h-3.5 w-3.5" />
-                                                                </Button>
-                                                            )}
-                                                            <Link href={route('games.show', m.id)}>
-                                                                <div className={`w-[260px] md:w-[280px] rounded-2xl md:rounded-3xl shadow-xl border-2 transition-all p-3 md:p-4 z-10 relative ${
-                                                                    (hoveredTeamId && (m.home_team?.id === hoveredTeamId || m.away_team?.id === hoveredTeamId))
-                                                                        ? 'bg-slate-900 border-blue-500 scale-105 shadow-2xl shadow-blue-500/20 text-white dark:bg-neutral-800'
-                                                                        : 'bg-white dark:bg-neutral-800 border-slate-100 dark:border-white/5 group-hover:border-blue-500'
-                                                                }`}>
-                                                                    <div className="space-y-4">
-                                                                        <div 
-                                                                            onMouseEnter={() => m.home_team?.id && setHoveredTeamId(m.home_team.id)}
-                                                                            onMouseLeave={() => setHoveredTeamId(null)}
-                                                                            className={`flex items-center justify-between p-1.5 rounded-xl transition-all ${
-                                                                                hoveredTeamId === m.home_team?.id ? 'bg-blue-600/25 scale-[1.02]' : ''
-                                                                            }`}
-                                                                        >
-                                                                            <div className="flex items-center gap-3">
-                                                                                <div className="w-8 h-8 rounded-xl bg-slate-50 dark:bg-black/20 flex items-center justify-center text-[10px] font-black">{(m.home_team?.name || '??').substring(0, 2).toUpperCase()}</div>
-                                                                                <span className="font-bold text-sm truncate w-32">{m.home_team?.name || 'BELİRLENMEDİ'}</span>
-                                                                            </div>
-                                                                            <span className={`text-xl font-black tabular-nums ${m.status === 'completed' && (m.home_score ?? 0) > (m.away_score ?? 0) ? 'text-blue-600' : 'text-slate-400'}`}>{m.home_score ?? 0}</span>
-                                                                        </div>
-                                                                        <div 
-                                                                            onMouseEnter={() => m.away_team?.id && setHoveredTeamId(m.away_team.id)}
-                                                                            onMouseLeave={() => setHoveredTeamId(null)}
-                                                                            className={`flex items-center justify-between p-1.5 rounded-xl transition-all ${
-                                                                                hoveredTeamId === m.away_team?.id ? 'bg-blue-600/25 scale-[1.02]' : ''
-                                                                            }`}
-                                                                        >
-                                                                            <div className="flex items-center gap-3">
-                                                                                <div className="w-8 h-8 rounded-xl bg-slate-50 dark:bg-black/20 flex items-center justify-center text-[10px] font-black">{(m.away_team?.name || '??').substring(0, 2).toUpperCase()}</div>
-                                                                                <span className="font-bold text-sm truncate w-32">{m.away_team?.name || 'BELİRLENMEDİ'}</span>
-                                                                            </div>
-                                                                            <span className={`text-xl font-black tabular-nums ${m.status === 'completed' && (m.away_score ?? 0) > (m.home_score ?? 0) ? 'text-blue-600' : 'text-slate-400'}`}>{m.away_score ?? 0}</span>
-                                                                        </div>
-                                                                        {m.has_penalties && (
-                                                                            <div className="pt-2 border-t border-slate-50 dark:border-white/5 text-center">
-                                                                                <span className="text-[10px] font-black text-rose-500 uppercase tracking-widest">PENALTILAR: {m.home_penalty_score} - {m.away_penalty_score}</span>
-                                                                            </div>
-                                                                        )}
-                                                                    </div>
-                                                                </div>
-                                                            </Link>
-                                                            {round !== 'final' && round !== 'third_place' && (
-                                                                <div className={`absolute top-1/2 -right-24 w-24 h-px border-t-2 transition-all duration-300 -z-10 ${
-                                                                    hoveredTeamId && (m.home_team?.id === hoveredTeamId || m.away_team?.id === hoveredTeamId)
-                                                                        ? 'border-solid border-blue-500 shadow-[0_0_8px_#3b82f6]'
-                                                                        : 'border-dashed border-slate-200 dark:border-white/10 group-hover:border-blue-400'
-                                                                }`} />
-                                                            )}
-                                                        </div>
-                                                    ))}
-                                                </div>
-                                            </div>
-                                        );
-                                    })}
-
-                                    {(!tournament.games || tournament.games.filter(g => g.round && g.round !== 'group').length === 0) && (
-                                        <div className="flex flex-col items-center justify-center py-20 text-center opacity-40">
-                                            <Trophy className="h-20 w-20 mb-6 text-slate-200" />
-                                            <p className="text-sm font-bold uppercase tracking-widest">Eleme turları henüz başlatılmadı.</p>
-                                        </div>
-                                    )}
-                                </div>
-                            </div>
-                        </Card>
+                        <KnockoutBracket 
+                            games={knockoutGames} 
+                            teams={tournament.teams} 
+                            isCommittee={isCommittee} 
+                            onEditResult={openResultModal} 
+                        />
                     </TabsContent>
 
                     <TabsContent value="stats" className="space-y-8 mt-0 border-none outline-none">

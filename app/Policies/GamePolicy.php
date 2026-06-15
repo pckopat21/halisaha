@@ -25,6 +25,14 @@ class GamePolicy
     }
 
     /**
+     * Determine whether the user can update the game (fields, teams, etc).
+     */
+    public function update(User $user, Game $game): bool
+    {
+        return $user->isCommittee();
+    }
+
+    /**
      * Determine whether the user can log events for the game.
      */
     public function logEvent(User $user, Game $game): bool
