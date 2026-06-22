@@ -14,6 +14,7 @@ use Illuminate\Database\Eloquent\Model;
  */
 class Tournament extends Model
 {
+    use \App\Models\Traits\HasRegionScope;
     protected $fillable = ['name', 'year', 'status', 'champion_id', 'settings'];
 
     protected $casts = [
@@ -48,6 +49,11 @@ class Tournament extends Model
     public function champion()
     {
         return $this->belongsTo(Team::class, 'champion_id');
+    }
+
+    public function region()
+    {
+        return $this->belongsTo(Region::class);
     }
 
     public function teams()

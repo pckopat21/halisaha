@@ -107,7 +107,7 @@ export default function Show({ game }: Props) {
         return game.rosters
             .filter((r: any) => r.team_id === teamId && !onPitch.includes(r.player_id))
             .map((r: any) => {
-                const p = game.home_team.id === teamId ? game.home_team.players.find(p => p.id === r.player_id) : game.away_team.players.find(p => p.id === r.player_id);
+                const p = game.home_team?.id === teamId ? game.home_team.players.find((p: any) => p.id === r.player_id) : game.away_team?.players?.find((p: any) => p.id === r.player_id);
                 
                 // Also check if they were already subbed OUT (can't come back in usually)
                 if (!game.tournament.settings.allow_reentry) {
@@ -121,7 +121,7 @@ export default function Show({ game }: Props) {
 
     const getPlayerNameById = (id: number) => {
         if (!id) return '';
-        const player = [...game.home_team.players, ...game.away_team.players].find(p => p.id === id);
+        const player = [...(game.home_team?.players || []), ...(game.away_team?.players || [])].find(p => p.id === id);
         return player ? `${player.first_name} ${player.last_name}` : `Oyuncu #${id}`;
     };
 
@@ -263,7 +263,7 @@ export default function Show({ game }: Props) {
 
     return (
         <AppLayout breadcrumbs={breadcrumbs}>
-            <Head title={`${game.home_team.name} vs ${game.away_team.name} - Canlı Maç Merkezi`} />
+            <Head title={`${game.home_team?.name || 'BELİRLENMEDİ'} vs ${game.away_team?.name || 'BELİRLENMEDİ'} - Canlı Maç Merkezi`} />
             
             <div className="min-h-screen bg-slate-50 dark:bg-black p-4 md:p-8 font-sans">
                 {/* Back Link */}
@@ -292,9 +292,9 @@ export default function Show({ game }: Props) {
                             {/* Home Team */}
                             <div className="flex flex-col items-center gap-6">
                                 <div className="h-24 w-24 md:h-32 md:w-32 rounded-[2.5rem] bg-white/5 border border-white/10 flex items-center justify-center text-4xl md:text-5xl font-black text-blue-400 shadow-2xl backdrop-blur-xl">
-                                    {game.home_team.name.charAt(0)}
+                                    {(game.home_team?.name || '?').charAt(0).toUpperCase()}
                                 </div>
-                                <h2 className="text-2xl md:text-3xl font-black text-center uppercase tracking-tighter leading-none">{game.home_team.name}</h2>
+                                <h2 className="text-2xl md:text-3xl font-black text-center uppercase tracking-tighter leading-none">{game.home_team?.name || 'BELİRLENMEDİ'}</h2>
                             </div>
 
                             {/* Score Display */}
@@ -351,9 +351,9 @@ export default function Show({ game }: Props) {
                             {/* Away Team */}
                             <div className="flex flex-col items-center gap-6">
                                 <div className="h-24 w-24 md:h-32 md:w-32 rounded-[2.5rem] bg-white/5 border border-white/10 flex items-center justify-center text-4xl md:text-5xl font-black text-slate-400 shadow-2xl backdrop-blur-xl">
-                                    {game.away_team.name.charAt(0)}
+                                    {(game.away_team?.name || '?').charAt(0).toUpperCase()}
                                 </div>
-                                <h2 className="text-2xl md:text-3xl font-black text-center uppercase tracking-tighter leading-none">{game.away_team.name}</h2>
+                                <h2 className="text-2xl md:text-3xl font-black text-center uppercase tracking-tighter leading-none">{game.away_team?.name || 'BELİRLENMEDİ'}</h2>
                             </div>
                         </div>
 
@@ -385,7 +385,7 @@ export default function Show({ game }: Props) {
                                 {/* Dynamic Event Markers */}
                                 {game.events.map((event: any, idx: number) => {
                                     const pct = Math.min(100, Math.max(0, (event.minute / 50) * 100));
-                                    const isHome = event.team_id === game.home_team.id;
+                                    const isHome = event.team_id === game.home_team?.id;
                                     
                                     return (
                                         <div 
@@ -484,7 +484,7 @@ export default function Show({ game }: Props) {
                                                             </Button>
                                                         )}
                                                     </div>
-                                                    <h4 className="font-black text-sm uppercase tracking-tight">{event.player?.first_name} {event.player?.last_name} <span className="ml-2 text-blue-600 opacity-70">({event.team_id === game.home_team.id ? game.home_team.name.split(' ').map((w: any) => w[0]).join('').toUpperCase() : game.away_team.name.split(' ').map((w: any) => w[0]).join('').toUpperCase()})</span></h4>
+                                                    <h4 className="font-black text-sm uppercase tracking-tight">{event.player?.first_name} {event.player?.last_name} <span className="ml-2 text-blue-600 opacity-70">({event.team_id === game.home_team?.id ? game.home_team?.name.split(' ').map((w: any) => w[0]).join('').toUpperCase() : game.away_team?.name.split(' ').map((w: any) => w[0]).join('').toUpperCase()})</span></h4>
                                                     <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-[0.2em]">
                                                         {event.event_type === 'goal' ? 'GOOOL!' : 
                                                          event.event_type === 'assist' ? 'ŞIK BİR ASİST YAPTI' :
@@ -584,7 +584,7 @@ export default function Show({ game }: Props) {
                                     </div>
 
                                     <div className="grid grid-cols-1 md:grid-cols-2 gap-8 pt-8 border-t border-white/10">
-                                    {[game.home_team, game.away_team].map((team) => (
+                                    {[game.home_team, game.away_team].filter(Boolean).map((team) => (
                                         <div key={team.id} className="space-y-6">
                                             <div className="flex items-center justify-between gap-4">
                                                 <div className="flex flex-col flex-1">

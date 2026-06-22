@@ -1,4 +1,4 @@
-import { Head, useForm } from '@inertiajs/react';
+import { Head, useForm, usePage } from '@inertiajs/react';
 import { LoaderCircle } from 'lucide-react';
 import { FormEventHandler } from 'react';
 
@@ -8,21 +8,28 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import AuthLayout from '@/layouts/auth-layout';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { SharedData } from '@/types';
 
 interface RegisterForm {
     name: string;
     email: string;
     password: string;
     password_confirmation: string;
+    region_id: string;
+    [key: string]: unknown;
 }
 
 export default function Register() {
-    const { data, setData, post, processing, errors, reset } = useForm<RegisterForm>({
+    const { data, setData, post, processing, errors, reset } = useForm({
         name: '',
         email: '',
         password: '',
         password_confirmation: '',
+        region_id: '',
     });
+    
+    const { regions } = usePage<SharedData>().props;
 
     const submit: FormEventHandler = (e) => {
         e.preventDefault();
@@ -69,6 +76,21 @@ export default function Register() {
                             className="bg-white/10 border-white/20 text-white placeholder:text-slate-400 focus:ring-[#FF8C00]"
                         />
                         <InputError message={errors.email} />
+                    </div>
+
+                    <div className="grid gap-2">
+                        <Label htmlFor="region_id" className="text-white">Bölge</Label>
+                        <Select value={data.region_id} onValueChange={(value) => setData('region_id', value)} disabled={processing}>
+                            <SelectTrigger className="bg-white/10 border-white/20 text-white focus:ring-[#FF8C00]">
+                                <SelectValue placeholder="Bölgenizi Seçin" />
+                            </SelectTrigger>
+                            <SelectContent>
+                                {regions && regions.map((region) => (
+                                    <SelectItem key={region.id} value={region.id.toString()}>{region.name}</SelectItem>
+                                ))}
+                            </SelectContent>
+                        </Select>
+                        <InputError message={errors.region_id} />
                     </div>
 
                     <div className="grid gap-2">

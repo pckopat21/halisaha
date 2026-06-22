@@ -342,7 +342,7 @@ export default function PredictionLeaderboardPage({ leaderboard, my_predictions,
                                             <CardHeader className="p-6 pb-4 border-b border-neutral-100 dark:border-white/5 flex flex-row items-center justify-between">
                                                 <div className="flex flex-col">
                                                     <span className="text-[10px] font-black uppercase text-indigo-500 tracking-wider">
-                                                        {game.tournament.name} {game.group ? `• ${game.group.name}` : ''}
+                                                        {game.tournament?.name || 'TURNUVA BELİRSİZ'} {game.group ? `• ${game.group.name}` : ''}
                                                     </span>
                                                     <span className="text-[9px] font-bold text-slate-400 uppercase mt-0.5">
                                                         {format(new Date(game.scheduled_at), 'd MMMM HH:mm', { locale: tr })}
@@ -360,7 +360,7 @@ export default function PredictionLeaderboardPage({ leaderboard, my_predictions,
                                                 <div className="flex items-center justify-between gap-4">
                                                     {/* Home Team */}
                                                     <div className="flex-1 text-center">
-                                                        <p className="font-black text-sm uppercase tracking-tight line-clamp-1">{game.home_team.name}</p>
+                                                        <p className="font-black text-sm uppercase tracking-tight line-clamp-1">{game.home_team?.name || 'BELİRLENMEDİ'}</p>
                                                         <span className="text-[9px] font-black uppercase tracking-widest text-slate-500">EV SAHİBİ</span>
                                                     </div>
 
@@ -387,7 +387,7 @@ export default function PredictionLeaderboardPage({ leaderboard, my_predictions,
 
                                                     {/* Away Team */}
                                                     <div className="flex-1 text-center">
-                                                        <p className="font-black text-sm uppercase tracking-tight line-clamp-1">{game.away_team.name}</p>
+                                                        <p className="font-black text-sm uppercase tracking-tight line-clamp-1">{game.away_team?.name || 'BELİRLENMEDİ'}</p>
                                                         <span className="text-[9px] font-black uppercase tracking-widest text-slate-500">DEPLASMAN</span>
                                                     </div>
                                                 </div>
@@ -498,7 +498,7 @@ export default function PredictionLeaderboardPage({ leaderboard, my_predictions,
                                             <div className="flex-1 space-y-1">
                                                 <div className="flex items-center gap-2 flex-wrap">
                                                     <span className="text-[10px] font-black uppercase text-indigo-600 dark:text-indigo-400 tracking-wider">
-                                                        {game.tournament.name} {game.group ? `• ${game.group.name}` : ''}
+                                                        {game.tournament?.name || 'TURNUVA BELİRSİZ'} {game.group ? `• ${game.group.name}` : ''}
                                                     </span>
                                                     <span className="text-muted-foreground/30 font-bold">•</span>
                                                     <span className="text-[9px] font-bold text-slate-400 uppercase">
@@ -506,9 +506,9 @@ export default function PredictionLeaderboardPage({ leaderboard, my_predictions,
                                                     </span>
                                                 </div>
                                                 <h4 className="font-black text-md uppercase tracking-tight flex items-center gap-3">
-                                                    {game.home_team.name}
+                                                    {game.home_team?.name || 'BELİRLENMEDİ'}
                                                     <span className="text-slate-300 dark:text-white/20 font-black">vs</span>
-                                                    {game.away_team.name}
+                                                    {game.away_team?.name || 'BELİRLENMEDİ'}
                                                 </h4>
                                             </div>
 

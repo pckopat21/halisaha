@@ -45,6 +45,10 @@ class HandleInertiaRequests extends Middleware
             'auth' => [
                 'user' => $request->user(),
             ],
+            'regions' => \App\Models\Region::all(),
+            'current_region_id' => session('current_region_id', 'all'),
+            'public_region_id' => session('public_region_id', auth()->check() && auth()->user()->region_id ? auth()->user()->region_id : 5),
+            'public_rules' => \App\Models\Rule::where('is_active', true)->orderBy('sort_order')->get(),
             'flash' => [
                 'success' => session()->get('success'),
                 'error' => session()->get('error'),

@@ -1,14 +1,20 @@
 import AppLayout from '@/layouts/app-layout';
 import { type BreadcrumbItem } from '@/types';
 import { Head, useForm, router } from '@inertiajs/react';
-import { Users, Shield, UserCircle, Search, Trash2, Building } from 'lucide-react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Users, Shield, Search, Trash2, Plus } from 'lucide-react';
+import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Input } from '@/components/ui/input';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { useState, useEffect } from 'react';
 
 interface Unit {
+    id: number;
+    name: string;
+}
+
+interface Region {
     id: number;
     name: string;
 }
@@ -20,13 +26,16 @@ interface User {
     role: string;
     unit_id: number | null;
     unit: Unit | null;
+    region_id: number | null;
+    region: Region | null;
 }
 
 interface Props {
     users: User[];
     roles: string[];
     units: Unit[];
-    filters: { search?: string };
+    regions: Region[];
+    filters: { search?: string, region_id?: string };
 }
 
 const breadcrumbs: BreadcrumbItem[] = [
@@ -34,18 +43,28 @@ const breadcrumbs: BreadcrumbItem[] = [
     { title: 'Kullanıcı Yönetimi', href: '/users' },
 ];
 
-export default function Index({ users, roles, units, filters }: Props) {
+export default function Index({ users, roles, units, regions, filters }: Props) {
     const [search, setSearch] = useState(filters.search || '');
+    const [regionId, setRegionId] = useState(filters.region_id || 'all');
+    const [isAddOpen, setIsAddOpen] = useState(false);
+
     const { post, processing, delete: destroy } = useForm({});
+    
+    const { data: addData, setData: setAddData, post: postAdd, processing: addProcessing, errors: addErrors, reset: addReset } = useForm({
+        name: '',
+        email: '',
+        password: '',
+        role: 'team_manager',
+        unit_id: '',
+        region_id: ''
+    });
 
     useEffect(() => {
         const timer = setTimeout(() => {
-            if (search !== (filters.search || '')) {
-                router.get(route('users.index'), { search }, { preserveState: true, replace: true });
-            }
+            router.get(route('users.index'), { search, region_id: regionId }, { preserveState: true, replace: true });
         }, 500);
         return () => clearTimeout(timer);
-    }, [search]);
+    }, [search, regionId]);
 
     const updateValue = (userId: number, data: any) => {
         router.post(route('users.role', userId), data, {
@@ -59,6 +78,16 @@ export default function Index({ users, roles, units, filters }: Props) {
         }
     };
 
+    const handleAdd = (e: React.FormEvent) => {
+        e.preventDefault();
+        postAdd(route('users.store'), {
+            onSuccess: () => {
+                setIsAddOpen(false);
+                addReset();
+            }
+        });
+    };
+
     return (
         <AppLayout breadcrumbs={breadcrumbs}>
             <Head title="Kullanıcı Yönetimi" />
@@ -69,17 +98,114 @@ export default function Index({ users, roles, units, filters }: Props) {
                         <h1 className="text-2xl font-black tracking-tight flex items-center gap-2 uppercase">
                              <Users className="h-6 w-6 text-blue-600" /> Kullanıcı Yönetimi
                         </h1>
-                        <p className="text-neutral-500 text-sm">Sistemdeki kullanıcıların rolleri, birimleri ve yetkileri.</p>
+                        <p className="text-neutral-500 text-sm">Sistemdeki kullanıcıların rolleri, bölgeleri ve birimleri.</p>
                     </div>
                     
-                    <div className="relative w-full md:w-80">
-                        <Search className="absolute left-3 top-2.5 h-4 w-4 text-neutral-400" />
-                        <Input
-                            placeholder="İsim, e-posta veya birim ara..."
-                            className="pl-9"
-                            value={search}
-                            onChange={(e) => setSearch(e.target.value)}
-                        />
+                    <div className="flex flex-col sm:flex-row items-center gap-3">
+                        <Select value={regionId} onValueChange={setRegionId}>
+                            <SelectTrigger className="w-full sm:w-[180px]">
+                                <SelectValue placeholder="Bölge Filtresi" />
+                            </SelectTrigger>
+                            <SelectContent>
+                                <SelectItem value="all">Tüm Bölgeler</SelectItem>
+                                {regions.map((r) => (
+                                    <SelectItem key={r.id} value={r.id.toString()}>{r.name}</SelectItem>
+                                ))}
+                            </SelectContent>
+                        </Select>
+
+                        <div className="relative w-full sm:w-64">
+                            <Search className="absolute left-3 top-2.5 h-4 w-4 text-neutral-400" />
+                            <Input
+                                placeholder="Ara..."
+                                className="pl-9"
+                                value={search}
+                                onChange={(e) => setSearch(e.target.value)}
+                            />
+                        </div>
+
+                        <Dialog open={isAddOpen} onOpenChange={setIsAddOpen}>
+                            <DialogTrigger asChild>
+                                <Button className="bg-blue-600 hover:bg-blue-700 w-full sm:w-auto">
+                                    <Plus className="mr-2 h-4 w-4" /> Yeni Kullanıcı
+                                </Button>
+                            </DialogTrigger>
+                            <DialogContent>
+                                <DialogHeader>
+                                    <DialogTitle>Yeni Kullanıcı Ekle</DialogTitle>
+                                </DialogHeader>
+                                <form onSubmit={handleAdd} className="space-y-4 pt-4">
+                                    <div>
+                                        <Input
+                                            value={addData.name}
+                                            onChange={(e) => setAddData('name', e.target.value)}
+                                            placeholder="Ad Soyad"
+                                            required
+                                        />
+                                        {addErrors.name && <p className="text-red-500 text-xs mt-1">{addErrors.name}</p>}
+                                    </div>
+                                    <div>
+                                        <Input
+                                            type="email"
+                                            value={addData.email}
+                                            onChange={(e) => setAddData('email', e.target.value)}
+                                            placeholder="E-posta Adresi"
+                                            required
+                                        />
+                                        {addErrors.email && <p className="text-red-500 text-xs mt-1">{addErrors.email}</p>}
+                                    </div>
+                                    <div>
+                                        <Input
+                                            type="password"
+                                            value={addData.password}
+                                            onChange={(e) => setAddData('password', e.target.value)}
+                                            placeholder="Şifre"
+                                            required
+                                            minLength={8}
+                                        />
+                                        {addErrors.password && <p className="text-red-500 text-xs mt-1">{addErrors.password}</p>}
+                                    </div>
+                                    <div className="grid grid-cols-2 gap-4">
+                                        <Select value={addData.role} onValueChange={(v) => setAddData('role', v)}>
+                                            <SelectTrigger>
+                                                <SelectValue placeholder="Rol Seç" />
+                                            </SelectTrigger>
+                                            <SelectContent>
+                                                {roles.map((role) => (
+                                                    <SelectItem key={role} value={role} className="uppercase text-xs font-bold">{role.replace('_', ' ')}</SelectItem>
+                                                ))}
+                                            </SelectContent>
+                                        </Select>
+
+                                        <Select value={addData.region_id} onValueChange={(v) => setAddData('region_id', v)}>
+                                            <SelectTrigger>
+                                                <SelectValue placeholder="Bölge (İsteğe bağlı)" />
+                                            </SelectTrigger>
+                                            <SelectContent>
+                                                {regions.map((r) => (
+                                                    <SelectItem key={r.id} value={r.id.toString()}>{r.name}</SelectItem>
+                                                ))}
+                                            </SelectContent>
+                                        </Select>
+                                    </div>
+                                    <div>
+                                        <Select value={addData.unit_id} onValueChange={(v) => setAddData('unit_id', v)}>
+                                            <SelectTrigger>
+                                                <SelectValue placeholder="Birim (İsteğe bağlı)" />
+                                            </SelectTrigger>
+                                            <SelectContent>
+                                                {units.map((u) => (
+                                                    <SelectItem key={u.id} value={u.id.toString()}>{u.name}</SelectItem>
+                                                ))}
+                                            </SelectContent>
+                                        </Select>
+                                    </div>
+                                    <Button type="submit" disabled={addProcessing} className="w-full bg-blue-600 hover:bg-blue-700">
+                                        {addProcessing ? 'Ekleniyor...' : 'Kullanıcıyı Kaydet'}
+                                    </Button>
+                                </form>
+                            </DialogContent>
+                        </Dialog>
                     </div>
                 </div>
 
@@ -90,6 +216,7 @@ export default function Index({ users, roles, units, filters }: Props) {
                                 <thead className="bg-neutral-50 dark:bg-neutral-900 border-b">
                                     <tr className="text-neutral-500 font-black uppercase text-[10px] tracking-widest">
                                         <th className="p-4">Kullanıcı Bilgileri</th>
+                                        <th className="p-4">Bölge</th>
                                         <th className="p-4">Birim / Departman</th>
                                         <th className="p-4">Mevcut Rol</th>
                                         <th className="p-4 text-right">İşlemler</th>
@@ -112,10 +239,29 @@ export default function Index({ users, roles, units, filters }: Props) {
                                             <td className="p-4">
                                                 <Select
                                                     disabled={processing}
+                                                    defaultValue={user.region_id?.toString() || "none"}
+                                                    onValueChange={(val) => updateValue(user.id, { region_id: val === "none" ? null : val, role: user.role })}
+                                                >
+                                                    <SelectTrigger className="w-[140px] border-none bg-transparent hover:bg-neutral-100 dark:hover:bg-neutral-800 h-8 font-medium">
+                                                        <SelectValue placeholder="Bölge Seç" />
+                                                    </SelectTrigger>
+                                                    <SelectContent>
+                                                        <SelectItem value="none">Bölge Yok</SelectItem>
+                                                        {regions.map((region) => (
+                                                            <SelectItem key={region.id} value={region.id.toString()}>
+                                                                {region.name}
+                                                            </SelectItem>
+                                                        ))}
+                                                    </SelectContent>
+                                                </Select>
+                                            </td>
+                                            <td className="p-4">
+                                                <Select
+                                                    disabled={processing}
                                                     defaultValue={user.unit_id?.toString() || "none"}
                                                     onValueChange={(val) => updateValue(user.id, { unit_id: val === "none" ? null : val, role: user.role })}
                                                 >
-                                                    <SelectTrigger className="w-[200px] border-none bg-transparent hover:bg-neutral-100 dark:hover:bg-neutral-800 h-8 font-medium">
+                                                    <SelectTrigger className="w-[180px] border-none bg-transparent hover:bg-neutral-100 dark:hover:bg-neutral-800 h-8 font-medium">
                                                         <SelectValue placeholder="Birim Seç" />
                                                     </SelectTrigger>
                                                     <SelectContent>

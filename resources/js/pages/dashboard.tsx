@@ -146,11 +146,11 @@ export default function Dashboard({ stats, recent_games, upcoming_games, live_ga
                                     <div>
                                         <Badge className="bg-white/30 dark:bg-white/10 text-amber-900 dark:text-amber-200 border-none font-black text-[10px] px-5 py-2 rounded-full uppercase tracking-[0.4em] mb-4">SON TURNUVA ŞAMPİYONU</Badge>
                                         <h2 className="text-4xl md:text-7xl font-black uppercase tracking-tighter leading-none mb-3">
-                                            {latest_champion_tournament.champion.name}
+                                            {latest_champion_tournament.champion?.name || 'BELİRLENMEDİ'}
                                         </h2>
                                         <div className="flex items-center gap-4">
                                             <p className="font-black uppercase tracking-widest text-[10px] opacity-80 bg-black/10 dark:bg-white/5 px-4 py-2 rounded-xl">
-                                                {latest_champion_tournament.champion.unit.name}
+                                                {latest_champion_tournament.champion?.unit?.name || 'BİRİM YOK'}
                                             </p>
                                             <p className="font-black uppercase tracking-widest text-[10px] opacity-60">
                                                 {latest_champion_tournament.name} • {latest_champion_tournament.year}
@@ -395,9 +395,9 @@ export default function Dashboard({ stats, recent_games, upcoming_games, live_ga
                                             <Link key={game.id} href={route('games.show', game.id)} className="flex items-center justify-between p-6 hover:bg-neutral-50 dark:hover:bg-white/[0.02] transition-colors group">
                                                 <div className="flex flex-1 items-center gap-4">
                                                     <div className="w-10 h-10 rounded-xl bg-muted flex items-center justify-center font-black text-xs text-muted-foreground group-hover:bg-blue-600 group-hover:text-white transition-all">
-                                                        {game.home_team.name.substring(0, 2).toUpperCase()}
+                                                        {(game.home_team?.name || '?').substring(0, 2).toUpperCase()}
                                                     </div>
-                                                    <span className="font-black text-sm uppercase tracking-tight">{game.home_team.name}</span>
+                                                    <span className="font-black text-sm uppercase tracking-tight">{game.home_team?.name || 'BELİRLENMEDİ'}</span>
                                                 </div>
                                                 
                                                 <div className="flex flex-col items-center gap-1 mx-4 min-w-[100px]">
@@ -416,9 +416,9 @@ export default function Dashboard({ stats, recent_games, upcoming_games, live_ga
                                                 </div>
 
                                                 <div className="flex flex-1 items-center justify-end gap-4">
-                                                    <span className="font-black text-sm uppercase tracking-tight text-right">{game.away_team.name}</span>
+                                                    <span className="font-black text-sm uppercase tracking-tight text-right">{game.away_team?.name || 'BELİRLENMEDİ'}</span>
                                                     <div className="w-10 h-10 rounded-xl bg-muted flex items-center justify-center font-black text-xs text-muted-foreground group-hover:bg-blue-600 group-hover:text-white transition-all">
-                                                        {game.away_team.name.substring(0, 2).toUpperCase()}
+                                                        {(game.away_team?.name || '?').substring(0, 2).toUpperCase()}
                                                     </div>
                                                 </div>
                                             </Link>
@@ -452,7 +452,7 @@ export default function Dashboard({ stats, recent_games, upcoming_games, live_ga
                                 {stats.top_scorer ? (
                                     <>
                                         <div className="w-20 h-20 rounded-3xl bg-white/20 flex items-center justify-center text-3xl font-black shadow-2xl">
-                                            {stats.top_scorer.first_name[0]}{stats.top_scorer.last_name[0]}
+                                            {stats.top_scorer.first_name?.charAt(0) || '?'}{stats.top_scorer.last_name?.charAt(0) || '?'}
                                         </div>
                                         <div>
                                             <h4 className="text-xl font-black uppercase tracking-tight">{stats.top_scorer.first_name} {stats.top_scorer.last_name}</h4>
@@ -476,8 +476,8 @@ export default function Dashboard({ stats, recent_games, upcoming_games, live_ga
                                     {recent_games.slice(0, 3).map((game) => (
                                         <div key={game.id} className="flex items-center justify-between pb-4 border-b border-neutral-50 dark:border-white/5 last:border-none">
                                             <div className="flex flex-col">
-                                                <span className="text-[10px] font-black text-blue-600 uppercase">{game.home_team.name}</span>
-                                                <span className="text-[10px] font-black text-rose-600 uppercase">{game.away_team.name}</span>
+                                                <span className="text-[10px] font-black text-blue-600 uppercase line-clamp-1 max-w-[120px]">{game.home_team?.name || 'BELİRLENMEDİ'}</span>
+                                                <span className="text-[10px] font-black text-rose-600 uppercase line-clamp-1 max-w-[120px]">{game.away_team?.name || 'BELİRLENMEDİ'}</span>
                                             </div>
                                             <div className="flex items-center gap-2">
                                                 <span className="text-lg font-black tabular-nums">{game.home_score}</span>

@@ -60,10 +60,32 @@ Route::post('predictions', [PredictionController::class, 'store'])->name('predic
 Route::get('predictions/{game}/analyze', [PredictionController::class, 'analyze'])->name('predictions.analyze');
 Route::get('predictions/user/{user}', [PredictionController::class, 'userPredictions'])->name('predictions.user');
 
+// Public Region Switcher
+Route::post('/region/public-switch', function (\Illuminate\Http\Request $request) {
+    $request->validate(['region_id' => 'required']);
+    session(['public_region_id' => $request->region_id]);
+    
+    // Eğer giriş yapmış bir Super Admin ise, kendi panel bölgesini de güncelleyelim ki 
+    // anasayfada gezerken hemen değişikliği görebilsin.
+    if (auth()->check() && auth()->user()->isSuperAdmin()) {
+        session(['current_region_id' => $request->region_id]);
+    }
+    
+    return back()->with('success', 'Bölge değiştirildi.');
+})->name('region.public-switch');
+
 // Protected Routes
 Route::middleware(['auth'])->group(function () {
     Route::get('dashboard', [DashboardController::class, 'index'])->name('dashboard');
     Route::get('predictions/leaderboard', [PredictionController::class, 'leaderboard'])->name('predictions.leaderboard');
+
+    // Region Switcher
+    Route::post('/region/switch', function (\Illuminate\Http\Request $request) {
+        if (!auth()->user()->isSuperAdmin()) abort(403);
+        $request->validate(['region_id' => 'required']);
+        session(['current_region_id' => $request->region_id]);
+        return back()->with('success', 'Bölge değiştirildi.');
+    })->name('region.switch');
 
     // Tournament Management
     Route::post('tournaments', [TournamentController::class, 'store'])->name('tournaments.store');
@@ -105,8 +127,11 @@ Route::middleware(['auth'])->group(function () {
     // User Management (Admin only)
     Route::get('users', [DashboardController::class, 'users'])->name('users.index');
     Route::post('users/{user}/role', [DashboardController::class, 'updateRole'])->name('users.role');
+    Route::post('users', [DashboardController::class, 'storeUser'])->name('users.store');
+    Route::delete('users/{user}', [DashboardController::class, 'destroy'])->name('users.destroy');
 
     Route::resource('units', UnitController::class);
+    Route::resource('regions', \App\Http\Controllers\RegionController::class)->except(['create', 'show', 'edit']);
 
     // Field Management
     Route::resource('fields', FieldController::class);
@@ -128,6 +153,13 @@ Route::middleware(['auth'])->group(function () {
     Route::patch('announcements/{announcement}', [App\Http\Controllers\AnnouncementController::class, 'update'])->name('announcements.update');
     Route::delete('announcements/{announcement}', [App\Http\Controllers\AnnouncementController::class, 'destroy'])->name('announcements.destroy');
     Route::patch('announcements/{announcement}/toggle', [App\Http\Controllers\AnnouncementController::class, 'toggle'])->name('announcements.toggle');
+
+    // Rules Management
+    Route::get('rules', [App\Http\Controllers\RuleController::class, 'index'])->name('rules.index');
+    Route::post('rules', [App\Http\Controllers\RuleController::class, 'store'])->name('rules.store');
+    Route::patch('rules/{rule}', [App\Http\Controllers\RuleController::class, 'update'])->name('rules.update');
+    Route::delete('rules/{rule}', [App\Http\Controllers\RuleController::class, 'destroy'])->name('rules.destroy');
+    Route::patch('rules/{rule}/toggle', [App\Http\Controllers\RuleController::class, 'toggle'])->name('rules.toggle');
 
     // Storage Link Fix (Temporary Utility)
     Route::get('fix-storage', function() {

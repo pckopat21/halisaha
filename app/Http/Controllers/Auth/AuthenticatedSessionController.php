@@ -33,6 +33,11 @@ class AuthenticatedSessionController extends Controller
 
         $request->session()->regenerate();
 
+        if (Auth::user()->region_id) {
+            $request->session()->put('public_region_id', Auth::user()->region_id);
+            $request->session()->put('current_region_id', Auth::user()->region_id);
+        }
+
         return redirect()->intended(route('dashboard', absolute: false));
     }
 

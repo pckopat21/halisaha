@@ -16,29 +16,40 @@ class DashboardController extends Controller
     public function index(StatsService $statsService)
     {
         $user = auth()->user();
-        $activeTournament = Tournament::whereIn('status', ['active', 'registration'])->latest()->first() ?? Tournament::latest()->first();
+        $regionId = session('public_region_id', $user?->region_id ?? 5);
+
+        $activeTournament = Tournament::when($regionId !== 'all', function($q) use ($regionId) {
+                return $q->where('region_id', $regionId);
+            })
+            ->whereIn('status', ['active', 'registration'])
+            ->latest()->first() ?? Tournament::when($regionId !== 'all', function($q) use ($regionId) {
+                return $q->where('region_id', $regionId);
+            })->latest()->first();
         
         $stats = [
-            'tournaments_count' => Tournament::count(),
-            'teams_count' => Team::count(),
-            'games_count' => Game::count(),
-            'players_count' => Player::count(),
+            'tournaments_count' => Tournament::when($regionId !== 'all', function($q) use ($regionId) { return $q->where('region_id', $regionId); })->count(),
+            'teams_count' => Team::when($regionId !== 'all', function($q) use ($regionId) { return $q->where('region_id', $regionId); })->count(),
+            'games_count' => Game::when($regionId !== 'all', function($q) use ($regionId) { return $q->where('region_id', $regionId); })->count(),
+            'players_count' => Player::when($regionId !== 'all', function($q) use ($regionId) { return $q->where('region_id', $regionId); })->count(),
             'top_scorer' => $activeTournament ? $statsService->getTopScorers($activeTournament, 1)->first() : null,
             'goals_by_unit' => $activeTournament ? $statsService->getGoalsByUnit($activeTournament) : [],
             'match_trends' => $activeTournament ? $statsService->getMatchTrends($activeTournament) : [],
         ];
 
         $upcomingGames = Game::with(['homeTeam.unit', 'awayTeam.unit', 'field'])
+            ->when($regionId !== 'all', function($q) use ($regionId) { return $q->where('region_id', $regionId); })
             ->where('status', 'scheduled')
             ->orderBy('scheduled_at')
             ->take(5)
             ->get();
 
         $liveGames = Game::with(['homeTeam.unit', 'awayTeam.unit', 'field'])
+            ->when($regionId !== 'all', function($q) use ($regionId) { return $q->where('region_id', $regionId); })
             ->where('status', 'playing')
             ->get();
 
-        $latestChampionTournament = Tournament::whereNotNull('champion_id')
+        $latestChampionTournament = Tournament::when($regionId !== 'all', function($q) use ($regionId) { return $q->where('region_id', $regionId); })
+            ->whereNotNull('champion_id')
             ->where('status', 'completed')
             ->with(['champion.unit'])
             ->latest()
@@ -48,6 +59,7 @@ class DashboardController extends Controller
             return Inertia::render('dashboard', [
                 'stats' => $stats,
                 'recent_games' => Game::with(['homeTeam', 'awayTeam'])
+                    ->when($regionId !== 'all', function($q) use ($regionId) { return $q->where('region_id', $regionId); })
                     ->where('status', 'completed')
                     ->latest('scheduled_at')
                     ->take(5)
@@ -89,7 +101,7 @@ class DashboardController extends Controller
     {
         \Illuminate\Support\Facades\Gate::authorize('viewAny', \App\Models\User::class);
 
-        $query = \App\Models\User::with('unit')->latest();
+        $query = \App\Models\User::with(['unit', 'region'])->latest();
 
         if ($request->has('search')) {
             $search = $request->get('search');
@@ -102,6 +114,10 @@ class DashboardController extends Controller
             });
         }
 
+        if ($request->has('region_id') && $request->get('region_id') !== 'all') {
+            $query->where('region_id', $request->get('region_id'));
+        }
+
         return Inertia::render('users/index', [
             'users' => $query->get(),
             'roles' => [
@@ -111,8 +127,29 @@ class DashboardController extends Controller
                 \App\Models\User::ROLE_REFEREE,
             ],
             'units' => \App\Models\Unit::all(),
-            'filters' => $request->only(['search'])
+            'regions' => \App\Models\Region::all(),
+            'filters' => $request->only(['search', 'region_id'])
         ]);
+    }
+
+    public function storeUser(Request $request)
+    {
+        \Illuminate\Support\Facades\Gate::authorize('viewAny', \App\Models\User::class);
+
+        $validated = $request->validate([
+            'name' => 'required|string|max:255',
+            'email' => 'required|string|email|max:255|unique:users',
+            'password' => 'required|string|min:8',
+            'role' => 'required|string|in:super_admin,committee,team_manager,referee',
+            'unit_id' => 'nullable|exists:units,id',
+            'region_id' => 'nullable|exists:regions,id',
+        ]);
+
+        $validated['password'] = bcrypt($validated['password']);
+
+        \App\Models\User::create($validated);
+
+        return redirect()->back()->with('success', 'Kullanıcı başarıyla oluşturuldu.');
     }
 
     public function updateRole(\App\Models\User $user, Request $request)
@@ -122,6 +159,7 @@ class DashboardController extends Controller
         $validated = $request->validate([
             'role' => 'required|string|in:super_admin,committee,team_manager,referee',
             'unit_id' => 'nullable|exists:units,id',
+            'region_id' => 'nullable|exists:regions,id',
         ]);
 
         $user->update($validated);

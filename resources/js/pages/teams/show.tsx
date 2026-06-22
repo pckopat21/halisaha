@@ -426,8 +426,8 @@ export default function Show({ team, performance, nextMatch, can }: Props) {
                                 <CardContent className="p-8 space-y-8">
                                     <div className="flex items-center justify-between gap-6">
                                         <div className="flex flex-col items-center flex-1">
-                                            <div className="w-14 h-14 rounded-2xl bg-slate-100 dark:bg-black/40 flex items-center justify-center font-black text-xs border border-slate-200 dark:border-white/5">{nextMatch.home_team.name.substring(0, 2).toUpperCase()}</div>
-                                            <span className="text-[10px] font-black uppercase mt-3 text-center leading-tight">{nextMatch.home_team.name}</span>
+                                            <div className="w-14 h-14 rounded-2xl bg-slate-100 dark:bg-black/40 flex items-center justify-center font-black text-xs border border-slate-200 dark:border-white/5">{(nextMatch.home_team?.name || '?').substring(0, 2).toUpperCase()}</div>
+                                            <span className="text-[10px] font-black uppercase mt-3 text-center leading-tight">{nextMatch.home_team?.name || 'BELİRLENMEDİ'}</span>
                                         </div>
                                         <div className="flex flex-col items-center">
                                             <div className="bg-blue-50 dark:bg-blue-600/10 px-4 py-1.5 rounded-full border border-blue-100 dark:border-blue-500/20">
@@ -436,8 +436,8 @@ export default function Show({ team, performance, nextMatch, can }: Props) {
                                             <span className="text-[9px] font-bold text-muted-foreground uppercase mt-2 tracking-widest">{format(new Date(nextMatch.scheduled_at), 'd MMMM', { locale: tr })}</span>
                                         </div>
                                         <div className="flex flex-col items-center flex-1">
-                                            <div className="w-14 h-14 rounded-2xl bg-slate-100 dark:bg-black/40 flex items-center justify-center font-black text-xs border border-slate-200 dark:border-white/5">{nextMatch.away_team.name.substring(0, 2).toUpperCase()}</div>
-                                            <span className="text-[10px] font-black uppercase mt-3 text-center leading-tight">{nextMatch.away_team.name}</span>
+                                            <div className="w-14 h-14 rounded-2xl bg-slate-100 dark:bg-black/40 flex items-center justify-center font-black text-xs border border-slate-200 dark:border-white/5">{(nextMatch.away_team?.name || '?').substring(0, 2).toUpperCase()}</div>
+                                            <span className="text-[10px] font-black uppercase mt-3 text-center leading-tight">{nextMatch.away_team?.name || 'BELİRLENMEDİ'}</span>
                                         </div>
                                     </div>
                                     

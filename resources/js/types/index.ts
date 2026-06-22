@@ -21,10 +21,23 @@ export interface NavItem {
     isActive?: boolean;
 }
 
+export interface Region {
+    id: number;
+    name: string;
+}
+
 export interface SharedData {
     name: string;
     quote: { message: string; author: string };
     auth: Auth;
+    regions: Region[];
+    current_region_id: number | 'all';
+    public_rules?: Array<{
+        id: number;
+        title: string;
+        content: string;
+        sort_order: number;
+    }>;
     [key: string]: unknown;
 }
 
@@ -36,6 +49,7 @@ export interface User {
     role?: string;
     unit_id?: number | null;
     unit?: { id: number; name: string } | null;
+    region_id?: number | null;
     email_verified_at: string | null;
     created_at: string;
     updated_at: string;

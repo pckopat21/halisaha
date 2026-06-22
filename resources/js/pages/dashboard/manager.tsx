@@ -141,11 +141,11 @@ export default function ManagerDashboard({ stats, team, standing, tournaments, u
                                     <div>
                                         <Badge className="bg-white/30 dark:bg-white/10 text-amber-900 dark:text-amber-200 border-none font-black text-[9px] px-5 py-2 rounded-full uppercase tracking-[0.4em] mb-4 text-center">SON TURNUVA ŞAMPİYONU</Badge>
                                         <h2 className="text-3xl md:text-5xl font-black uppercase tracking-tighter leading-none mb-3">
-                                            {latest_champion_tournament.champion.name}
+                                            {latest_champion_tournament.champion?.name || 'BELİRLENMEDİ'}
                                         </h2>
                                         <div className="flex items-center gap-4">
                                             <p className="font-black uppercase tracking-widest text-[9px] opacity-80 bg-black/10 dark:bg-white/5 px-4 py-2 rounded-xl">
-                                                {latest_champion_tournament.champion.unit.name}
+                                                {latest_champion_tournament.champion?.unit?.name || 'BİRİM YOK'}
                                             </p>
                                             <p className="font-black uppercase tracking-widest text-[9px] opacity-60">
                                                 {latest_champion_tournament.name} • {latest_champion_tournament.year}
@@ -261,7 +261,7 @@ export default function ManagerDashboard({ stats, team, standing, tournaments, u
                                     <CardContent className="p-8 md:p-12 relative z-10">
                                         <Badge className="bg-white/20 text-white border-none font-black text-[10px] uppercase tracking-widest mb-6 py-1.5 px-4 rounded-full">KULÜP DURUMU</Badge>
                                         <h2 className="text-4xl font-black uppercase tracking-tighter mb-2">{team.name}</h2>
-                                        <p className="font-bold opacity-80 uppercase text-xs tracking-widest mb-8">{team.unit.name} {team.tournament && `• ${team.tournament.name}`}</p>
+                                        <p className="font-bold opacity-80 uppercase text-xs tracking-widest mb-8">{team.unit?.name || 'BİRİM YOK'} {team.tournament && `• ${team.tournament.name}`}</p>
                                         
                                         <div className="grid grid-cols-3 gap-4 border-t border-white/10 pt-8">
                                             <div className="text-center">
@@ -298,8 +298,8 @@ export default function ManagerDashboard({ stats, team, standing, tournaments, u
                                             <div className="space-y-6">
                                                 <div className="flex items-center justify-between gap-4">
                                                     <div className="flex flex-col items-center flex-1">
-                                                        <div className="w-12 h-12 rounded-2xl bg-muted flex items-center justify-center font-black text-xs">{nextGame.home_team.name.substring(0, 2).toUpperCase()}</div>
-                                                        <span className="text-[10px] font-black uppercase mt-2 text-center line-clamp-1">{nextGame.home_team.name}</span>
+                                                        <div className="w-12 h-12 rounded-2xl bg-muted flex items-center justify-center font-black text-xs">{(nextGame.home_team?.name || '?').substring(0, 2).toUpperCase()}</div>
+                                                        <span className="text-[10px] font-black uppercase mt-2 text-center line-clamp-1">{nextGame.home_team?.name || 'BELİRLENMEDİ'}</span>
                                                     </div>
                                                     <div className="flex flex-col items-center">
                                                         <div className="bg-slate-100 dark:bg-white/5 px-4 py-1.5 rounded-full border border-border">
@@ -314,8 +314,8 @@ export default function ManagerDashboard({ stats, team, standing, tournaments, u
                                                         )}
                                                     </div>
                                                     <div className="flex flex-col items-center flex-1">
-                                                        <div className="w-12 h-12 rounded-2xl bg-muted flex items-center justify-center font-black text-xs">{nextGame.away_team.name.substring(0, 2).toUpperCase()}</div>
-                                                        <span className="text-[10px] font-black uppercase mt-2 text-center line-clamp-1">{nextGame.away_team.name}</span>
+                                                        <div className="w-12 h-12 rounded-2xl bg-muted flex items-center justify-center font-black text-xs">{(nextGame.away_team?.name || '?').substring(0, 2).toUpperCase()}</div>
+                                                        <span className="text-[10px] font-black uppercase mt-2 text-center line-clamp-1">{nextGame.away_team?.name || 'BELİRLENMEDİ'}</span>
                                                     </div>
                                                 </div>
                                                 <Link href={route('games.show', nextGame.id)}>
@@ -365,7 +365,7 @@ export default function ManagerDashboard({ stats, team, standing, tournaments, u
                                                 <Link key={game.id} href={route('games.show', game.id)} className="flex items-center justify-between p-8 hover:bg-neutral-50 dark:hover:bg-white/[0.02] transition-colors group">
                                                     <div className="flex-1 flex items-center gap-6">
                                                         <div className="text-right">
-                                                            <p className="font-black text-sm uppercase tracking-tight">{game.home_team.name}</p>
+                                                            <p className="font-black text-sm uppercase tracking-tight">{game.home_team?.name || 'BELİRLENMEDİ'}</p>
                                                             <p className="text-[9px] font-bold text-muted-foreground uppercase">{game.status === 'completed' ? 'TAMAMLANDI' : 'BEKLENİYOR'}</p>
                                                         </div>
                                                         <div className="flex items-center gap-2">
@@ -377,7 +377,7 @@ export default function ManagerDashboard({ stats, team, standing, tournaments, u
                                                             </div>
                                                         </div>
                                                         <div className="text-left">
-                                                            <p className="font-black text-sm uppercase tracking-tight">{game.away_team.name}</p>
+                                                            <p className="font-black text-sm uppercase tracking-tight">{game.away_team?.name || 'BELİRLENMEDİ'}</p>
                                                             <div className="flex flex-col gap-0.5">
                                                                 <div className="flex items-center gap-2 font-black text-[9px] text-blue-600 uppercase tracking-widest">
                                                                     <Clock className="h-3 w-3" /> {format(new Date(game.scheduled_at), 'd MMM HH:mm', { locale: tr })}
@@ -417,7 +417,7 @@ export default function ManagerDashboard({ stats, team, standing, tournaments, u
                                 {stats.top_scorer ? (
                                     <>
                                         <div className="w-16 h-16 rounded-2xl bg-white/20 flex items-center justify-center text-2xl font-black shadow-2xl">
-                                            {stats.top_scorer.first_name[0]}{stats.top_scorer.last_name[0]}
+                                            {stats.top_scorer.first_name?.charAt(0) || '?'}{stats.top_scorer.last_name?.charAt(0) || '?'}
                                         </div>
                                         <div>
                                             <h4 className="text-lg font-black uppercase tracking-tight line-clamp-1">{stats.top_scorer.first_name} {stats.top_scorer.last_name}</h4>
@@ -445,9 +445,9 @@ export default function ManagerDashboard({ stats, team, standing, tournaments, u
                                                 <Badge className="bg-blue-50 text-blue-600 dark:bg-blue-500/10 dark:text-blue-500 border-none px-2 py-0 text-[8px] font-black">YAKLAŞAN</Badge>
                                             </div>
                                             <div className="flex items-center justify-between gap-4">
-                                                <span className="text-xs font-black uppercase flex-1 truncate">{game.home_team.name}</span>
+                                                <span className="text-xs font-black uppercase flex-1 truncate">{game.home_team?.name || 'BELİRLENMEDİ'}</span>
                                                 <span className="text-xs font-black text-blue-600 tabular-nums bg-blue-50 dark:bg-white/5 px-2 py-1 rounded-lg">VS</span>
-                                                <span className="text-xs font-black uppercase flex-1 text-right truncate">{game.away_team.name}</span>
+                                                <span className="text-xs font-black uppercase flex-1 text-right truncate">{game.away_team?.name || 'BELİRLENMEDİ'}</span>
                                             </div>
                                         </div>
                                     ))}

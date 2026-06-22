@@ -25,6 +25,11 @@ const mainNavItems: NavItem[] = [
         icon: Bell,
     },
     {
+        title: 'Kurallar Yönetimi',
+        url: '/rules',
+        icon: BookOpen,
+    },
+    {
         title: 'Turnuvalar',
         url: '/tournaments',
         icon: Trophy,
@@ -69,6 +74,11 @@ const mainNavItems: NavItem[] = [
         url: '/units',
         icon: Building2,
     },
+    {
+        title: 'Bölge Tanımlama',
+        url: '/regions',
+        icon: MapPin,
+    },
 ];
 
 const footerNavItems: NavItem[] = [];
@@ -90,12 +100,12 @@ export function AppSidebar() {
         }
 
         // Admin/Committee only items
-        if (['Kullanıcı Yönetimi', 'Personel Havuzu', 'Saha Yönetimi', 'Turnuva Galerisi', 'Duyuru Yönetimi'].includes(item.title)) {
+        if (['Kullanıcı Yönetimi', 'Personel Havuzu', 'Saha Yönetimi', 'Turnuva Galerisi', 'Duyuru Yönetimi', 'Kurallar Yönetimi'].includes(item.title)) {
             return auth.user?.role === 'super_admin' || auth.user?.role === 'committee';
         }
 
         // Super Admin only items
-        if (item.title === 'Birim Tanımlama') {
+        if (['Birim Tanımlama', 'Bölge Tanımlama'].includes(item.title)) {
             return auth.user?.role === 'super_admin';
         }
 

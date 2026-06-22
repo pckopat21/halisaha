@@ -257,7 +257,7 @@ export default function Show({ stats }: Props) {
                                             <TableCell className="py-8 pl-12">
                                                 <div className="flex flex-col gap-1">
                                                     <span className="font-black text-sm uppercase tracking-tight group-hover:text-blue-600 transition-colors">
-                                                        {item.game.home_team.name} vs {item.game.away_team.name}
+                                                        {item.game.home_team?.name || 'BELİRLENMEDİ'} vs {item.game.away_team?.name || 'BELİRLENMEDİ'}
                                                     </span>
                                                     <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest flex items-center gap-1">
                                                         <Calendar className="h-3 w-3 text-blue-600" />

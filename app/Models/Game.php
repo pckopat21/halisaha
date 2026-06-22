@@ -6,7 +6,10 @@ use Illuminate\Database\Eloquent\Model;
 
 class Game extends Model
 {
+    use \App\Models\Traits\HasRegionScope;
+
     protected $fillable = [
+        'region_id',
         'tournament_id',
         'group_id',
         'home_team_id',

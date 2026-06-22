@@ -52,8 +52,8 @@ export default function Index({ tournaments, selectedTournament, stats }: Props)
     // Comparison Center States
     const [compareMode, setCompareMode] = useState<'players' | 'teams'>('players');
     
-    const playersList = stats.compare?.players || [];
-    const teamsList = stats.compare?.teams || [];
+    const playersList = stats?.compare?.players || [];
+    const teamsList = stats?.compare?.teams || [];
 
     const [comparePlayer1Id, setComparePlayer1Id] = useState<number | null>(playersList[0]?.id || null);
     const [comparePlayer2Id, setComparePlayer2Id] = useState<number | null>(playersList[1]?.id || null);
@@ -71,7 +71,7 @@ export default function Index({ tournaments, selectedTournament, stats }: Props)
     const [isOpenT1, setIsOpenT1] = useState(false);
     const [isOpenT2, setIsOpenT2] = useState(false);
 
-    const allCardPlayers = stats.topCards?.players || [];
+    const allCardPlayers = stats?.topCards?.players || [];
     const filteredCardPlayers = allCardPlayers
         .filter((player: any) => {
             const fullName = `${player.first_name} ${player.last_name}`.toLowerCase();
@@ -130,8 +130,20 @@ export default function Index({ tournaments, selectedTournament, stats }: Props)
                 </div>
 
                 {!selectedTournament ? (
-                    <div className="flex items-center justify-center min-h-[400px]">
-                        <p className="text-muted-foreground font-black uppercase tracking-widest italic">Henüz bir turnuva verisi bulunmuyor.</p>
+                    <div className="flex flex-col items-center justify-center min-h-[500px] text-center p-8 bg-slate-50 dark:bg-white/5 border border-slate-100 dark:border-white/5 rounded-[3rem] shadow-xl">
+                        <AlertTriangle className="h-16 w-16 text-neutral-300 dark:text-neutral-600 mb-6 animate-bounce" />
+                        <h2 className="text-2xl font-black uppercase tracking-tighter text-slate-900 dark:text-white mb-2">Veri Bulunamadı</h2>
+                        <p className="text-sm font-bold text-muted-foreground uppercase tracking-widest max-w-md">
+                            Şu anda istatistiklerini görüntüleyebileceğiniz aktif veya tamamlanmış bir turnuva kaydı bulunmuyor.
+                        </p>
+                    </div>
+                ) : !stats || stats.summary.played_matches === 0 ? (
+                    <div className="flex flex-col items-center justify-center min-h-[500px] text-center p-8 bg-slate-50 dark:bg-white/5 border border-slate-100 dark:border-white/5 rounded-[3rem] shadow-xl">
+                        <BarChart3 className="h-16 w-16 text-neutral-300 dark:text-neutral-600 mb-6 animate-pulse" />
+                        <h2 className="text-2xl font-black uppercase tracking-tighter text-slate-900 dark:text-white mb-2">Yetersiz İstatistik</h2>
+                        <p className="text-sm font-bold text-muted-foreground uppercase tracking-widest max-w-md">
+                            Seçili turnuvada henüz yeterli maç verisi bulunmadığı için istatistikler oluşturulamadı.
+                        </p>
                     </div>
                 ) : (
                     <>

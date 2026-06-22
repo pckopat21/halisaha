@@ -1,8 +1,9 @@
-import { Link } from "@inertiajs/react";
+import { Link, usePage, router } from "@inertiajs/react";
 import { motion } from "framer-motion";
 import { Button } from "@/components/ui/button";
-import { LayoutDashboard } from "lucide-react";
+import { LayoutDashboard, MapPin } from "lucide-react";
 import TournamentLogo from "@/components/tournament-logo";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 interface NavbarProps {
     scrolled: boolean;
@@ -10,6 +11,15 @@ interface NavbarProps {
 }
 
 export default function Navbar({ scrolled, auth }: NavbarProps) {
+    const { regions, public_region_id } = usePage<any>().props;
+
+    const handleRegionChange = (val: string) => {
+        router.post('/region/public-switch', { region_id: val }, {
+            preserveScroll: true,
+            preserveState: false, // Forces a full refresh to reload scoped data
+        });
+    };
+
     return (
         <motion.nav
             className={`fixed top-0 left-0 right-0 z-50 transition-all duration-500 ${
@@ -32,17 +42,34 @@ export default function Navbar({ scrolled, auth }: NavbarProps) {
                             KARAYOLLARI <span className="text-orange-600">TURNUVA</span>
                         </span>
                         <span className="hidden md:block text-[8px] font-black text-slate-400 uppercase tracking-[0.3em] mt-1">
-                            KGM 5.BÖLGE MÜDÜRLÜĞÜ
+                            BÖLGESEL TURNUVA YÖNETİMİ
                         </span>
                     </div>
                 </Link>
 
-                <div className="flex items-center gap-1.5 md:gap-4 shrink-0">
+                <div className="flex items-center gap-2 md:gap-4 shrink-0">
+                    <div className="block">
+                        <Select value={public_region_id?.toString() || "5"} onValueChange={handleRegionChange}>
+                            <SelectTrigger className="h-8 sm:h-9 md:h-10 bg-white/80 backdrop-blur-md border-orange-100 shadow-sm rounded-xl text-[9px] sm:text-[10px] font-bold uppercase tracking-widest w-[110px] sm:w-[160px]">
+                                <MapPin className="hidden sm:inline-block h-3 w-3 mr-2 text-orange-600" />
+                                <SelectValue placeholder="Bölge Seç" />
+                            </SelectTrigger>
+                            <SelectContent>
+                                <SelectItem value="all" className="text-xs font-bold uppercase">Tüm Bölgeler</SelectItem>
+                                {regions?.map((r: any) => (
+                                    <SelectItem key={r.id} value={r.id.toString()} className="text-xs font-bold uppercase">
+                                        {r.name}
+                                    </SelectItem>
+                                ))}
+                            </SelectContent>
+                        </Select>
+                    </div>
+
                     {auth?.user ? (
                         <Link href="/dashboard">
                             <Button className="bg-slate-900 text-white hover:bg-orange-600 font-bold uppercase tracking-widest text-[10px] rounded-xl h-9 md:h-10 px-3 md:px-6 transition-all shadow-md hover:shadow-orange-600/20">
                                 <LayoutDashboard className="h-4 w-4 sm:mr-2" />
-                                <span className="hidden sm:inline">DASHBOARD</span>
+                                <span className="hidden sm:inline">PANEL</span>
                             </Button>
                         </Link>
                     ) : (

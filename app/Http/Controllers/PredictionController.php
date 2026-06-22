@@ -113,12 +113,22 @@ class PredictionController extends Controller
     {
         $leaderboard = $this->service->getLeaderboard(null, 100);
         
+        $regionId = session('public_region_id', auth()->check() && auth()->user()->region_id ? auth()->user()->region_id : 5);
+
         $myPredictions = Prediction::where('user_id', auth()->id())
+            ->whereHas('game', function($query) use ($regionId) {
+                $query->when($regionId !== 'all', function($q) use ($regionId) {
+                    $q->where('region_id', $regionId);
+                });
+            })
             ->with(['game.homeTeam', 'game.awayTeam', 'game.group', 'game.tournament'])
             ->orderBy('created_at', 'desc')
             ->get();
             
         $upcomingGames = Game::where('status', 'scheduled')
+            ->when($regionId !== 'all', function ($q) use ($regionId) {
+                return $q->where('region_id', $regionId);
+            })
             ->with(['homeTeam', 'awayTeam', 'tournament', 'group'])
             ->orderBy('scheduled_at', 'asc')
             ->get()

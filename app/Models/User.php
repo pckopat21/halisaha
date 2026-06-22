@@ -28,11 +28,17 @@ class User extends Authenticatable
         'password',
         'role',
         'unit_id',
+        'region_id',
     ];
 
     public function unit()
     {
         return $this->belongsTo(Unit::class);
+    }
+
+    public function region()
+    {
+        return $this->belongsTo(Region::class);
     }
 
     public function isSuperAdmin(): bool

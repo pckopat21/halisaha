@@ -34,12 +34,15 @@ class RegisteredUserController extends Controller
             'name' => 'required|string|max:255',
             'email' => 'required|string|lowercase|email|max:255|unique:'.User::class,
             'password' => ['required', 'confirmed', Rules\Password::defaults()],
+            'region_id' => 'required|exists:regions,id',
         ]);
 
         $user = User::create([
             'name' => $request->name,
             'email' => $request->email,
             'password' => Hash::make($request->password),
+            'region_id' => $request->region_id,
+            'role' => User::ROLE_TEAM_MANAGER, // Varsayılan olarak takım sorumlusu yapabiliriz ya da genel bırakabiliriz. Şimdilik region_id'yi ekliyoruz.
         ]);
 
         event(new Registered($user));

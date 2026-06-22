@@ -6,6 +6,7 @@ use Illuminate\Database\Eloquent\Model;
 
 class Player extends Model
 {
+    use \App\Models\Traits\HasRegionScope;
     protected $fillable = [
         'first_name', 
         'last_name', 
@@ -30,6 +31,11 @@ class Player extends Model
     public function unit()
     {
         return $this->belongsTo(Unit::class);
+    }
+
+    public function region()
+    {
+        return $this->belongsTo(Region::class);
     }
 
     public function teams()

@@ -15,6 +15,7 @@ use Illuminate\Database\Eloquent\Model;
  */
 class Gallery extends Model
 {
+    use \App\Models\Traits\HasRegionScope;
     protected $fillable = [
         'tournament_id',
         'image_path',
@@ -27,5 +28,10 @@ class Gallery extends Model
     public function tournament()
     {
         return $this->belongsTo(Tournament::class);
+    }
+
+    public function region()
+    {
+        return $this->belongsTo(Region::class);
     }
 }

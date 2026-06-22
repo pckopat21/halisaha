@@ -6,7 +6,9 @@ use Illuminate\Database\Eloquent\Model;
 
 class Group extends Model
 {
-    protected $fillable = ['tournament_id', 'name', 'advance_count'];
+    use \App\Models\Traits\HasRegionScope;
+
+    protected $fillable = ['tournament_id', 'name', 'advance_count', 'region_id'];
 
     public function tournament()
     {

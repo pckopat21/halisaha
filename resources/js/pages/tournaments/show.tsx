@@ -1503,10 +1503,10 @@ export default function Show({ tournament, teamStats, isGroupStageCompleted, sta
                             <div className="flex items-center justify-between gap-6 p-8 bg-muted/30 rounded-[2rem] border border-border">
                                 <div className="flex flex-col items-center gap-4 flex-1">
                                     <div className="h-12 w-12 rounded-xl bg-blue-600 flex items-center justify-center font-black text-white shadow-lg">
-                                        {selectedGame?.home_team.name.substring(0, 2).toUpperCase()}
+                                        {(selectedGame?.home_team?.name || '?').substring(0, 2).toUpperCase()}
                                     </div>
                                     <div className="space-y-2 text-center">
-                                        <Label className="text-[9px] font-black text-muted-foreground uppercase tracking-widest truncate block w-32">{selectedGame?.home_team.name}</Label>
+                                        <Label className="text-[9px] font-black text-muted-foreground uppercase tracking-widest truncate block w-32">{selectedGame?.home_team?.name || 'BELİRLENMEDİ'}</Label>
                                         <Input
                                             type="number"
                                             value={resultForm.data.home_score}
@@ -1520,10 +1520,10 @@ export default function Show({ tournament, teamStats, isGroupStageCompleted, sta
 
                                 <div className="flex flex-col items-center gap-4 flex-1">
                                     <div className="h-12 w-12 rounded-xl bg-slate-400 dark:bg-slate-600 flex items-center justify-center font-black text-white shadow-lg">
-                                        {selectedGame?.away_team.name.substring(0, 2).toUpperCase()}
+                                        {(selectedGame?.away_team?.name || '?').substring(0, 2).toUpperCase()}
                                     </div>
                                     <div className="space-y-2 text-center">
-                                        <Label className="text-[9px] font-black text-muted-foreground uppercase tracking-widest truncate block w-32">{selectedGame?.away_team.name}</Label>
+                                        <Label className="text-[9px] font-black text-muted-foreground uppercase tracking-widest truncate block w-32">{selectedGame?.away_team?.name || 'BELİRLENMEDİ'}</Label>
                                         <Input
                                             type="number"
                                             value={resultForm.data.away_score}

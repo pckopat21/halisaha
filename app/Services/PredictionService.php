@@ -191,6 +191,12 @@ class PredictionService
             $query->where('games.tournament_id', $tournamentId);
         }
 
+        $regionId = session('public_region_id', auth()->check() && auth()->user()->region_id ? auth()->user()->region_id : 5);
+
+        if ($regionId !== 'all') {
+            $query->where('games.region_id', $regionId);
+        }
+
         return $query->selectRaw('
                 SUM(CASE WHEN predictions.status = "calculated" THEN predictions.points ELSE 0 END) as total_points, 
                 COUNT(predictions.id) as total_predictions,

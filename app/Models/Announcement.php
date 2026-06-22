@@ -6,6 +6,7 @@ use Illuminate\Database\Eloquent\Model;
 
 class Announcement extends Model
 {
+    use \App\Models\Traits\HasRegionScope;
     protected $fillable = [
         'title',
         'content',
@@ -19,4 +20,9 @@ class Announcement extends Model
         'is_active' => 'boolean',
         'published_at' => 'datetime',
     ];
+
+    public function region()
+    {
+        return $this->belongsTo(Region::class);
+    }
 }

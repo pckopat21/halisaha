@@ -22,8 +22,14 @@ class GameController extends Controller
 
     public function index()
     {
+        $regionId = session('public_region_id', auth()->check() && auth()->user()->region_id ? auth()->user()->region_id : 5);
+
         return Inertia::render('games/index', [
-            'games' => Game::with(['homeTeam', 'awayTeam', 'group', 'tournament'])->orderBy('scheduled_at', 'asc')->get(),
+            'games' => Game::with(['homeTeam', 'awayTeam', 'group', 'tournament'])
+                ->when($regionId !== 'all', function ($query) use ($regionId) {
+                    return $query->where('region_id', $regionId);
+                })
+                ->orderBy('scheduled_at', 'asc')->get(),
         ]);
     }
 
