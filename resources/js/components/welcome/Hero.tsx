@@ -69,7 +69,7 @@ export default function Hero({ activeTournament }: HeroProps) {
                 </motion.p>
 
                 <motion.div variants={reduced ? undefined : staggerItem} className="flex flex-wrap justify-center gap-4">
-                    <Link href="/games">
+                    <Link href="/register">
                         <Button size="lg" className="h-16 px-12 bg-slate-900 hover:bg-black text-white font-black uppercase tracking-widest rounded-2xl shadow-xl transition-all hover:scale-105">
                             {activeTournament?.status === 'completed' ? 'TÜM SONUÇLAR' : 'ŞİMDİ KATIL'}
                         </Button>
